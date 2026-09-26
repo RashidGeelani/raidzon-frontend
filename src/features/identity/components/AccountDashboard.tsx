@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, type AccountSession } from '../data/auth-client';
 import { ShareScorecard } from '../../scorecard/ShareScorecard';
+import { EditPlayerProfile } from './EditPlayerProfile';
 
 interface Dashboard {
   accountId: string;
@@ -67,6 +68,7 @@ export function AccountDashboard({
             </p>
           )}
           <h4>My synced matches · {data.ownedMatchCount}</h4>
+          {data.playerProfile && <EditPlayerProfile account={account} phone={data.phone} name={data.playerProfile.name} online={online} onSaved={() => setRefresh(value => value + 1)} />}
           {data.recentMatches.length ? (
             <ul>
               {data.recentMatches.map((match) => (

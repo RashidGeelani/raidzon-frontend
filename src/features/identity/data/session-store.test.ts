@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto';
 import { afterEach, expect, it, vi } from 'vitest';
-import { db } from '../../matches/data/match-repository';
+import { db, createMatch, type SetupInput } from '../../matches/data/match-repository';
+import { claimGuestMatches } from './claim-guest-matches';
 import { saveSession, restoreSession, clearSession, flushLogouts } from './session-store';
 const session = {
   token: 'a'.repeat(43),
@@ -10,7 +11,46 @@ const session = {
 };
 afterEach(async () => {
   await db.metadata.clear();
+  await db.matches.clear();
+  await db.events.clear();
   vi.unstubAllGlobals();
+});
+async function guest() {
+  const teams = [0, 1].map((side) => ({
+    name: `Team ${side}`,
+    players: Array.from({ length: 7 }, (_, i) => ({
+      name: `Player ${side}${i}`,
+      phone: `+9198765432${side}${i}`,
+    })),
+  })) as SetupInput['teams'];
+  return createMatch({ teams, firstTurn: 0, halfMinutes: 20, raidSeconds: 30 }, session.deviceId);
+}
+it('login leaves guest matches unclaimed; selection binds only chosen matches', async () => {
+  const first = await guest();
+  const second = await guest();
+  await saveSession(session);
+  expect((await db.matches.get(first.id))?.localAccountId).toBeUndefined();
+  await claimGuestMatches([first.id], session);
+  expect((await db.matches.get(first.id))?.localAccountId).toBe(session.accountId);
+  expect((await db.matches.get(second.id))?.localAccountId).toBeUndefined();
+  const signedInMatch = await guest();
+  expect(signedInMatch.localAccountId).toBe(session.accountId);
+});
+it('a stale mixed selection rolls back all claims', async () => {
+  const first = await guest();
+  const second = await guest();
+  await saveSession(session);
+  await db.matches.update(second.id, { localAccountId: 'another-account' });
+  await expect(claimGuestMatches([first.id, second.id], session)).rejects.toThrow('changed');
+  expect((await db.matches.get(first.id))?.localAccountId).toBeUndefined();
+});
+it('claiming after logout or from another device is rejected', async () => {
+  const match = await guest();
+  await saveSession(session);
+  await db.matches.update(match.id, { ownerSessionId: 'another-device' });
+  await expect(claimGuestMatches([match.id], session)).rejects.toThrow('changed');
+  await clearSession(session);
+  await expect(claimGuestMatches([match.id], session)).rejects.toThrow('Sign in again');
 });
 it('restores an unexpired session and discards an expired session', async () => {
   await saveSession(session);

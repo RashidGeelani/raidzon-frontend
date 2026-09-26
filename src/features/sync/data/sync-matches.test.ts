@@ -39,6 +39,7 @@ async function fixture(rulesetVersion: 'raidzon-v2' | 'raidzon-v3' = 'raidzon-v3
   };
   const match = await createMatch(setup(), device.deviceId, database);
   match.rulesetVersion = rulesetVersion;
+  match.localAccountId = account.accountId;
   await database.matches.put(match);
   await recordEvent(
     match.id,
@@ -62,12 +63,13 @@ async function fixture(rulesetVersion: 'raidzon-v2' | 'raidzon-v3' = 'raidzon-v3
   const transport: SyncTransport = {
     claim: async (body) => {
       expect((body as { rulesetVersion: string }).rulesetVersion).toBe(rulesetVersion);
-      return ({
-      matchId: match.id,
-      rulesetVersion,
-      version: serverVersion,
-      state: serverVersion ? events[serverVersion - 1].after : match.state,
-    }); },
+      return {
+        matchId: match.id,
+        rulesetVersion,
+        version: serverVersion,
+        state: serverVersion ? events[serverVersion - 1].after : match.state,
+      };
+    },
     append: async (_, body) => {
       const event = body as { id: string; baseVersion: number };
       expect((body as { rulesetVersion: string }).rulesetVersion).toBe(rulesetVersion);
@@ -91,31 +93,42 @@ it('keeps device credentials stable across reloads', async () => {
   expect(await deviceCredentials(database)).toEqual(original);
   expect(original.deviceSecret).toMatch(/^[A-Za-z0-9_-]{43}$/);
 });
-it.each(['raidzon-v2', 'raidzon-v3'] as const)('uploads %s in order and safely retries an acknowledgement lost after server acceptance', async (ruleset) => {
-  const f = await fixture(ruleset);
-  const append = f.transport.append;
-  let lose = true;
-  f.transport.append = async (...args) => {
-    const ack = await append(...args);
-    if (lose) {
-      lose = false;
-      throw Error('connection lost');
-    }
-    return ack;
-  };
+it('does not upload an unreviewed guest match', async () => {
+  const f = await fixture();
+  await database.matches.update(f.match.id, { localAccountId: undefined });
   await expect(syncMatch(f.match.id, f.account, database, f.transport)).rejects.toThrow(
-    'connection lost',
+    'Review and claim',
   );
-  expect((await database.events.get(f.events[0].id))?.syncStatus).toBe('PENDING');
-  database.close();
-  await database.open();
-  await syncMatch(f.match.id, f.account, database, f.transport);
-  expect(f.received).toEqual([f.events[0].id, f.events[0].id, f.events[1].id]);
-  expect((await database.events.toArray()).every((event) => event.syncStatus === 'SYNCED')).toBe(
-    true,
-  );
-  expect((await database.matches.get(f.match.id))?.state).toEqual(f.events[1].after);
+  expect(f.received).toEqual([]);
 });
+it.each(['raidzon-v2', 'raidzon-v3'] as const)(
+  'uploads %s in order and safely retries an acknowledgement lost after server acceptance',
+  async (ruleset) => {
+    const f = await fixture(ruleset);
+    const append = f.transport.append;
+    let lose = true;
+    f.transport.append = async (...args) => {
+      const ack = await append(...args);
+      if (lose) {
+        lose = false;
+        throw Error('connection lost');
+      }
+      return ack;
+    };
+    await expect(syncMatch(f.match.id, f.account, database, f.transport)).rejects.toThrow(
+      'connection lost',
+    );
+    expect((await database.events.get(f.events[0].id))?.syncStatus).toBe('PENDING');
+    database.close();
+    await database.open();
+    await syncMatch(f.match.id, f.account, database, f.transport);
+    expect(f.received).toEqual([f.events[0].id, f.events[0].id, f.events[1].id]);
+    expect((await database.events.toArray()).every((event) => event.syncStatus === 'SYNCED')).toBe(
+      true,
+    );
+    expect((await database.matches.get(f.match.id))?.state).toEqual(f.events[1].after);
+  },
+);
 it('does not overwrite a new local event scored while an upload is in flight', async () => {
   const f = await fixture();
   const append = f.transport.append;
@@ -204,6 +217,15 @@ it('does not let another account claim a match that has never reached the server
 it('blocks local scoring after delegation without modifying history', async () => {
   const f = await fixture();
   await database.matches.update(f.match.id, { scoringDelegated: true });
-  await expect(recordEvent(f.match.id, 2, f.account.deviceId, { type: 'TECHNICAL', side: 0 }, crypto.randomUUID(), database)).rejects.toThrow('read-only');
+  await expect(
+    recordEvent(
+      f.match.id,
+      2,
+      f.account.deviceId,
+      { type: 'TECHNICAL', side: 0 },
+      crypto.randomUUID(),
+      database,
+    ),
+  ).rejects.toThrow('read-only');
   expect(await database.events.count()).toBe(2);
 });

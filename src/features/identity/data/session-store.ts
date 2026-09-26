@@ -5,12 +5,6 @@ export async function saveSession(session: AccountSession) {
   await db.transaction('rw', db.metadata, db.matches, async () => {
     await db.metadata.put({ key: sessionKey, value: JSON.stringify(session) });
     await db.metadata.put({ key: 'scoring-account', value: session.accountId });
-    // Bind guest history once, before any upload can fail or the user signs out.
-    await db.matches
-      .filter(
-        (m) => !m.localAccountId && !m.serverAccountId && m.ownerSessionId === session.deviceId,
-      )
-      .modify({ localAccountId: session.accountId });
   });
 }
 export async function restoreSession(): Promise<AccountSession | null> {

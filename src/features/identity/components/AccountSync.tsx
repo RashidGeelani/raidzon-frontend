@@ -7,6 +7,7 @@ import { verifyWithWidget } from '../data/widget-client';
 import { clearSession, flushLogouts, restoreSession, saveSession } from '../data/session-store';
 import { AccountDashboard } from './AccountDashboard';
 import { ScorerAssignments } from './ScorerAssignments';
+import { GuestMatchReview } from './GuestMatchReview';
 
 export function AccountSync({ online, matches }: { online: boolean; matches: LocalMatch[] }) {
   // Session survives reload until expiry; scoring remains available independently.
@@ -54,10 +55,13 @@ export function AccountSync({ online, matches }: { online: boolean; matches: Loc
     await flushLogouts();
     let count = 0;
     for (const match of await db.matches.toArray()) {
-      if (!['raidzon-v2', 'raidzon-v3'].includes(match.rulesetVersion ?? '') || !needsSync(match)) continue;
+      if (!['raidzon-v2', 'raidzon-v3'].includes(match.rulesetVersion ?? '') || !needsSync(match))
+        continue;
       if (match.serverAccountId && match.serverAccountId !== session.accountId) continue;
       if (match.localAccountId && match.localAccountId !== session.accountId) continue;
       if (match.scoringDelegated) continue;
+      if (match.ownerSessionId !== session.deviceId) continue;
+      if (!match.localAccountId && !match.serverAccountId) continue;
       await syncMatch(match.id, session);
       count++;
     }
@@ -69,7 +73,7 @@ export function AccountSync({ online, matches }: { online: boolean; matches: Loc
   }
   const pendingVersions = matches
     .filter(needsSync)
-    .map((m) => `${m.id}:${m.version}`)
+    .map((m) => `${m.id}:${m.version}:${m.localAccountId ?? ''}`)
     .join('|');
   useEffect(() => {
     if (!online) return;
@@ -105,10 +109,13 @@ export function AccountSync({ online, matches }: { online: boolean; matches: Loc
         <span>{pending ? `${pending} saved locally` : 'Matches saved'}</span>
       </summary>
       <p>
-        Score without signing in. Sign in to claim this device’s matches and save their events to
-        your account.
+        Score without signing in. After signing in, choose which guest matches to add to your
+        account.
       </p>
       {!online && <p>You’re offline. Continue scoring; reconnect to sign in or sync.</p>}
+      {account && (
+        <GuestMatchReview key={`guests-${account.accountId}`} account={account} matches={matches} />
+      )}
       {account && (
         <ScorerAssignments
           key={`assignments-${account.accountId}`}

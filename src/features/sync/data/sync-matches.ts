@@ -48,6 +48,8 @@ export async function syncMatch(
     );
     const { match, events } = snapshot;
     if (!match) throw new Error('Match not found.');
+    if (!match.localAccountId && !match.serverAccountId)
+      throw new Error('Review and claim this guest match before syncing.');
     if (match.localAccountId && match.localAccountId !== account.accountId)
       throw new Error('Sign in to the account that created this match.');
     if (!['raidzon-v2', 'raidzon-v3'].includes(match.rulesetVersion ?? ''))
@@ -84,7 +86,8 @@ export async function syncMatch(
           'Server and device history differ. Upload stopped; no local scores were replaced.',
         );
     };
-    const registration = await transport.claim({ rulesetVersion: match.rulesetVersion,
+    const registration = await transport.claim({
+      rulesetVersion: match.rulesetVersion,
       matchId,
       teams: initial.teams.map((team) => ({
         name: team.name,

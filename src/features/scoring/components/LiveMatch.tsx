@@ -86,7 +86,8 @@ export function LiveMatch({
               ? p.id === state.tieBreakerRaiders?.[state.turn][state.tieRaids[state.turn]]
               : p.id !== state.lastTieRaiders?.[state.turn]),
         );
-  const live = state.status === 'LIVE' && ['raidzon-v2', 'raidzon-v3'].includes(match.rulesetVersion ?? '');
+  const live =
+    state.status === 'LIVE' && ['raidzon-v2', 'raidzon-v3'].includes(match.rulesetVersion ?? '');
   const displayScores = state.phase === 'REGULATION' ? state.scores : state.tieScores;
   async function confirmAction(intent: MatchIntent, question: string) {
     if (window.confirm(question)) await onRecord(intent);
