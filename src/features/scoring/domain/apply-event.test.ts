@@ -72,6 +72,27 @@ function raid(
 }
 
 describe('local match state transitions', () => {
+  it('retains the original revival rule when replaying a v2 last-raider raid', () => {
+    const state = initialState();
+    markOut(state, 0, ['0-0', '0-1', '0-2', '0-3', '0-4', '0-5']);
+    const started = applyEvent(state, { type: 'START_RAID', raiderId: '0-6' }, 1000, 'raidzon-v2').state;
+    const result = applyEvent(started, { type: 'RAID', raiderId: '0-6', outcome: 'TACKLE', defenderIds: [], selfOutDefenderIds: ['1-0'], tacklerId: '1-1', bonus: false }, 2000, 'raidzon-v2');
+    expect(result.state.scores).toEqual([1, 1]);
+    expect(activePlayers(result.state.teams[0])).toHaveLength(1);
+    expect(result.state.teams[0].players[0].status).toBe('ACTIVE');
+  });
+  it.each([1, 2])('self-out plus tackle with %i attacking players respects last-raider priority', (count) => {
+    const state = initialState();
+    markOut(state, 0, Array.from({ length: 7 - count }, (_, i) => `0-${i}`));
+    const result = raid(state, { outcome: 'TACKLE', selfOutDefenderIds: ['1-0'], tacklerId: '1-1' });
+    expect(result.state.scores).toEqual([1, count === 1 ? 3 : 1]);
+    expect(activePlayers(result.state.teams[0])).toHaveLength(count === 1 ? 7 : 2);
+    expect(result.state.teams[0].queue).toHaveLength(count === 1 ? 0 : 5);
+    expect(activePlayers(result.state.teams[1])).toHaveLength(7);
+    expect(result.state.teams[0].players.filter((p) => p.status === 'BENCH')).toHaveLength(2);
+    expect(result.components.filter((c) => c.kind === 'ALL_OUT')).toHaveLength(count === 1 ? 1 : 0);
+    expect(state.scores).toEqual([0, 0]);
+  });
   it('touch and Self-Out consequences remain in one raid event', () => {
     const state = initialState();
     markOut(state, 0, ['0-1', '0-2']);

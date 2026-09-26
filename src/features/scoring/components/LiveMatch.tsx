@@ -86,7 +86,7 @@ export function LiveMatch({
               ? p.id === state.tieBreakerRaiders?.[state.turn][state.tieRaids[state.turn]]
               : p.id !== state.lastTieRaiders?.[state.turn]),
         );
-  const live = state.status === 'LIVE' && match.rulesetVersion === 'raidzon-v2';
+  const live = state.status === 'LIVE' && ['raidzon-v2', 'raidzon-v3'].includes(match.rulesetVersion ?? '');
   const displayScores = state.phase === 'REGULATION' ? state.scores : state.tieScores;
   async function confirmAction(intent: MatchIntent, question: string) {
     if (window.confirm(question)) await onRecord(intent);
@@ -143,7 +143,7 @@ export function LiveMatch({
           ← Matches
         </button>
       </div>
-      {match.rulesetVersion !== 'raidzon-v2' && (
+      {!['raidzon-v2', 'raidzon-v3'].includes(match.rulesetVersion ?? '') && (
         <p role="status" className="field-note">
           Previous ruleset: history is preserved. Start a new match to use the updated rules.
         </p>
@@ -492,6 +492,8 @@ export function LiveMatch({
                           <p className="field-note">
                             Included in this same raid event. Team points and revivals only; no
                             individual credit.
+                            {match.rulesetVersion === 'raidzon-v3' &&
+                              ' If the last on-court raider is tackled, the self-out point stays but All-Out replaces the attacking revival: the opponent gets two extra points and all seven playing members return.'}
                           </p>
                           <div className="player-grid">
                             {defendersOnCourt.map((p) => (

@@ -29,7 +29,7 @@ const setup = (): SetupInput => ({
     })),
   })) as SetupInput['teams'],
 });
-async function fixture() {
+async function fixture(rulesetVersion: 'raidzon-v2' | 'raidzon-v3' = 'raidzon-v3') {
   const device = await deviceCredentials(database);
   const account = {
     deviceId: device.deviceId,
@@ -38,6 +38,8 @@ async function fixture() {
     expiresAt: Date.now() + 10000,
   };
   const match = await createMatch(setup(), device.deviceId, database);
+  match.rulesetVersion = rulesetVersion;
+  await database.matches.put(match);
   await recordEvent(
     match.id,
     0,
@@ -58,14 +60,17 @@ async function fixture() {
   let serverVersion = 0;
   const received: string[] = [];
   const transport: SyncTransport = {
-    claim: async () => ({
+    claim: async (body) => {
+      expect((body as { rulesetVersion: string }).rulesetVersion).toBe(rulesetVersion);
+      return ({
       matchId: match.id,
-      rulesetVersion: 'raidzon-v2',
+      rulesetVersion,
       version: serverVersion,
       state: serverVersion ? events[serverVersion - 1].after : match.state,
-    }),
+    }); },
     append: async (_, body) => {
       const event = body as { id: string; baseVersion: number };
+      expect((body as { rulesetVersion: string }).rulesetVersion).toBe(rulesetVersion);
       received.push(event.id);
       if (event.baseVersion > serverVersion) throw Error('gap');
       serverVersion = Math.max(serverVersion, event.baseVersion + 1);
@@ -86,8 +91,8 @@ it('keeps device credentials stable across reloads', async () => {
   expect(await deviceCredentials(database)).toEqual(original);
   expect(original.deviceSecret).toMatch(/^[A-Za-z0-9_-]{43}$/);
 });
-it('uploads in order and safely retries an acknowledgement lost after server acceptance', async () => {
-  const f = await fixture();
+it.each(['raidzon-v2', 'raidzon-v3'] as const)('uploads %s in order and safely retries an acknowledgement lost after server acceptance', async (ruleset) => {
+  const f = await fixture(ruleset);
   const append = f.transport.append;
   let lose = true;
   f.transport.append = async (...args) => {

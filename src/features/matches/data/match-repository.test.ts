@@ -30,9 +30,17 @@ afterEach(async () => {
 });
 
 describe('durable local events', () => {
+  it('continues a v2 match without relabelling its events', async () => {
+    const match = await createMatch(setup(), 'session', database);
+    await database.matches.put({ ...match, rulesetVersion: 'raidzon-v2' });
+    const eventId = crypto.randomUUID();
+    await recordEvent(match.id, 0, 'session', { type: 'TECHNICAL', side: 0 }, eventId, database);
+    expect((await database.events.get(eventId))?.rulesetVersion).toBe('raidzon-v2');
+    expect((await database.matches.get(match.id))?.state.scores).toEqual([1, 0]);
+  });
   it('preserves earlier ruleset matches and refuses to mix revised rules into their history', async () => {
     const match = await createMatch(setup(), 'session', database);
-    expect(match.rulesetVersion).toBe('raidzon-v2');
+    expect(match.rulesetVersion).toBe('raidzon-v3');
     await database.matches.put({ ...match, rulesetVersion: 'raidzon-v1' });
     await expect(
       recordEvent(

@@ -17,10 +17,12 @@ export default defineConfig({
         display: 'standalone',
         start_url: '/',
         icons: [
-          { src: '/brand/raidzon-logo.png', sizes: '1254x1254', type: 'image/png', purpose: 'any' },
+          { src: '/brand/raidzon-logo.png', sizes: '3919x3919', type: 'image/png', purpose: 'any' },
         ],
       },
       workbox: {
+        // Keep the supplied full-resolution logo available offline.
+        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],

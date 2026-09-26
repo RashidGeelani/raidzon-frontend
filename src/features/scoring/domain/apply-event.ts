@@ -18,7 +18,9 @@ export function applyEvent(
   previous: MatchState,
   input: Exclude<MatchIntent, { type: 'UNDO' }>,
   now: number,
+  rulesetVersion: string = 'raidzon-v3',
 ) {
+  requireRule(['raidzon-v2', 'raidzon-v3'].includes(rulesetVersion), 'Unsupported ruleset version.');
   const state = structuredClone(previous);
   const intent =
     input.type === 'RAID' &&
@@ -158,7 +160,10 @@ export function applyEvent(
       if (intent.outcome === 'SELF_OUT') add(defend, 'SELF_OUT', 1);
       allDefenderOuts.forEach((id) => out(defend, id));
       if (intent.outcome === 'TACKLE' || intent.outcome === 'SELF_OUT') out(attack, raider.id);
-      revive(attack, result.attackingRevivals);
+      // A defender self-out cannot rescue a team whose last raider was tackled.
+      const lastRaiderTackled =
+        rulesetVersion === 'raidzon-v3' && intent.outcome === 'TACKLE' && selfOuts.length > 0 && activePlayers(team(attack)).length === 0;
+      if (!lastRaiderTackled) revive(attack, result.attackingRevivals);
       revive(defend, result.defendingRevivals);
       allOut(attack);
       allOut(defend);

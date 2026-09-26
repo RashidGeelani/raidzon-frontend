@@ -16,6 +16,7 @@ export function applyRecordedEvent(
   intent: MatchIntent,
   now: number,
   history: readonly HistoryEvent[],
+  rulesetVersion: string = 'raidzon-v3',
 ) {
   if (!Number.isSafeInteger(now) || now < 0) throw new Error('Invalid event time.');
   const before = structuredClone(previous);
@@ -25,7 +26,7 @@ export function applyRecordedEvent(
       startedAt: before[key].startedAt === null ? null : now,
     };
   }
-  if (intent.type !== 'UNDO') return { before, ...applyEvent(before, intent, now) };
+  if (intent.type !== 'UNDO') return { before, ...applyEvent(before, intent, now, rulesetVersion) };
   const target = undoTarget(history);
   if (!target || target.id !== intent.targetEventId)
     throw new Error('Only the latest unreverted event can be undone.');

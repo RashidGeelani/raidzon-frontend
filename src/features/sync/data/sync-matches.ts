@@ -50,7 +50,7 @@ export async function syncMatch(
     if (!match) throw new Error('Match not found.');
     if (match.localAccountId && match.localAccountId !== account.accountId)
       throw new Error('Sign in to the account that created this match.');
-    if (match.rulesetVersion !== 'raidzon-v2')
+    if (!['raidzon-v2', 'raidzon-v3'].includes(match.rulesetVersion ?? ''))
       throw new Error('This older ruleset cannot be synced yet. Its local history is preserved.');
     if (match.ownerSessionId !== account.deviceId)
       throw new Error('Only the original scoring device can upload this match.');
@@ -84,7 +84,7 @@ export async function syncMatch(
           'Server and device history differ. Upload stopped; no local scores were replaced.',
         );
     };
-    const registration = await transport.claim({
+    const registration = await transport.claim({ rulesetVersion: match.rulesetVersion,
       matchId,
       teams: initial.teams.map((team) => ({
         name: team.name,

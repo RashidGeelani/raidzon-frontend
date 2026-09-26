@@ -8,6 +8,7 @@ interface Assignment {
   teamA: string;
   teamB: string;
   accepted: boolean;
+  rulesetVersion: LocalMatch['rulesetVersion'];
 }
 export function ScorerAssignments({
   account,
@@ -138,7 +139,7 @@ export function ScorerAssignments({
                   await db.matches.put({
                     id: item.matchId,
                     name: `${item.teamA} vs ${item.teamB}`,
-                    rulesetVersion: 'raidzon-v2',
+                    rulesetVersion: item.rulesetVersion,
                     createdAt: new Date(state.clock.startedAt!).toISOString(),
                     updatedAt: now,
                     ownerSessionId: account.deviceId,

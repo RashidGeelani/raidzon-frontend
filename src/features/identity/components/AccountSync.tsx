@@ -54,7 +54,7 @@ export function AccountSync({ online, matches }: { online: boolean; matches: Loc
     await flushLogouts();
     let count = 0;
     for (const match of await db.matches.toArray()) {
-      if (match.rulesetVersion !== 'raidzon-v2' || !needsSync(match)) continue;
+      if (!['raidzon-v2', 'raidzon-v3'].includes(match.rulesetVersion ?? '') || !needsSync(match)) continue;
       if (match.serverAccountId && match.serverAccountId !== session.accountId) continue;
       if (match.localAccountId && match.localAccountId !== session.accountId) continue;
       if (match.scoringDelegated) continue;

@@ -122,7 +122,7 @@ export async function createMatch(
       }
       const now = Date.now();
       const match: LocalMatch = {
-        rulesetVersion: 'raidzon-v2',
+        rulesetVersion: 'raidzon-v3',
         id: crypto.randomUUID(),
         name: `${teams[0].name} vs ${teams[1].name}`,
         createdAt: new Date(now).toISOString(),
@@ -172,7 +172,7 @@ export async function recordEvent(
   return database.transaction('rw', database.matches, database.events, async () => {
     const match = await database.matches.get(matchId);
     if (!match) throw new Error('Match not found.');
-    if (match.rulesetVersion !== 'raidzon-v2')
+    if (!['raidzon-v2', 'raidzon-v3'].includes(match.rulesetVersion ?? ''))
       throw new Error(
         'This match uses the previous rules. Its history is preserved; start a new match for the updated rules.',
       );
@@ -196,13 +196,13 @@ export async function recordEvent(
             (a, b) => a.sequence - b.sequence,
           )
         : [];
-    const result = applyRecordedEvent(match.state, intent, now, history);
+    const result = applyRecordedEvent(match.state, intent, now, history, match.rulesetVersion);
     const event: MatchEvent = {
       id: eventId,
       matchId,
       sequence: expectedVersion + 1,
       baseVersion: expectedVersion,
-      rulesetVersion: 'raidzon-v2',
+      rulesetVersion: match.rulesetVersion!,
       scorerSessionId: ownerSessionId,
       createdAt: new Date(now).toISOString(),
       intent,

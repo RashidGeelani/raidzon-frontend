@@ -74,7 +74,7 @@ export interface MatchEvent {
   matchId: string;
   sequence: number;
   baseVersion: number;
-  rulesetVersion: 'raidzon-v1' | 'raidzon-v2';
+  rulesetVersion: 'raidzon-v1' | 'raidzon-v2' | 'raidzon-v3';
   scorerSessionId: string;
   createdAt: string;
   intent: MatchIntent;
@@ -91,7 +91,7 @@ export interface LocalMatch {
   scoringDelegated?: boolean;
   serverVersion?: number;
   syncError?: string;
-  rulesetVersion?: 'raidzon-v1' | 'raidzon-v2';
+  rulesetVersion?: 'raidzon-v1' | 'raidzon-v2' | 'raidzon-v3';
   id: string;
   name: string;
   createdAt: string;
