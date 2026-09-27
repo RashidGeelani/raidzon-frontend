@@ -1020,6 +1020,31 @@ footer > span:last-child {
   font-size: 11px;
   margin-bottom: 6px;
 }
+.fixture-card {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper);
+  padding: 16px;
+  margin: 12px 0;
+}
+.fixture-card form {
+  margin: 12px 0;
+}
+.standings-scroll {
+  overflow-x: auto;
+}
+.standings-table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 12px 0;
+}
+.standings-table th,
+.standings-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 8px;
+  text-align: left;
+  white-space: nowrap;
+}
 .sr-only {
   position: absolute;
   width: 1px;

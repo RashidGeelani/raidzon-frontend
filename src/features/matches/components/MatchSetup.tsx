@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { createMatch, type TeamInput } from '../data/match-repository';
 import type { LocalMatch, Side } from '../../scoring/domain/match-types';
+import type { PreparedFixture } from '../../tournaments/types';
 
 const emptyTeam = (): TeamInput => ({
   name: '',
@@ -10,15 +11,27 @@ export function MatchSetup({
   session,
   onCreated,
   onCancel,
+  preset,
 }: {
   session: string;
   onCreated: (match: LocalMatch) => void;
   onCancel: () => void;
+  preset?: PreparedFixture | null;
 }) {
-  const [teams, setTeams] = useState<[TeamInput, TeamInput]>([emptyTeam(), emptyTeam()]);
+  const [teams, setTeams] = useState<[TeamInput, TeamInput]>(() => {
+    const teamA = emptyTeam();
+    const teamB = emptyTeam();
+    if (preset) {
+      teamA.name = preset.teamA;
+      teamB.name = preset.teamB;
+      if (preset.rosterA.length >= 7) teamA.players = structuredClone(preset.rosterA);
+      if (preset.rosterB.length >= 7) teamB.players = structuredClone(preset.rosterB);
+    }
+    return [teamA, teamB];
+  });
   const [firstTurn, setFirstTurn] = useState<Side>(0);
-  const [halfMinutes, setHalfMinutes] = useState(20);
-  const [raidSeconds, setRaidSeconds] = useState(30);
+  const [halfMinutes, setHalfMinutes] = useState(preset?.halfMinutes ?? 20);
+  const [raidSeconds, setRaidSeconds] = useState(preset?.raidSeconds ?? 30);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   function update(side: Side, change: (team: TeamInput) => void) {
@@ -33,7 +46,20 @@ export function MatchSetup({
     setError('');
     setSaving(true);
     try {
-      onCreated(await createMatch({ teams, firstTurn, halfMinutes, raidSeconds }, session));
+      onCreated(
+        await createMatch(
+          {
+            teams,
+            firstTurn,
+            halfMinutes,
+            raidSeconds,
+            fixtureRef: preset
+              ? { tournamentId: preset.tournamentId, fixtureId: preset.fixtureId }
+              : undefined,
+          },
+          session,
+        ),
+      );
     } catch (cause) {
       setError((cause as Error).message);
     } finally {
@@ -47,6 +73,12 @@ export function MatchSetup({
           <p className="eyebrow">SET THE COURT</p>
           <h1>A match starts here.</h1>
           <p>Seven starters. Your teams. No sign-in needed.</p>
+          {preset && (
+            <p>
+              Fixture prepared: {preset.teamA} vs {preset.teamB}. Add the players, then sync the
+              match; it will link to the fixture after synchronization.
+            </p>
+          )}
         </div>
         <button type="button" className="quiet" onClick={onCancel}>
           Back to matches

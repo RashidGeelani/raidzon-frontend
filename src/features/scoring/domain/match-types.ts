@@ -85,6 +85,7 @@ export interface MatchEvent {
   syncStatus: 'PENDING' | 'SYNCED';
 }
 export interface LocalMatch {
+  fixtureRef?: { tournamentId: string; fixtureId: string; linked: boolean };
   initialState?: MatchState;
   serverAccountId?: string;
   localAccountId?: string;

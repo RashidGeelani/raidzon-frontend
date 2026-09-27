@@ -5,6 +5,7 @@ import { db, recordEvent, sessionId } from '../features/matches/data/match-repos
 import { MatchSetup } from '../features/matches/components/MatchSetup';
 import { LiveMatch } from '../features/scoring/components/LiveMatch';
 import { AccountSync } from '../features/identity/components/AccountSync';
+import type { PreparedFixture } from '../features/tournaments/types';
 import type { LocalMatch, MatchEvent, MatchIntent } from '../features/scoring/domain/match-types';
 
 export function App() {
@@ -13,6 +14,7 @@ export function App() {
   const [session, setSession] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [setup, setSetup] = useState(false);
+  const [preparedFixture, setPreparedFixture] = useState<PreparedFixture | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [online, setOnline] = useState(navigator.onLine);
   const [error, setError] = useState('');
@@ -73,11 +75,13 @@ export function App() {
     }
   }
   function home() {
+    setPreparedFixture(null);
     setSetup(false);
     setSelectedId(null);
     setError('');
   }
   function startSetup() {
+    setPreparedFixture(null);
     setSelectedId(null);
     setSetup(true);
     setError('');
@@ -129,7 +133,15 @@ export function App() {
           </div>
         </header>
         <main>
-          <AccountSync online={online} matches={matches} />
+          <AccountSync
+            online={online}
+            matches={matches}
+            onPrepareFixture={(fixture) => {
+              setSelectedId(null);
+              setPreparedFixture(fixture);
+              setSetup(true);
+            }}
+          />
           {error && (
             <div className="error" role="alert">
               {error}
@@ -140,6 +152,8 @@ export function App() {
           )}
           {setup ? (
             <MatchSetup
+              key={preparedFixture?.fixtureId ?? 'new-match'}
+              preset={preparedFixture}
               session={session}
               onCancel={home}
               onCreated={(created) => {

@@ -17,6 +17,7 @@ interface Acknowledgement {
 export interface SyncTransport {
   claim(body: unknown): Promise<Registration>;
   append(matchId: string, body: unknown): Promise<Acknowledgement>;
+  linkFixture?(tournamentId: string, fixtureId: string, matchId: string): Promise<unknown>;
 }
 function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
@@ -34,6 +35,12 @@ export async function syncMatch(
   transport: SyncTransport = {
     claim: (body) => api('/matches', body, account.token),
     append: (id, body) => api(`/matches/${id}/events`, body, account.token),
+    linkFixture: (tournamentId, fixtureId, id) =>
+      api(
+        `/tournaments/${tournamentId}/fixtures/${fixtureId}/match`,
+        { matchId: id },
+        account.token,
+      ),
   },
 ) {
   try {
@@ -138,6 +145,19 @@ export async function syncMatch(
           });
       });
     }
+    if (match.fixtureRef && !match.fixtureRef.linked) {
+      if (!transport.linkFixture)
+        throw new Error('Fixture linking is unavailable. Retry synchronization.');
+      await transport.linkFixture(
+        match.fixtureRef.tournamentId,
+        match.fixtureRef.fixtureId,
+        matchId,
+      );
+      await database.matches.update(matchId, {
+        fixtureRef: { ...match.fixtureRef, linked: true },
+        syncError: '',
+      });
+    }
   } catch (error) {
     await database.matches.update(matchId, {
       syncError: error instanceof Error ? error.message : 'Unable to sync.',
@@ -146,5 +166,10 @@ export async function syncMatch(
   }
 }
 export function needsSync(match: LocalMatch) {
-  return !match.serverAccountId || match.serverVersion !== match.version || !!match.syncError;
+  return (
+    !match.serverAccountId ||
+    match.serverVersion !== match.version ||
+    !!match.syncError ||
+    !!(match.fixtureRef && !match.fixtureRef.linked)
+  );
 }

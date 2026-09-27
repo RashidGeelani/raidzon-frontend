@@ -7,7 +7,7 @@ import {
   type SetupInput,
 } from '../../matches/data/match-repository';
 import { deviceCredentials } from '../../identity/data/auth-client';
-import { syncMatch, type SyncTransport } from './sync-matches';
+import { needsSync, syncMatch, type SyncTransport } from './sync-matches';
 import type { MatchState } from '../../scoring/domain/match-types';
 
 let database: RaidzOnDatabase;
@@ -228,4 +228,28 @@ it('blocks local scoring after delegation without modifying history', async () =
     ),
   ).rejects.toThrow('read-only');
   expect(await database.events.count()).toBe(2);
+});
+it('retries a prepared fixture link after match events are already synced', async () => {
+  const f = await fixture();
+  const tournamentId = crypto.randomUUID();
+  const fixtureId = crypto.randomUUID();
+  await database.matches.update(f.match.id, {
+    fixtureRef: { tournamentId, fixtureId, linked: false },
+  });
+  let attempts = 0;
+  f.transport.linkFixture = async (tournament, fixture, match) => {
+    expect([tournament, fixture, match]).toEqual([tournamentId, fixtureId, f.match.id]);
+    if (++attempts === 1) throw new Error('Connection lost while linking');
+  };
+  await expect(syncMatch(f.match.id, f.account, database, f.transport)).rejects.toThrow(
+    'Connection lost',
+  );
+  const pending = (await database.matches.get(f.match.id))!;
+  expect(pending.serverVersion).toBe(2);
+  expect(needsSync(pending)).toBe(true);
+  await syncMatch(f.match.id, f.account, database, f.transport);
+  const linked = (await database.matches.get(f.match.id))!;
+  expect(linked.fixtureRef?.linked).toBe(true);
+  expect(needsSync(linked)).toBe(false);
+  expect(attempts).toBe(2);
 });

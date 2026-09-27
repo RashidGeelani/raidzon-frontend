@@ -8,8 +8,18 @@ import { clearSession, flushLogouts, restoreSession, saveSession } from '../data
 import { AccountDashboard } from './AccountDashboard';
 import { ScorerAssignments } from './ScorerAssignments';
 import { GuestMatchReview } from './GuestMatchReview';
+import { TournamentDashboard } from '../../tournaments/TournamentDashboard';
+import type { PreparedFixture } from '../../tournaments/types';
 
-export function AccountSync({ online, matches }: { online: boolean; matches: LocalMatch[] }) {
+export function AccountSync({
+  online,
+  matches,
+  onPrepareFixture,
+}: {
+  online: boolean;
+  matches: LocalMatch[];
+  onPrepareFixture: (fixture: PreparedFixture) => void;
+}) {
   // Session survives reload until expiry; scoring remains available independently.
   const [account, setAccount] = useState<AccountSession | null>(null);
   const [phone, setPhone] = useState('');
@@ -132,6 +142,15 @@ export function AccountSync({ online, matches }: { online: boolean; matches: Loc
           revision={matches.map((match) => `${match.id}:${match.serverVersion ?? -1}`).join('|')}
         />
       )}
+      {account ? (
+        <TournamentDashboard
+          key={`tournaments-${account.accountId}`}
+          account={account}
+          online={online}
+          matches={matches}
+          onPrepareFixture={onPrepareFixture}
+        />
+      ) : null}
       {account ? (
         <div className="sync-controls">
           <button disabled={!online || busy} onClick={() => void run(() => synchronize(account))}>

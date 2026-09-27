@@ -38,6 +38,7 @@ export interface TeamInput {
   players: { name: string; phone: string }[];
 }
 export interface SetupInput {
+  fixtureRef?: { tournamentId: string; fixtureId: string };
   teams: [TeamInput, TeamInput];
   firstTurn: Side;
   halfMinutes: number;
@@ -122,6 +123,7 @@ export async function createMatch(
       }
       const now = Date.now();
       const match: LocalMatch = {
+        fixtureRef: input.fixtureRef ? { ...input.fixtureRef, linked: false } : undefined,
         rulesetVersion: 'raidzon-v3',
         id: crypto.randomUUID(),
         name: `${teams[0].name} vs ${teams[1].name}`,
