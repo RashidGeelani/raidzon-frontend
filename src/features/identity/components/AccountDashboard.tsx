@@ -67,8 +67,16 @@ export function AccountDashboard({
               syncs, your player record will appear here.
             </p>
           )}
+          {data.playerProfile && (
+            <EditPlayerProfile
+              account={account}
+              phone={data.phone}
+              name={data.playerProfile.name}
+              online={online}
+              onSaved={() => setRefresh((value) => value + 1)}
+            />
+          )}
           <h4>My synced matches · {data.ownedMatchCount}</h4>
-          {data.playerProfile && <EditPlayerProfile account={account} phone={data.phone} name={data.playerProfile.name} online={online} onSaved={() => setRefresh(value => value + 1)} />}
           {data.recentMatches.length ? (
             <ul>
               {data.recentMatches.map((match) => (
