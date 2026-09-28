@@ -2,10 +2,10 @@ import { db } from '../../matches/data/match-repository';
 import { api, ApiError, type AccountSession } from './auth-client';
 const sessionKey = 'account-session';
 export async function saveSession(session: AccountSession) {
-  await db.transaction('rw', db.metadata, db.matches, async () => {
-    await db.metadata.put({ key: sessionKey, value: JSON.stringify(session) });
-    await db.metadata.put({ key: 'scoring-account', value: session.accountId });
-  });
+  await db.metadata.bulkPut([
+    { key: sessionKey, value: JSON.stringify(session) },
+    { key: 'scoring-account', value: session.accountId },
+  ]);
 }
 export async function restoreSession(): Promise<AccountSession | null> {
   const saved = await db.metadata.get(sessionKey);
