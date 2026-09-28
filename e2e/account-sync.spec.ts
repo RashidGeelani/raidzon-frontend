@@ -5,7 +5,6 @@ test('SMS disabled leaves guest scoring available', async ({ page }) => {
     route.fulfill({ json: { smsAvailable: false } }),
   );
   await page.goto('/');
-  await page.locator('.account-sync > summary').click();
   await expect(page.getByText('SMS sign-in is not enabled yet.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Start a match', exact: false })).toBeEnabled();
 });
@@ -48,17 +47,17 @@ test('widget session survives reload and offline logout is revoked on reconnect'
     return route.fulfill({ json: { signedOut: true } });
   });
   await page.goto('/');
-  await page.locator('.account-sync > summary').click();
   await page.getByRole('button', { name: 'Sign in with phone' }).click();
-  await expect(page.getByRole('button', { name: 'Sync now' })).toBeVisible();
+  await page.getByRole('button', { name: 'Profile', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'My player profile' })).toBeVisible();
   await expect(page.getByText('Test player', { exact: true })).toBeVisible();
   await page.reload();
-  await page.locator('.account-sync > summary').click();
-  await expect(page.getByRole('button', { name: 'Sync now' })).toBeVisible();
+  await page.getByRole('button', { name: 'Profile', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
   await context.setOffline(true);
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
-  await expect(page.getByRole('status')).toHaveText('Signed out. Local matches remain available.');
+  await expect(page.getByText('Signed out. Local matches remain available.')).toBeVisible();
   await expect(page.getByText('Test player', { exact: true })).toHaveCount(0);
   expect(revoked).toBe(false);
   await context.setOffline(false);
@@ -102,13 +101,11 @@ test('OTP form binds verification to the same device and signs out', async ({ pa
     await route.fulfill({ json: { signedOut: true } });
   });
   await page.goto('/');
-  await page.locator('.account-sync > summary').click();
   await page.getByLabel('Mobile number').fill('9876543210');
   await page.getByRole('button', { name: 'Send code', exact: true }).click();
   await page.getByLabel('Verification code').fill('012345');
-  await page.getByRole('button', { name: 'Verify & sync' }).click();
-  await expect(page.getByRole('button', { name: 'Sync now' })).toBeVisible();
-  await expect(page.getByRole('status')).toHaveText('Your matches are up to date.');
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await expect(page.getByText('Matches are up to date')).toBeVisible();
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
-  await expect(page.getByRole('status')).toHaveText('Signed out. Local matches remain available.');
+  await expect(page.getByText('Signed out. Local matches remain available.')).toBeVisible();
 });

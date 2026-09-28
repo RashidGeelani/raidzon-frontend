@@ -68,11 +68,11 @@ test('organizer creates tournament, registers teams and schedules a fixture', as
     });
   });
   await page.goto('/');
-  await page.locator('.account-sync > summary').click();
   await page.getByLabel('Mobile number').fill('9876543210');
   await page.getByRole('button', { name: 'Send code', exact: true }).click();
   await page.getByLabel('Verification code', { exact: true }).fill('123456');
-  await page.getByRole('button', { name: 'Verify & sync' }).click();
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await page.getByRole('button', { name: 'Tournaments', exact: true }).click();
   const panel = page.getByRole('region', { name: 'My tournaments' });
   await panel.locator('summary').click();
   await panel.getByLabel('Tournament name').fill('District Cup');
@@ -108,7 +108,7 @@ test('organizer creates tournament, registers teams and schedules a fixture', as
   expect(tournament.halfMinutes).toBe(20);
   expect(tournament.raidSeconds).toBe(30);
   await page.reload();
-  await page.locator('.account-sync > summary').click();
+  await page.getByRole('button', { name: 'Tournaments', exact: true }).click();
   await panel
     .getByRole('combobox', { name: 'Choose tournament', exact: true })
     .selectOption({ label: 'District Cup · 2026-10-10' });

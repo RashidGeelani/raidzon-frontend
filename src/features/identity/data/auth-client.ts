@@ -15,7 +15,8 @@ export class ApiError extends Error {
   }
 }
 export async function api<T>(path: string, body?: unknown, token?: string): Promise<T> {
-  const response = await fetch(`/api/v1${path}`, {
+  const baseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').trim().replace(/\/+$/, '');
+  const response = await fetch(`${baseUrl}/api/v1${path}`, {
     method: body === undefined ? 'GET' : 'POST',
     headers: {
       ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),

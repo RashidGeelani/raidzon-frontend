@@ -5,10 +5,12 @@ import { db, recordEvent, sessionId } from '../features/matches/data/match-repos
 import { MatchSetup } from '../features/matches/components/MatchSetup';
 import { LiveMatch } from '../features/scoring/components/LiveMatch';
 import { AccountSync } from '../features/identity/components/AccountSync';
+import { LocalLeaderboards } from '../features/scoring/components/LocalLeaderboards';
 import type { PreparedFixture } from '../features/tournaments/types';
 import type { LocalMatch, MatchEvent, MatchIntent } from '../features/scoring/domain/match-types';
 
 export function App() {
+  const [tab, setTab] = useState<'home' | 'tournaments' | 'matches' | 'leaderboards' | 'profile'>('home');
   const [matches, setMatches] = useState<LocalMatch[]>([]);
   const [events, setEvents] = useState<MatchEvent[]>([]);
   const [session, setSession] = useState('');
@@ -75,17 +77,25 @@ export function App() {
     }
   }
   function home() {
+    setTab('home');
     setPreparedFixture(null);
     setSetup(false);
     setSelectedId(null);
     setError('');
   }
   function startSetup() {
+    setTab('home');
     setPreparedFixture(null);
     setSelectedId(null);
     setSetup(true);
     setError('');
     navigator.storage?.persist?.().catch(() => undefined);
+  }
+  function navigate(tabName: typeof tab) {
+    setTab(tabName);
+    setSetup(false);
+    setSelectedId(null);
+    setError('');
   }
   return (
     <div className="app-shell">
@@ -117,9 +127,9 @@ export function App() {
           </div>
         </div>
       </aside>
-      <div className="workspace">
+      <div className={`workspace ${setup || match ? 'workspace-wide' : ''}`}>
         <header className="topbar">
-          <span>YOUR COURTSIDE COMPANION</span>
+          <span className="topbar-brand"><img src="/brand/raidzon-logo.png" alt="raidzOn" /> YOUR COURTSIDE COMPANION</span>
           <div>
             <span className="network">
               <i className={`dot ${online ? 'live' : ''}`} />
@@ -133,15 +143,18 @@ export function App() {
           </div>
         </header>
         <main>
-          <AccountSync
-            online={online}
-            matches={matches}
-            onPrepareFixture={(fixture) => {
-              setSelectedId(null);
-              setPreparedFixture(fixture);
-              setSetup(true);
-            }}
-          />
+          <div hidden={!!setup || !!match || (tab !== 'home' && tab !== 'tournaments' && tab !== 'profile')}>
+            <AccountSync
+              section={tab === 'tournaments' ? 'tournaments' : tab === 'profile' ? 'profile' : 'all'}
+              online={online}
+              matches={matches}
+              onPrepareFixture={(fixture) => {
+                setSelectedId(null);
+                setPreparedFixture(fixture);
+                setSetup(true);
+              }}
+            />
+          </div>
           {error && (
             <div className="error" role="alert">
               {error}
@@ -169,12 +182,14 @@ export function App() {
               onBack={home}
               saving={saving}
             />
-          ) : (
+          ) : tab === 'leaderboards' ? (
+            <LocalLeaderboards matches={matches} />
+          ) : tab === 'tournaments' || tab === 'profile' ? null : (
             <>
               <div className="section-heading">
                 <div>
-                  <p className="eyebrow">WELCOME TO THE COURT</p>
-                  <h1>Ready for the next raid?</h1>
+                  <p className="eyebrow">{tab === 'home' ? 'WELCOME TO THE COURT' : 'MATCH CENTER'}</p>
+                  <h1>{tab === 'home' ? 'Ready for the next raid?' : 'Your matches'}</h1>
                   <p>Keep your focus on the game. We’ll keep the score.</p>
                 </div>
                 <span className="date-label">
@@ -185,7 +200,7 @@ export function App() {
                   }).format(new Date())}
                 </span>
               </div>
-              <section className="hero">
+              {tab === 'home' && <section className="hero">
                 <div className="hero-copy">
                   <span className="hero-tag">BUILT FOR THE SIDELINES</span>
                   <h2>
@@ -218,8 +233,8 @@ export function App() {
                   </div>
                   <span>OWN THE COURT.</span>
                 </div>
-              </section>
-              <div className="home-stats">
+              </section>}
+              {tab === 'home' && <div className="home-stats">
                 <div>
                   <span className="stat-icon">↗</span>
                   <p>
@@ -241,7 +256,7 @@ export function App() {
                     <small>Every event saved locally</small>
                   </p>
                 </div>
-              </div>
+              </div>}
               <section className="matches-section">
                 <div className="panel-title">
                   <h2>
@@ -298,16 +313,26 @@ export function App() {
                   </div>
                 )}
               </section>
-              <div className="local-note">
+              {tab === 'home' && <div className="local-note">
                 <span>◈</span>
                 <p>
                   <strong>Built to keep going.</strong> Matches stay on this browser. Sign in and
                   sync to save a copy to your account when connected.
                 </p>
-              </div>
+              </div>}
             </>
           )}
         </main>
+        {!setup && !match && (
+          <nav className="bottom-nav" aria-label="Main navigation">
+            {(['home', 'tournaments', 'matches', 'leaderboards', 'profile'] as const).map((item) => (
+              <button key={item} className={tab === item ? 'active' : ''} onClick={() => navigate(item)} aria-current={tab === item ? 'page' : undefined}>
+                <span aria-hidden="true">{{ home: '⌂', tournaments: '▦', matches: '◉', leaderboards: '▥', profile: '●' }[item]}</span>
+                {item[0].toUpperCase() + item.slice(1)}
+              </button>
+            ))}
+          </nav>
+        )}
         <footer>
           <span>
             raidzOn <b>·</b> Every raid has a story.

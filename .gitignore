@@ -9,6 +9,9 @@ dist/
 .env
 .env.local
 .env.*.local
+.env.development
+.env.production
+.env.example
 
 # Test results
 test-results/

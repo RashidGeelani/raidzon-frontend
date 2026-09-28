@@ -7,6 +7,7 @@ export async function saveSession(session: AccountSession) {
     { key: 'scoring-account', value: session.accountId },
   ]);
 }
+
 export async function restoreSession(): Promise<AccountSession | null> {
   const saved = await db.metadata.get(sessionKey);
   if (!saved) return null;

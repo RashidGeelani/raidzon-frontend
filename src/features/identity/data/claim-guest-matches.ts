@@ -38,3 +38,14 @@ export async function claimGuestMatches(
       await database.matches.update(match!.id, { localAccountId: session.accountId });
   });
 }
+
+export async function claimDeviceGuestMatches(
+  session: AccountSession,
+  database: RaidzOnDatabase = db,
+) {
+  const ids = (await database.matches.toArray())
+    .filter((match) => isClaimableGuest(match, session))
+    .map((match) => match.id);
+  if (ids.length) await claimGuestMatches(ids, session, database);
+  return ids.length;
+}

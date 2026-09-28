@@ -56,11 +56,11 @@ test('profile name edit re-verifies the phone without replacing the active sessi
     return route.fulfill({ json: { signedOut: true } });
   });
   await page.goto('/');
-  await page.locator('.account-sync > summary').click();
   await page.getByLabel('Mobile number').fill('9876543210');
   await page.getByRole('button', { name: 'Send code', exact: true }).click();
   await page.getByLabel('Verification code', { exact: true }).fill('123456');
-  await page.getByRole('button', { name: 'Verify & sync' }).click();
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await page.getByRole('button', { name: 'Profile', exact: true }).click();
   await page.getByRole('button', { name: 'Edit player name' }).click();
   await page.getByLabel('Player display name').fill('Updated Player');
   await page.getByRole('button', { name: 'Verify phone and save' }).click();
@@ -73,6 +73,6 @@ test('profile name edit re-verifies the phone without replacing the active sessi
   await expect(page.getByText('Updated Player', { exact: true })).toBeVisible();
   expect(verifications).toBe(2);
   await page.reload();
-  await page.locator('.account-sync > summary').click();
+  await page.getByRole('button', { name: 'Profile', exact: true }).click();
   await expect(page.getByText('Updated Player', { exact: true })).toBeVisible();
 });
