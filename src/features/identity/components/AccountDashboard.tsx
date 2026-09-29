@@ -6,7 +6,17 @@ import { EditPlayerProfile } from './EditPlayerProfile';
 interface Dashboard {
   accountId: string;
   phone: string;
-  playerProfile: { id: string; name: string; matchCount: number } | null;
+  playerProfile: {
+    id: string;
+    name: string;
+    matchCount: number;
+    raidPoints: number;
+    tacklePoints: number;
+    superRaids: number;
+    superTackles: number;
+  } | null;
+  tournamentCount: number;
+  teamCount: number;
   ownedMatchCount: number;
   recentMatches: {
     id: string;
@@ -48,55 +58,57 @@ export function AccountDashboard({
       active = false;
     };
   }, [account.accountId, account.token, online, revision, refresh]);
+  const profile = data?.playerProfile;
+  const displayName = profile?.name ?? 'Court organizer';
+  const initials = displayName.split(/\s+/).map((part) => part[0]).slice(0, 2).join('').toUpperCase();
   return (
-    <section aria-label="My account" className="account-dashboard">
-      <h3>My account</h3>
-      {data && (
-        <>
-          <p>Verified phone: {data.phone}</p>
-          <h4>My player profile</h4>
-          {data.playerProfile ? (
-            <p>
-              <strong>{data.playerProfile.name}</strong>
-              <br />
-              {data.playerProfile.matchCount} synced match appearances
-            </p>
-          ) : (
-            <p>
-              No player record is linked yet. Once a team adds your verified number and its match
-              syncs, your player record will appear here.
-            </p>
-          )}
-          {data.playerProfile && (
-            <EditPlayerProfile
-              account={account}
-              phone={data.phone}
-              name={data.playerProfile.name}
-              online={online}
-              onSaved={() => setRefresh((value) => value + 1)}
-            />
-          )}
-          <h4>My synced matches · {data.ownedMatchCount}</h4>
-          {data.recentMatches.length ? (
-            <ul>
-              {data.recentMatches.map((match) => (
-                <li key={match.id}>
-                  <strong>
-                    {match.teamA} {match.scoreA}–{match.scoreB} {match.teamB}
-                  </strong>
-                  <br />
-                  {match.status === 'COMPLETED' ? 'Completed' : 'In progress'} ·{' '}
-                  {new Date(match.updatedAt).toLocaleString()}
-                  <ShareScorecard matchId={match.id} token={account.token} online={online} />
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p>Your synced matches will appear here.</p>
-          )}
+    <section aria-label="My account" className="account-dashboard profile-screen">
+      {data && <>
+        <header className="profile-hero">
+          <span className="profile-avatar" aria-hidden="true">{initials}</span>
+          <h2>{displayName}</h2>
+          <p>{data.phone}</p>
+          <span className="profile-role">🏆 Tournament Organizer</span>
+        </header>
+        <div className="profile-summary" aria-label="Organizer totals">
+          <div><strong>{data.tournamentCount ?? 0}</strong><span>Tournaments</span></div>
+          <div><strong>{data.teamCount ?? 0}</strong><span>Teams</span></div>
+          <div><strong>{data.ownedMatchCount}</strong><span>Matches</span></div>
+        </div>
+        <section className="profile-performance" aria-label="Player performance">
+          <div className="profile-section-title">
+            <h3>My player profile</h3>
+            <span>{profile ? `${profile.matchCount} match appearances` : 'No linked player record yet'}</span>
+          </div>
+          <div className="profile-performance-grid">
+            <div><strong>{profile?.raidPoints ?? 0}</strong><span>Raid points</span></div>
+            <div><strong>{profile?.tacklePoints ?? 0}</strong><span>Tackle points</span></div>
+            <div><strong>{profile?.superRaids ?? 0}</strong><span>Super raids</span></div>
+            <div><strong>{profile?.superTackles ?? 0}</strong><span>Super tackles</span></div>
+          </div>
+          {!profile && <p>When a team adds your verified number and that match syncs, your player stats will appear here.</p>}
+        </section>
+        <div className="profile-menu">
+          <div className="profile-menu-row">
+            <span className="profile-menu-icon" aria-hidden="true">✎</span>
+            <div><strong>Edit Profile</strong><small>Update your player name</small></div>
+            {profile ? <EditPlayerProfile account={account} phone={data.phone} name={profile.name} online={online} onSaved={() => setRefresh((value) => value + 1)} /> : <span className="profile-later">Link a player first</span>}
+          </div>
+          <div className="profile-menu-row profile-menu-planned"><span className="profile-menu-icon" aria-hidden="true">♢</span><div><strong>Notifications</strong><small>Match alerts & updates · later</small></div></div>
+          <div className="profile-menu-row profile-menu-planned"><span className="profile-menu-icon" aria-hidden="true">⚙</span><div><strong>Settings</strong><small>App preferences · later</small></div></div>
+          <div className="profile-menu-row profile-menu-planned"><span className="profile-menu-icon" aria-hidden="true">?</span><div><strong>Help & Support</strong><small>More support options are coming</small></div></div>
+        </div>
+        <div className="profile-brand"><strong>RaidzOn</strong><span>Live Kabaddi. Every Raid.</span></div>
+        <details className="profile-matches">
+          <summary>My synced matches · {data.ownedMatchCount}</summary>
+          {data.recentMatches.length ? <ul>{data.recentMatches.map((match) => <li key={match.id}>
+            <strong>{match.teamA} {match.scoreA}–{match.scoreB} {match.teamB}</strong>
+            <small>{match.status === 'COMPLETED' ? 'Completed' : 'In progress'} · {new Date(match.updatedAt).toLocaleString()}</small>
+            <ShareScorecard matchId={match.id} token={account.token} online={online} />
+          </li>)}</ul> : <p>Your synced matches will appear here.</p>}
           {data.ownedMatchCount > 20 && <p>Showing your 20 most recently updated matches.</p>}
-        </>
-      )}
+        </details>
+      </>}
       {!online && (
         <p>
           Offline —{' '}

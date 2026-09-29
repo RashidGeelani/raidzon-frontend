@@ -6,7 +6,6 @@ import type { LocalMatch } from '../../scoring/domain/match-types';
 import { verifyWithWidget } from '../data/widget-client';
 import { clearSession, flushLogouts, restoreSession, saveSession } from '../data/session-store';
 import { AccountDashboard } from './AccountDashboard';
-import { ScorerAssignments } from './ScorerAssignments';
 import { claimDeviceGuestMatches, isClaimableGuest } from '../data/claim-guest-matches';
 import { TournamentDashboard } from '../../tournaments/TournamentDashboard';
 import type { PreparedFixture } from '../../tournaments/types';
@@ -127,19 +126,19 @@ export function AccountSync({
       ).length
     : 0;
   return (
-    <section className="account-sync">
+    <section className={`account-sync ${section === 'profile' ? 'account-sync-profile' : section === 'tournaments' ? 'account-sync-tournaments' : ''}`}>
       <h2>{section === 'tournaments' ? 'My tournaments' : account ? 'Your account' : 'Sign in'}</h2>
-      {!account && <p>Score offline at any time. Sign in to back up matches from this device automatically when connected.</p>}
+      {!account && section === 'profile' && (
+        <div className="profile-guest" aria-label="Signed-out profile">
+          <span className="profile-avatar" aria-hidden="true">G</span>
+          <h2>Your raidzOn profile</h2>
+          <p>Sign in with your phone to see your tournaments, teams, matches, and player performance.</p>
+          <span className="profile-role">Guest scorer</span>
+        </div>
+      )}
+      {!account && section !== 'profile' && <p>Score offline at any time. Sign in to back up matches from this device automatically when connected.</p>}
       {account && <p role="status">{pending ? `${pending} match${pending === 1 ? '' : 'es'} waiting to sync` : 'Matches are up to date'} · {online ? 'Online' : 'Offline'}</p>}
       {!online && <p>You’re offline. Continue scoring; reconnect to sign in or sync.</p>}
-      {account && section === 'profile' && (
-        <ScorerAssignments
-          key={`assignments-${account.accountId}`}
-          account={account}
-          online={online}
-          matches={matches}
-        />
-      )}
       {account && section === 'profile' && (
         <AccountDashboard
           key={account.accountId}
@@ -198,7 +197,7 @@ export function AccountSync({
           {busy ? 'Complete phone verification…' : 'Sign in with phone'}
         </button>
       ) : available === false ? (
-        <p>SMS sign-in is not enabled yet. Your matches remain safely stored on this device.</p>
+        <p className="profile-signin-note">Phone sign-in is unavailable in this local build. Start the backend with its PostgreSQL and MSG91 settings, then configure the frontend widget values. Your offline matches remain on this device.</p>
       ) : (
         <form
           onSubmit={(event) => {

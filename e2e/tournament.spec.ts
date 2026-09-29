@@ -74,12 +74,14 @@ test('organizer creates tournament, registers teams and schedules a fixture', as
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await page.getByRole('button', { name: 'Tournaments', exact: true }).click();
   const panel = page.getByRole('region', { name: 'My tournaments' });
-  await panel.locator('summary').click();
+  await panel.getByText('+ Create Tournament').click();
   await panel.getByLabel('Tournament name').fill('District Cup');
   await panel.getByLabel('Venue').fill('Main court');
   await panel.getByLabel('Start date').fill('2026-10-10');
   await panel.getByRole('button', { name: 'Create tournament', exact: true }).click();
   await expect(panel.getByRole('heading', { name: 'District Cup' })).toBeVisible();
+  await panel.getByRole('tab', { name: 'Teams' }).click();
+  await panel.getByText('+ Add Team').click();
   await panel.getByLabel('Team name', { exact: true }).fill('Raiders');
   await panel.getByRole('button', { name: 'Register team' }).click();
   await expect(panel.locator('li').filter({ hasText: 'Raiders' })).toBeVisible();
@@ -97,6 +99,8 @@ test('organizer creates tournament, registers teams and schedules a fixture', as
   }
   await panel.getByRole('button', { name: 'Save roster' }).first().click();
   await expect(panel.getByText('Raiders roster (7 saved)')).toBeVisible();
+  await panel.getByRole('tab', { name: 'Matches' }).click();
+  await panel.getByText('+ Schedule Match').click();
   await panel
     .getByRole('combobox', { name: 'Team A', exact: true })
     .selectOption({ label: 'Raiders' });
@@ -109,10 +113,11 @@ test('organizer creates tournament, registers teams and schedules a fixture', as
   expect(tournament.raidSeconds).toBe(30);
   await page.reload();
   await page.getByRole('button', { name: 'Tournaments', exact: true }).click();
-  await panel
-    .getByRole('combobox', { name: 'Choose tournament', exact: true })
-    .selectOption({ label: 'District Cup · 2026-10-10' });
+  await panel.getByRole('tab', { name: 'Upcoming' }).click();
+  await panel.getByRole('button', { name: /District Cup/ }).click();
+  await panel.getByRole('tab', { name: 'Matches' }).click();
   await expect(panel.getByText('Raiders vs Defenders', { exact: true })).toBeVisible();
+  await panel.getByText('+ Schedule Match').click();
   await panel.getByLabel('Fixture time (local)').fill('2026-10-11T10:00');
   await panel.getByRole('button', { name: 'Save fixture time' }).click();
   await expect(panel.getByRole('status')).toHaveText('Saved.');

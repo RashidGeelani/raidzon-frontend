@@ -11,6 +11,7 @@ import type { LocalMatch, MatchEvent, MatchIntent } from '../features/scoring/do
 
 export function App() {
   const [tab, setTab] = useState<'home' | 'tournaments' | 'matches' | 'leaderboards' | 'profile'>('home');
+  const [matchFilter, setMatchFilter] = useState<'UPCOMING' | 'LIVE' | 'COMPLETED'>('LIVE');
   const [matches, setMatches] = useState<LocalMatch[]>([]);
   const [events, setEvents] = useState<MatchEvent[]>([]);
   const [session, setSession] = useState('');
@@ -186,7 +187,7 @@ export function App() {
             <LocalLeaderboards matches={matches} />
           ) : tab === 'tournaments' || tab === 'profile' ? null : (
             <>
-              <div className="section-heading">
+              {tab === 'matches' ? <header className="list-screen-heading"><h2>Matches</h2><p>Your saved and scheduled games</p></header> : <div className="section-heading">
                 <div>
                   <p className="eyebrow">{tab === 'home' ? 'WELCOME TO THE COURT' : 'MATCH CENTER'}</p>
                   <h1>{tab === 'home' ? 'Ready for the next raid?' : 'Your matches'}</h1>
@@ -199,7 +200,10 @@ export function App() {
                     year: 'numeric',
                   }).format(new Date())}
                 </span>
-              </div>
+              </div>}
+              {tab === 'matches' && <div className="list-filter-tabs" role="tablist" aria-label="Match status">
+                {(['UPCOMING', 'LIVE', 'COMPLETED'] as const).map((status) => <button type="button" role="tab" aria-selected={matchFilter === status} className={matchFilter === status ? 'active' : ''} key={status} onClick={() => setMatchFilter(status)}>{status[0] + status.slice(1).toLowerCase()}</button>)}
+              </div>}
               {tab === 'home' && <section className="hero">
                 <div className="hero-copy">
                   <span className="hero-tag">BUILT FOR THE SIDELINES</span>
@@ -257,7 +261,7 @@ export function App() {
                   </p>
                 </div>
               </div>}
-              <section className="matches-section">
+              <section className={`matches-section ${tab === 'matches' ? 'matches-screen' : ''}`}>
                 <div className="panel-title">
                   <h2>
                     Your matches <span className="count">{matches.length}</span>
@@ -277,9 +281,9 @@ export function App() {
                   </div>
                 ) : (
                   <div className="match-cards">
-                    {matches.map((item) => (
+                    {matches.filter((item) => tab !== 'matches' || (matchFilter === 'LIVE' && item.state.status !== 'COMPLETED') || (matchFilter === 'COMPLETED' && item.state.status === 'COMPLETED')).map((item) => (
                       <button
-                        className="match-card"
+                        className={`match-card ${tab === 'matches' ? 'match-list-card' : ''}`}
                         key={item.id}
                         onClick={() => {
                           setSelectedId(item.id);
@@ -296,6 +300,9 @@ export function App() {
                               : 'Saved on device'}
                           </small>
                         </div>
+                        {tab === 'matches' && <small className="match-card-context">{item.name} · Raid #{item.state.raidNumber}</small>}
+                        {tab === 'matches' && <div className="match-card-score"><span><b>{item.state.teams[0].name.slice(0, 3).toUpperCase()}</b><small>{item.state.teams[0].name}</small></span><strong>{item.state.scores[0]} : {item.state.scores[1]}</strong><span><b>{item.state.teams[1].name.slice(0, 3).toUpperCase()}</b><small>{item.state.teams[1].name}</small></span></div>}
+                        {tab !== 'matches' && <>
                         <h3>
                           {item.state.teams[0].name}
                           <strong>{item.state.scores[0]}</strong>
@@ -304,14 +311,18 @@ export function App() {
                           {item.state.teams[1].name}
                           <strong>{item.state.scores[1]}</strong>
                         </h3>
+                        </>}
                         <p>
                           {item.state.status === 'COMPLETED' ? 'View result' : 'Resume match'}{' '}
                           <span>→</span>
                         </p>
                       </button>
                     ))}
+                    {tab === 'matches' && matchFilter === 'UPCOMING' && <div className="list-empty">Scheduled fixtures are managed inside each tournament. Open Tournaments to prepare a match.</div>}
+                    {tab === 'matches' && matchFilter !== 'UPCOMING' && !matches.some((item) => matchFilter === 'LIVE' ? item.state.status !== 'COMPLETED' : item.state.status === 'COMPLETED') && <div className="list-empty">No {matchFilter.toLowerCase()} matches yet.</div>}
                   </div>
                 )}
+                {tab === 'matches' && <button className="match-create-action" disabled={!session} onClick={startSetup}>+ Schedule Match</button>}
               </section>
               {tab === 'home' && <div className="local-note">
                 <span>◈</span>

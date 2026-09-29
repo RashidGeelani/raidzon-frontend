@@ -1587,6 +1587,125 @@ footer { border-color: #30304a; color: #7878a0; }
 .leaderboard-person small, .leaderboard-points small { color: #9191af; }
 .leaderboard-points { display: grid; justify-items: end; }
 .leaderboard-points strong { color: #ff6a36; font-family: Rajdhani, Inter, sans-serif; font-size: 1.5rem; }
+.account-sync-profile { background: transparent; border: 0; padding: 0; }
+.account-sync-profile > h2 { display: none; }
+.account-sync-profile > p[role='status'] { text-align: center; color: #8989a8; font-size: .72rem; margin: 8px 0 14px; }
+.profile-guest { display: grid; justify-items: center; gap: 9px; padding: 42px 22px 28px; text-align: center; background: radial-gradient(ellipse at 50% 0%, #251215 0%, #0e0e1c 70%); }
+.profile-guest h2 { margin: 0; font-size: 1.65rem; }
+.profile-guest p { max-width: 32ch; margin: 0 0 4px; font-size: .85rem; line-height: 1.55; }
+.profile-guest + button, .account-sync-profile > form { display: block; width: min(100%, 360px); margin: 18px auto; }
+.profile-guest + button { background: #ff4500; color: white; }
+.profile-signin-note { width: min(100%, 360px); margin: 18px auto; padding: 15px; border: 1px solid #513329; border-radius: 14px; background: #1b1725; font-size: .8rem; line-height: 1.5; }
+.profile-screen { display: grid; gap: 16px; }
+.profile-hero { text-align: center; padding: 24px 12px 6px; background: radial-gradient(ellipse at 50% 0%, #251215 0%, #0e0e1c 70%); }
+.profile-avatar { display: grid; place-items: center; width: 64px; height: 64px; margin: 0 auto 12px; border-radius: 50%; background: linear-gradient(145deg, #ff6d1d, #ff4500); color: #fff; font-family: Rajdhani, Inter, sans-serif; font-size: 1.35rem; font-weight: 700; box-shadow: 0 8px 28px #ff450033; }
+.profile-hero h2 { margin: 0 0 2px; font-size: 1.65rem; }
+.profile-hero p { margin: 0 0 10px; color: #a3a3c2; font-size: .78rem; }
+.profile-role { display: inline-block; border-radius: 999px; background: #351612; color: #ff6a36; padding: 5px 12px; font-size: .68rem; font-weight: 700; }
+.profile-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.profile-summary > div, .profile-performance-grid > div { min-width: 0; display: grid; justify-items: center; align-content: center; gap: 2px; padding: 12px 4px; background: #141426; border: 1px solid #25253b; border-radius: 15px; text-align: center; }
+.profile-summary strong, .profile-performance-grid strong { color: #fff; font-family: Rajdhani, Inter, sans-serif; font-size: 1.45rem; line-height: 1; }
+.profile-summary span, .profile-performance-grid span { color: #9393b9; font-size: .68rem; }
+.profile-performance { background: #141426; border: 1px solid #25253b; border-radius: 16px; padding: 15px; }
+.profile-section-title { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.profile-section-title h3 { margin: 0 0 12px; font-size: 1.18rem; }
+.profile-section-title span { color: #9292b5; font-size: .66rem; text-align: right; }
+.profile-performance-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.profile-performance-grid > div { background: #1d1b32; border-color: #30304a; }
+.profile-performance-grid strong { color: #ff6836; }
+.profile-performance > p { margin: 12px 0 0; font-size: .75rem; }
+.profile-menu { background: #141426; border: 1px solid #25253b; border-radius: 16px; overflow: hidden; }
+.profile-menu-row { display: flex; flex-wrap: wrap; align-items: center; min-height: 56px; padding: 11px 14px; gap: 12px; border-bottom: 1px solid #25253b; }
+.profile-menu-row:last-child { border-bottom: 0; }
+.profile-menu-icon { width: 22px; text-align: center; color: #ff703c; font-size: 1.1rem; font-weight: 700; }
+.profile-menu-row > div:nth-child(2) { display: grid; flex: 1; min-width: 0; gap: 1px; }
+.profile-menu-row strong { font-size: .78rem; }
+.profile-menu-row small { color: #9393b9; font-size: .67rem; }
+.profile-menu-row > div:last-child:not(:nth-child(2)) button.secondary { background: transparent; border: 0; color: #ff703c; font-size: .7rem; min-height: 34px; padding: 4px; }
+.profile-menu-row > div:last-child:not(:nth-child(2)) form { flex-basis: 100%; min-width: 220px; }
+.profile-menu-row > div:last-child:not(:nth-child(2)) form button { margin: 4px 6px 4px 0; }
+.profile-menu-planned { opacity: .75; }
+.profile-later { color: #777798; font-size: .66rem; text-align: right; }
+.profile-brand, .profile-matches { background: #141426; border: 1px solid #25253b; border-radius: 16px; padding: 13px 15px; }
+.profile-brand { display: grid; gap: 4px; }
+.profile-brand strong { font-size: .8rem; }
+.profile-brand span { color: #9292b5; font-size: .68rem; }
+.profile-matches summary { font-family: Rajdhani, Inter, sans-serif; font-size: 1rem; }
+.profile-matches ul { padding-left: 16px; }
+.profile-matches li { padding: 10px 0; }
+.profile-matches li small { display: block; color: #9292b5; margin: 4px 0; }
+.account-sync-profile > .sync-controls button.secondary { width: 100%; background: #35111b; color: #ff4b6a; border: 1px solid #692437; }
+.account-sync-profile > .sync-controls button.secondary:hover { background: #4a1725; }
+.account-sync-tournaments { background: transparent; border: 0; padding: 0; }
+.account-sync-tournaments > h2 { display: none; }
+.list-screen-heading { padding: 18px 2px 10px; }
+.list-screen-heading h2 { margin: 0 0 3px; color: #fff; font-size: 1.65rem; line-height: 1.1; }
+.list-screen-heading p { margin: 0; color: #8d8eb8; font-size: .78rem; }
+.list-filter-tabs { display: flex; gap: 4px; overflow-x: auto; border-bottom: 1px solid #242438; margin: 8px 0 16px; scrollbar-width: none; }
+.list-filter-tabs button { flex: 0 0 auto; min-height: 39px; padding: 8px 14px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: #8585ac; font-size: .75rem; }
+.list-filter-tabs button.active { color: #ff5727; border-bottom-color: #ff4500; }
+.tournament-list { display: grid; gap: 11px; }
+.tournament-list-card { display: grid; gap: 7px; width: 100%; padding: 17px; text-align: left; color: #fff; border: 1px solid #24243a; border-radius: 17px; background: #141426; }
+.tournament-list-card:hover { border-color: #ff6334; background: #1b192c; }
+.tournament-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.tournament-card-top strong { font-size: .9rem; line-height: 1.25; }
+.tournament-card-top em, .tournament-detail-status { padding: 3px 8px; border-radius: 999px; background: #10352d; color: #00d09a; font-size: .62rem; font-style: normal; font-weight: 700; }
+.tournament-card-venue, .tournament-card-date { color: #9898bf; font-size: .7rem; }
+.tournament-card-counts { display: flex; align-items: baseline; gap: 4px; color: #9999be; font-size: .72rem; }
+.tournament-card-counts b { margin-left: 9px; color: #fff; font-size: .84rem; }
+.tournament-card-counts b:first-child { margin-left: 0; }
+.list-empty { padding: 30px 18px; border: 1px dashed #36364d; border-radius: 16px; color: #a2a2c0; text-align: center; font-size: .85rem; }
+.tournament-create { margin: 18px 0; }
+.tournament-create > summary, .tournament-action-form > summary, .match-create-action { width: fit-content; margin-left: auto; padding: 12px 17px; border-radius: 13px; border: 0; background: #ff4500; box-shadow: 0 6px 22px #ff450044; color: white; cursor: pointer; font-size: .82rem; font-weight: 700; list-style: none; }
+.tournament-create > summary::-webkit-details-marker, .tournament-action-form > summary::-webkit-details-marker { display: none; }
+.tournament-create form, .tournament-action-form form { margin-top: 17px; padding: 16px; border: 1px solid #30304a; border-radius: 16px; background: #141426; }
+.tournament-detail-header { display: flex; align-items: center; gap: 10px; padding: 15px 0 8px; }
+.tournament-back { flex: 0 0 auto; width: 36px; height: 36px; padding: 0; border-radius: 12px; background: #1b1b30; color: #fff; }
+.tournament-detail-header > div { min-width: 0; flex: 1; }
+.tournament-detail-header h2 { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #fff; font-size: 1.05rem; }
+.tournament-detail-header p { margin: 3px 0 0; color: #9898ba; font-size: .68rem; }
+.tournament-detail-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 13px 0 10px; }
+.tournament-detail-stats > div { display: grid; justify-items: center; gap: 2px; padding: 12px 2px; border-radius: 11px; background: #141426; }
+.tournament-detail-stats strong { color: #fff; font-size: 1.1rem; }
+.tournament-detail-stats span { color: #9393b6; font-size: .65rem; }
+.tournament-detail-tabs { gap: 0; justify-content: space-between; }
+.tournament-detail-tabs button { padding-inline: 7px; font-size: .67rem; }
+.tournament-overview, .tournament-tab-content { display: grid; gap: 12px; }
+.tournament-info-card { padding: 16px; border: 1px solid #24243a; border-radius: 16px; background: #141426; }
+.tournament-info-card > small { color: #9e9ed0; font-size: .69rem; letter-spacing: .05em; }
+.tournament-info-card dl { display: grid; gap: 8px; margin: 13px 0 0; }
+.tournament-info-card dl div { display: flex; justify-content: space-between; gap: 12px; font-size: .73rem; }
+.tournament-info-card dt { color: #9090bb; }
+.tournament-info-card dd { margin: 0; color: #fff; text-align: right; }
+.tournament-info-card p { margin: 12px 0 0; font-size: .78rem; }
+.tournament-tab-content h4 { margin: 6px 0 0; }
+.tournament-tab-content > p { margin: 0; }
+.tournament-team-list { display: grid; gap: 9px; padding: 0; margin: 0; list-style: none; }
+.tournament-team-list li { display: flex; align-items: center; gap: 11px; padding: 12px; border: 1px solid #25253d; border-radius: 15px; background: #141426; }
+.tournament-team-code { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; background: #25213c; color: #807dff; font-size: .68rem; font-weight: 800; }
+.tournament-team-list li > span:nth-child(2) { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.tournament-team-list li strong { font-size: .78rem; }
+.tournament-team-list li small { color: #9999bc; font-size: .65rem; }
+.tournament-team-list li > b { color: #ff5727; text-align: right; }
+.tournament-team-list li > b small { display: block; }
+.tournament-action-form { margin: 8px 0 12px; }
+.tournament-player-row { display: flex; justify-content: space-between; padding: 14px; border: 1px solid #25253d; border-radius: 13px; background: #141426; }
+.tournament-player-row small { color: #9999bc; }
+.matches-screen .panel-title { display: none; }
+.matches-screen .match-cards { grid-template-columns: 1fr; }
+.match-list-card { padding: 13px; border-color: #43202d; background: #1a101d; }
+.match-list-card > div:first-child { margin-bottom: 8px; }
+.match-list-card .match-card-context { display: block; margin-bottom: 9px; color: #a2a2c3; }
+.match-list-card .match-card-score { display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); gap: 8px; margin: 0; text-align: center; }
+.match-card-score > span { display: grid; justify-items: center; gap: 5px; min-width: 0; }
+.match-card-score > span b { display: grid; place-items: center; width: 37px; height: 37px; border: 1px solid #353052; border-radius: 10px; background: #242039; color: #8b86ff; font-size: .67rem; }
+.match-card-score > span:last-child b { color: #b36dff; background: #2b1b3c; }
+.match-card-score > span small { overflow: hidden; max-width: 100%; text-overflow: ellipsis; white-space: nowrap; }
+.match-card-score > strong { align-self: center; color: #fff; font-size: 1.45rem; }
+.match-list-card > p { justify-content: center; padding: 10px; border: 0; border-radius: 10px; background: #ff2857; color: #fff; font-weight: 700; }
+.match-list-card > p span { display: none; }
+.match-create-action { display: block; margin: 18px 0 0 auto; }
+@media (max-width: 420px) { .profile-performance-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 680px) {
   .workspace { border: 0; }
   .bottom-nav { position: fixed; left: 0; right: 0; }

@@ -51,6 +51,9 @@ interface Detail {
     scoreDifference: number;
   }[];
 }
+type TournamentFilter = 'ACTIVE' | 'UPCOMING' | 'COMPLETED';
+type TournamentSummary = { teams: number; matches: number; status: TournamentFilter };
+type DetailTab = 'overview' | 'teams' | 'matches' | 'standings' | 'players';
 export function TournamentDashboard({
   account,
   online,
@@ -63,6 +66,9 @@ export function TournamentDashboard({
   onPrepareFixture: (fixture: PreparedFixture) => void;
 }) {
   const [items, setItems] = useState<Tournament[]>([]);
+  const [summaries, setSummaries] = useState<Record<string, TournamentSummary>>({});
+  const [filter, setFilter] = useState<TournamentFilter>('ACTIVE');
+  const [detailTab, setDetailTab] = useState<DetailTab>('overview');
   const [selected, setSelected] = useState('');
   const [detail, setDetail] = useState<Detail | null>(null);
   const [revision, setRevision] = useState(0);
@@ -74,8 +80,27 @@ export function TournamentDashboard({
     if (!online) return;
     let active = true;
     api<Tournament[]>('/tournaments', undefined, account.token)
-      .then((value) => {
-        if (active) setItems(value);
+      .then(async (value) => {
+        if (!active) return;
+        setItems(value);
+        const loaded = await Promise.allSettled(value.map((item) =>
+          api<Detail>(`/tournaments/${item.id}`, undefined, account.token)));
+        if (!active) return;
+        const next: Record<string, TournamentSummary> = {};
+        loaded.forEach((result, index) => {
+          if (result.status !== 'fulfilled') return;
+          const item = value[index];
+          const fixtures = result.value.fixtures;
+          next[item.id] = {
+            teams: result.value.teams.length,
+            matches: fixtures.length,
+            status: item.startsOn > new Date().toISOString().slice(0, 10)
+              ? 'UPCOMING'
+              : fixtures.length > 0 && fixtures.every((fixture) => fixture.status === 'COMPLETED')
+                ? 'COMPLETED' : 'ACTIVE',
+          };
+        });
+        setSummaries(next);
       })
       .catch(() => {
         if (active) setMessage('Unable to load tournaments. Retry when connected.');
@@ -114,6 +139,7 @@ export function TournamentDashboard({
       requests.current.delete(key);
       setDetail(result);
       setSelected(result.tournament.id);
+      setFilter(result.tournament.startsOn > new Date().toISOString().slice(0, 10) ? 'UPCOMING' : 'ACTIVE');
       setRevision((value) => value + 1);
       setMessage('Saved.');
     } catch (error) {
@@ -126,21 +152,36 @@ export function TournamentDashboard({
     }
   }
   const teamName = (id: string) => detail?.teams.find((item) => item.id === id)?.name ?? 'Team';
+  const visibleItems = items.filter((item) => (summaries[item.id]?.status ??
+    (item.startsOn > new Date().toISOString().slice(0, 10) ? 'UPCOMING' : 'ACTIVE')) === filter);
   return (
-    <section aria-label="My tournaments" className="account-dashboard">
-      <h3>My tournaments</h3>
-      <p>
-        You manage tournaments you create. Teams and fixtures require a connection; prepared matches
-        can be scored offline.
-      </p>
+    <section aria-label="My tournaments" className="account-dashboard tournament-screen">
+      {!selected ? <>
+        <header className="list-screen-heading"><h2>Your Tournaments</h2><p>Manage all your competitions</p></header>
+        <div className="list-filter-tabs" role="tablist" aria-label="Tournament status">
+          {(['ACTIVE', 'UPCOMING', 'COMPLETED'] as const).map((status) => <button key={status} type="button" role="tab" aria-selected={filter === status} className={filter === status ? 'active' : ''} onClick={() => setFilter(status)}>{status[0] + status.slice(1).toLowerCase()}</button>)}
+        </div>
+        <div className="tournament-list">
+          {visibleItems.map((item) => {
+            const summary = summaries[item.id];
+            return <button type="button" className="tournament-list-card" key={item.id} onClick={() => { setSelected(item.id); setDetail(null); setDetailTab('overview'); setMessage(''); }}>
+              <span className="tournament-card-top"><strong>{item.name}</strong><em>{summary?.status ?? filter}</em></span>
+              <span className="tournament-card-venue">⌖ {item.venue}</span>
+              <span className="tournament-card-date">{item.startsOn}</span>
+              <span className="tournament-card-counts"><b>{summary?.teams ?? '—'}</b> Teams <b>{summary?.matches ?? '—'}</b> Matches</span>
+            </button>;
+          })}
+          {!visibleItems.length && <div className="list-empty">No {filter.toLowerCase()} tournaments yet.</div>}
+        </div>
+      </> : null}
       {!online && (
         <p>
           Offline — showing the last loaded details. Reconnect to manage tournaments or refresh
           scores.
         </p>
       )}
-      <details>
-        <summary>Create tournament</summary>
+      {!selected && <details className="tournament-create">
+        <summary>+ Create Tournament</summary>
         <form
           onSubmit={(event) => {
             event.preventDefault();
@@ -178,54 +219,55 @@ export function TournamentDashboard({
             <button>Create tournament</button>
           </fieldset>
         </form>
-      </details>
-      <label>
-        Choose tournament
-        <select
-          value={selected}
-          disabled={busy}
-          onChange={(event) => {
-            setSelected(event.target.value);
-            setDetail(null);
-            setMessage('');
-          }}
-        >
-          <option value="">Select tournament</option>
-          {items.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.name} · {item.startsOn}
-            </option>
-          ))}
-        </select>
-      </label>
-      <button
+      </details>}
+      {!selected && <button
         className="secondary"
         disabled={!online || busy}
         onClick={() => setRevision((value) => value + 1)}
       >
         Refresh tournaments
-      </button>
+      </button>}
       {detail && detail.tournament.id === selected && (
-        <div key={selected}>
-          <h4>{detail.tournament.name}</h4>
-          <p>
-            {detail.tournament.venue} · {detail.tournament.startsOn} ·{' '}
-            {detail.tournament.halfMinutes}-minute halves · {detail.tournament.raidSeconds}-second
-            raids
-          </p>
+        <div key={selected} className="tournament-detail">
+          <header className="tournament-detail-header">
+            <button type="button" className="tournament-back" aria-label="Back to tournaments" onClick={() => { setSelected(''); setDetail(null); }}>←</button>
+            <div><h2>{detail.tournament.name}</h2><p>⌖ {detail.tournament.venue}</p></div>
+            <span className="tournament-detail-status">{summaries[selected]?.status ?? 'ACTIVE'}</span>
+          </header>
+          <div className="tournament-detail-stats">
+            <div><strong>{detail.teams.length}</strong><span>Teams</span></div>
+            <div><strong>{detail.fixtures.length}</strong><span>Matches</span></div>
+            <div><strong>{detail.fixtures.filter((fixture) => fixture.status === 'COMPLETED').length}</strong><span>Done</span></div>
+            <div><strong>{detail.fixtures.filter((fixture) => fixture.status !== 'COMPLETED').length}</strong><span>Left</span></div>
+          </div>
+          <div className="list-filter-tabs tournament-detail-tabs" role="tablist" aria-label="Tournament details">
+            {(['overview', 'teams', 'matches', 'standings', 'players'] as const).map((tab) => <button type="button" key={tab} role="tab" aria-selected={detailTab === tab} className={detailTab === tab ? 'active' : ''} onClick={() => setDetailTab(tab)}>{tab[0].toUpperCase() + tab.slice(1)}</button>)}
+          </div>
+          {detailTab === 'overview' && <div className="tournament-overview">
+            <div className="tournament-info-card"><small>TOURNAMENT INFO</small><dl>
+              <div><dt>Venue</dt><dd>{detail.tournament.venue}</dd></div>
+              <div><dt>Start date</dt><dd>{detail.tournament.startsOn}</dd></div>
+              <div><dt>Half duration</dt><dd>{detail.tournament.halfMinutes} minutes</dd></div>
+              <div><dt>Raid duration</dt><dd>{detail.tournament.raidSeconds} seconds</dd></div>
+            </dl></div>
+            <div className="tournament-info-card"><small>NEXT STEP</small><p>Add teams and their reusable rosters, then schedule fixtures. Prepared matches can be scored offline.</p></div>
+          </div>}
+          {detailTab === 'teams' && <div className="tournament-tab-content">
           <h4>Registered teams ({detail.teams.length})</h4>
           <p>
             Register team names here. Select seven starters and optional substitutes when preparing
             each match.
           </p>
-          <ul>
+          <ul className="tournament-team-list">
             {detail.teams.map((item) => (
               <li key={item.id}>
-                {item.name} · {item.roster?.length ?? 0} players
+                <span className="tournament-team-code">{item.name.slice(0, 3).toUpperCase()}</span>
+                <span><strong>{item.name}</strong><small>{item.roster?.length ?? 0} players</small></span>
+                <b>{detail.standings?.find((row) => row.teamId === item.id)?.tablePoints ?? 0} <small>pts</small></b>
               </li>
             ))}
           </ul>
-          <form
+          <details className="tournament-action-form"><summary>+ Add Team</summary><form
             onSubmit={(event) => {
               event.preventDefault();
               const data = new FormData(event.currentTarget);
@@ -239,7 +281,7 @@ export function TournamentDashboard({
               <input name="name" required maxLength={60} disabled={busy || !online} />
             </label>
             <button disabled={busy || !online}>Register team</button>
-          </form>
+          </form></details>
           <h4>Reusable team rosters</h4>
           <p>
             Save seven starters and up to five substitutes once, then use them in future fixtures.
@@ -260,8 +302,9 @@ export function TournamentDashboard({
               }
             />
           ))}
-          <h4>Schedule fixture</h4>
-          <form
+          </div>}
+          {detailTab === 'matches' && <div className="tournament-tab-content">
+          <details className="tournament-action-form"><summary>+ Schedule Match</summary><form
             onSubmit={(event) => {
               event.preventDefault();
               const data = new FormData(event.currentTarget);
@@ -307,12 +350,11 @@ export function TournamentDashboard({
               </label>
               <button>Add fixture</button>
             </fieldset>
-          </form>
+          </form></details>
           <h4>Fixtures ({detail.fixtures.length})</h4>
           <p>
             Prepare match preloads team names, saved rosters and tournament timers. Its fixture link
-            is retried automatically after sync. Assign its scorer through Scorer assignments before
-            recording events.
+            is retried automatically after sync. The tournament organizer scores it in the MVP.
           </p>
           {detail.fixtures.map((fixture) => (
             <div key={fixture.id} className="fixture-card">
@@ -426,6 +468,8 @@ export function TournamentDashboard({
             </div>
           ))}
           {!detail.fixtures.length && <p>No fixtures scheduled yet.</p>}
+          </div>}
+          {detailTab === 'standings' && <div className="tournament-tab-content">
           <h4>Standings</h4>
           <p>
             Completed synced matches only. Win 3 points, accepted tie 1, loss 0. Ranked by table
@@ -467,6 +511,12 @@ export function TournamentDashboard({
               </tbody>
             </table>
           </div>
+          </div>}
+          {detailTab === 'players' && <div className="tournament-tab-content">
+            <h4>Players</h4>
+            {detail.teams.flatMap((team) => (team.roster ?? []).map((player) => ({ team: team.name, ...player }))).map((player) => <div className="tournament-player-row" key={`${player.team}:${player.phone}`}><strong>{player.name}</strong><small>{player.team}</small></div>)}
+            {!detail.teams.some((team) => team.roster?.length) && <p>Save a team roster to see its players here.</p>}
+          </div>}
         </div>
       )}
       {message && <p role="status">{message}</p>}
