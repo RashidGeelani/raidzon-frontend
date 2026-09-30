@@ -73,6 +73,7 @@ test('organizer creates tournament, registers teams and schedules a fixture', as
   await page.getByLabel('Verification code', { exact: true }).fill('123456');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await page.getByRole('button', { name: 'Tournaments', exact: true }).click();
+  await page.getByRole('button', { name: 'My tournaments', exact: true }).click();
   const panel = page.getByRole('region', { name: 'My tournaments' });
   await panel.getByText('+ Create Tournament').click();
   await panel.getByLabel('Tournament name').fill('District Cup');
@@ -113,6 +114,7 @@ test('organizer creates tournament, registers teams and schedules a fixture', as
   expect(tournament.raidSeconds).toBe(30);
   await page.reload();
   await page.getByRole('button', { name: 'Tournaments', exact: true }).click();
+  await page.getByRole('button', { name: 'My tournaments', exact: true }).click();
   await panel.getByRole('tab', { name: 'Upcoming' }).click();
   await panel.getByRole('button', { name: /District Cup/ }).click();
   await panel.getByRole('tab', { name: 'Matches' }).click();

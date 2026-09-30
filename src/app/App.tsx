@@ -7,6 +7,8 @@ import { LiveMatch } from '../features/scoring/components/LiveMatch';
 import { AccountSync } from '../features/identity/components/AccountSync';
 import { LocalLeaderboards } from '../features/scoring/components/LocalLeaderboards';
 import type { PreparedFixture } from '../features/tournaments/types';
+import { UpcomingMatches } from '../features/tournaments/UpcomingMatches';
+import { JoinedTournamentMatches } from '../features/tournaments/JoinedTournamentMatches';
 import type { LocalMatch, MatchEvent, MatchIntent } from '../features/scoring/domain/match-types';
 
 export function App() {
@@ -98,6 +100,11 @@ export function App() {
     setSelectedId(null);
     setError('');
   }
+  function prepareFixture(fixture: PreparedFixture) {
+    setSelectedId(null);
+    setPreparedFixture(fixture);
+    setSetup(true);
+  }
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -149,11 +156,7 @@ export function App() {
               section={tab === 'tournaments' ? 'tournaments' : tab === 'profile' ? 'profile' : 'all'}
               online={online}
               matches={matches}
-              onPrepareFixture={(fixture) => {
-                setSelectedId(null);
-                setPreparedFixture(fixture);
-                setSetup(true);
-              }}
+              onPrepareFixture={prepareFixture}
             />
           </div>
           {error && (
@@ -268,7 +271,9 @@ export function App() {
                   </h2>
                   <span className="muted">Most recently played</span>
                 </div>
-                {!loaded ? (
+                {tab === 'matches' && matchFilter === 'UPCOMING' ? (
+                  <UpcomingMatches matches={matches} online={online} onPrepare={prepareFixture} />
+                ) : !loaded ? (
                   <p>Loading your saved matches…</p>
                 ) : matches.length === 0 ? (
                   <div className="empty-state">
@@ -318,11 +323,11 @@ export function App() {
                         </p>
                       </button>
                     ))}
-                    {tab === 'matches' && matchFilter === 'UPCOMING' && <div className="list-empty">Scheduled fixtures are managed inside each tournament. Open Tournaments to prepare a match.</div>}
                     {tab === 'matches' && matchFilter !== 'UPCOMING' && !matches.some((item) => matchFilter === 'LIVE' ? item.state.status !== 'COMPLETED' : item.state.status === 'COMPLETED') && <div className="list-empty">No {matchFilter.toLowerCase()} matches yet.</div>}
                   </div>
                 )}
-                {tab === 'matches' && <button className="match-create-action" disabled={!session} onClick={startSetup}>+ Schedule Match</button>}
+                {tab === 'matches' && <JoinedTournamentMatches filter={matchFilter} online={online} />}
+                {tab === 'matches' && <button className="match-create-action" disabled={!session} onClick={startSetup}>+ New standalone match</button>}
               </section>
               {tab === 'home' && <div className="local-note">
                 <span>◈</span>

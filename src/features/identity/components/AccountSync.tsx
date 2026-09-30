@@ -7,7 +7,7 @@ import { verifyWithWidget } from '../data/widget-client';
 import { clearSession, flushLogouts, restoreSession, saveSession } from '../data/session-store';
 import { AccountDashboard } from './AccountDashboard';
 import { claimDeviceGuestMatches, isClaimableGuest } from '../data/claim-guest-matches';
-import { TournamentDashboard } from '../../tournaments/TournamentDashboard';
+import { TournamentExplorer } from '../../tournaments/TournamentExplorer';
 import type { PreparedFixture } from '../../tournaments/types';
 
 export function AccountSync({
@@ -136,7 +136,7 @@ export function AccountSync({
           <span className="profile-role">Guest scorer</span>
         </div>
       )}
-      {!account && section !== 'profile' && <p>Score offline at any time. Sign in to back up matches from this device automatically when connected.</p>}
+      {!account && section === 'all' && <p>Score offline at any time. Sign in to back up matches from this device automatically when connected.</p>}
       {account && <p role="status">{pending ? `${pending} match${pending === 1 ? '' : 'es'} waiting to sync` : 'Matches are up to date'} · {online ? 'Online' : 'Offline'}</p>}
       {!online && <p>You’re offline. Continue scoring; reconnect to sign in or sync.</p>}
       {account && section === 'profile' && (
@@ -147,9 +147,9 @@ export function AccountSync({
           revision={matches.map((match) => `${match.id}:${match.serverVersion ?? -1}`).join('|')}
         />
       )}
-      {account && section === 'tournaments' ? (
-        <TournamentDashboard
-          key={`tournaments-${account.accountId}`}
+      {section === 'tournaments' ? (
+        <TournamentExplorer
+          key={`tournaments-${account?.accountId ?? 'guest'}`}
           account={account}
           online={online}
           matches={matches}

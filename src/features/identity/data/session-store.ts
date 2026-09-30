@@ -33,6 +33,7 @@ export async function clearSession(session?: AccountSession) {
       await db.metadata.put({ key: `logout:${session.token}`, value: JSON.stringify(session) });
     await db.metadata.delete(sessionKey);
     if (session) await db.metadata.delete('scoring-account');
+    if (session) await db.metadata.delete(`upcoming-fixtures:${session.accountId}`);
   });
 }
 export async function flushLogouts() {

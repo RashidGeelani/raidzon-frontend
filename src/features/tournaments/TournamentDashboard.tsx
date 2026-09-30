@@ -59,11 +59,13 @@ export function TournamentDashboard({
   online,
   matches,
   onPrepareFixture,
+  startCreating = false,
 }: {
   account: AccountSession;
   online: boolean;
   matches: LocalMatch[];
   onPrepareFixture: (fixture: PreparedFixture) => void;
+  startCreating?: boolean;
 }) {
   const [items, setItems] = useState<Tournament[]>([]);
   const [summaries, setSummaries] = useState<Record<string, TournamentSummary>>({});
@@ -180,7 +182,7 @@ export function TournamentDashboard({
           scores.
         </p>
       )}
-      {!selected && <details className="tournament-create">
+      {!selected && <details className="tournament-create" open={startCreating || undefined}>
         <summary>+ Create Tournament</summary>
         <form
           onSubmit={(event) => {

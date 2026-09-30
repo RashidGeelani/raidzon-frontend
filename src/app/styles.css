@@ -1705,6 +1705,19 @@ footer { border-color: #30304a; color: #7878a0; }
 .match-list-card > p { justify-content: center; padding: 10px; border: 0; border-radius: 10px; background: #ff2857; color: #fff; font-weight: 700; }
 .match-list-card > p span { display: none; }
 .match-create-action { display: block; margin: 18px 0 0 auto; }
+.upcoming-match-list { display: grid; gap: 12px; }
+.tournament-search { margin: 0 0 18px; }
+.tournament-search button { background: #ff4500; color: white; }
+.joined-matches { display: grid; gap: 12px; margin-top: 24px; }
+.joined-matches h3 { margin: 0; }
+.fixture-load-message { margin: 0; color: #aaaac5; font-size: .78rem; }
+.upcoming-match-card { padding: 15px; border: 1px solid #352438; border-radius: 16px; background: #171321; }
+.upcoming-match-card > small { color: #a0a0c1; font-size: .68rem; }
+.upcoming-teams { display: flex; justify-content: space-between; align-items: center; gap: 9px; margin: 14px 0; color: #fff; font-size: .82rem; }
+.upcoming-teams strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.upcoming-teams span { color: #ff6836; font-size: .72rem; }
+.upcoming-match-card p { color: #9393b6; font-size: .72rem; }
+.upcoming-match-card button { width: 100%; border: 0; border-radius: 10px; background: #ff2857; color: #fff; font-size: .78rem; font-weight: 700; }
 @media (max-width: 420px) { .profile-performance-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 680px) {
   .workspace { border: 0; }
