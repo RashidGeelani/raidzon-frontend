@@ -132,18 +132,8 @@ export function LiveMatch({
       );
 
   return (
-    <div>
-      <div className="section-heading">
-        <div>
-          <p className="eyebrow">
-            {state.status === 'COMPLETED' ? 'MATCH RESULT' : 'COURTSIDE CONSOLE'}
-          </p>
-          <h1>{state.status === 'COMPLETED' ? 'The final whistle.' : 'Every raid counts.'}</h1>
-        </div>
-        <button className="quiet" onClick={onBack}>
-          ← Matches
-        </button>
-      </div>
+    <div className="scoring-screen">
+      <header className="live-view-header"><button className="tournament-back" onClick={onBack} aria-label="Back to matches">←</button><span className="live-status">{state.status.replaceAll('_', ' ')}</span><small>{state.status === 'COMPLETED' ? 'Match result' : 'Scorer mode'}</small></header>
       {!['raidzon-v2', 'raidzon-v3'].includes(match.rulesetVersion ?? '') && (
         <p role="status" className="field-note">
           Previous ruleset: history is preserved. Start a new match to use the updated rules.
@@ -203,12 +193,14 @@ export function LiveMatch({
             </>
           ) : (
             <>
-              <span>Seven on court. One team behind you.</span>
-              <span>Guest match · saved locally</span>
+              <span>Raid #{state.raidNumber}</span>
+              <span>{match.serverVersion === match.version ? 'Synced' : 'Saved on device'}</span>
             </>
           )}
         </div>
       </section>
+      <h3 className="live-section-title">On court</h3>
+      {state.teams.map((team, side) => <div className="live-court-team" key={side}><strong>{team.name}</strong><div className="live-player-chips">{team.players.map((player, index) => player.status === 'ACTIVE' && <span className={player.id === state.currentRaiderId ? 'current' : ''} key={player.id}><b title="Roster position">{index + 1}</b><small>{player.name}</small></span>)}</div></div>)}
       <div className="match-layout">
         <div className="match-main">
           {state.status === 'COMPLETED' ? (
@@ -724,7 +716,7 @@ export function LiveMatch({
             )}
           </section>
         </div>
-        <aside className="match-aside">
+        <details className="match-aside"><summary>Full rosters and revival queues</summary>
           {state.teams.map((team, index) => (
             <section className="panel" key={index}>
               <div className="panel-title">
@@ -769,7 +761,7 @@ export function LiveMatch({
               )}
             </section>
           ))}
-        </aside>
+        </details>
       </div>
     </div>
   );

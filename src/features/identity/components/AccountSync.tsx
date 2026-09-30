@@ -14,11 +14,13 @@ export function AccountSync({
   online,
   matches,
   onPrepareFixture,
+  onScoreMatch,
   section = 'all',
 }: {
   online: boolean;
   matches: LocalMatch[];
   onPrepareFixture: (fixture: PreparedFixture) => void;
+  onScoreMatch?: (id: string) => void;
   section?: 'all' | 'tournaments' | 'profile';
 }) {
   // Session survives reload until expiry; scoring remains available independently.
@@ -154,6 +156,7 @@ export function AccountSync({
           online={online}
           matches={matches}
           onPrepareFixture={onPrepareFixture}
+          onScoreMatch={onScoreMatch}
         />
       ) : null}
       {account ? (

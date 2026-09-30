@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, type AccountSession } from '../identity/data/auth-client';
 import { TournamentDashboard } from './TournamentDashboard';
+import { MatchActions } from '../scorecard/MatchActions';
 import type { LocalMatch } from '../scoring/domain/match-types';
 import type { PreparedFixture } from './types';
 import type { TournamentListItem } from './data/upcoming-fixtures';
@@ -12,8 +13,9 @@ export interface PublicTournamentDetail {
   standings: { teamId: string; teamName: string; rank: number; tablePoints: number; scoreDifference: number }[];
 }
 
-export function TournamentExplorer({ account, online, matches, onPrepareFixture }: {
+export function TournamentExplorer({ account, online, matches, onPrepareFixture, onScoreMatch }: {
   account: AccountSession | null; online: boolean; matches: LocalMatch[]; onPrepareFixture: (fixture: PreparedFixture) => void;
+  onScoreMatch?: (id: string) => void;
 }) {
   const [mine, setMine] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -63,7 +65,7 @@ export function TournamentExplorer({ account, online, matches, onPrepareFixture 
       {account && <button className={mine ? 'active' : ''} onClick={() => { setCreating(false); setMine(true); }}>My tournaments</button>}
     </div>
     {account && !mine && <button className="match-create-action" onClick={() => { setCreating(true); setMine(true); }}>+ Create tournament</button>}
-    {mine && account ? <TournamentDashboard account={account} online={online} matches={matches} onPrepareFixture={onPrepareFixture} startCreating={creating} /> : <>
+    {mine && account ? <TournamentDashboard account={account} online={online} matches={matches} onPrepareFixture={onPrepareFixture} onScoreMatch={onScoreMatch} startCreating={creating} /> : <>
       {!detail ? <>
         <header className="list-screen-heading"><h2>Tournaments</h2><p>Find competitions, follow teams, and catch every score.</p></header>
         <form className="tournament-search" onSubmit={(event) => { event.preventDefault(); setQuery(search.trim()); }}>
@@ -80,7 +82,7 @@ export function TournamentExplorer({ account, online, matches, onPrepareFixture 
         <button className="match-create-action" disabled={busy || !online || joined.includes(detail.tournament.id)} onClick={() => void join(detail.tournament.id)}>{joined.includes(detail.tournament.id) ? 'Joined tournament' : 'Join tournament'}</button>
         <p className="muted">Join to follow matches. Only the organizer can manage and score them.</p>
         <h3>Teams</h3><ul className="tournament-team-list">{detail.teams.map((team) => <li key={team.id}><span><strong>{team.name}</strong><small>{team.players.length} players</small></span></li>)}</ul>
-        <h3>Matches</h3>{detail.fixtures.map((fixture) => <article className="upcoming-match-card" key={fixture.id}><strong>{teamName(fixture.teamAId)} vs {teamName(fixture.teamBId)}</strong><p>{fixture.status ? `${fixture.scoreA ?? 0} : ${fixture.scoreB ?? 0} · ${fixture.status.replaceAll('_', ' ')}` : 'Upcoming'}</p><small>{fixture.scheduledAt ? new Date(fixture.scheduledAt).toLocaleString() : 'Time to be confirmed'}</small></article>)}
+        <h3>Matches</h3>{detail.fixtures.map((fixture) => <article className="upcoming-match-card" key={fixture.id}><strong>{teamName(fixture.teamAId)} vs {teamName(fixture.teamBId)}</strong><p>{fixture.status ? `${fixture.scoreA ?? 0} : ${fixture.scoreB ?? 0} · ${fixture.status.replaceAll('_', ' ')}` : 'Upcoming'}</p><small>{fixture.scheduledAt ? new Date(fixture.scheduledAt).toLocaleString() : 'Time to be confirmed'}</small>{fixture.matchId && <MatchActions matchId={fixture.matchId} matches={matches} onScore={onScoreMatch} completed={fixture.status === 'COMPLETED'} />}</article>)}
         {!detail.fixtures.length && <p>No fixtures yet.</p>}
         <h3>Standings</h3>{detail.standings.map((row) => <div className="tournament-player-row" key={row.teamId}><strong>{row.rank}. {row.teamName}</strong><small>{row.tablePoints} pts · {row.scoreDifference > 0 ? '+' : ''}{row.scoreDifference}</small></div>)}
       </>}

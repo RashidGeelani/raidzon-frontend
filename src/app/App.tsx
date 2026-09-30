@@ -5,7 +5,7 @@ import { db, recordEvent, sessionId } from '../features/matches/data/match-repos
 import { MatchSetup } from '../features/matches/components/MatchSetup';
 import { LiveMatch } from '../features/scoring/components/LiveMatch';
 import { AccountSync } from '../features/identity/components/AccountSync';
-import { LocalLeaderboards } from '../features/scoring/components/LocalLeaderboards';
+import { SyncedLeaderboards } from '../features/scoring/components/SyncedLeaderboards';
 import type { PreparedFixture } from '../features/tournaments/types';
 import { UpcomingMatches } from '../features/tournaments/UpcomingMatches';
 import { JoinedTournamentMatches } from '../features/tournaments/JoinedTournamentMatches';
@@ -135,7 +135,7 @@ export function App() {
           </div>
         </div>
       </aside>
-      <div className={`workspace ${setup || match ? 'workspace-wide' : ''}`}>
+      <div className={`workspace ${setup ? 'workspace-wide' : ''}`}>
         <header className="topbar">
           <span className="topbar-brand"><img src="/brand/raidzon-logo.png" alt="raidzOn" /> YOUR COURTSIDE COMPANION</span>
           <div>
@@ -157,6 +157,7 @@ export function App() {
               online={online}
               matches={matches}
               onPrepareFixture={prepareFixture}
+              onScoreMatch={setSelectedId}
             />
           </div>
           {error && (
@@ -187,7 +188,7 @@ export function App() {
               saving={saving}
             />
           ) : tab === 'leaderboards' ? (
-            <LocalLeaderboards matches={matches} />
+            <SyncedLeaderboards matches={matches} online={online} />
           ) : tab === 'tournaments' || tab === 'profile' ? null : (
             <>
               {tab === 'matches' ? <header className="list-screen-heading"><h2>Matches</h2><p>Your saved and scheduled games</p></header> : <div className="section-heading">
@@ -326,7 +327,7 @@ export function App() {
                     {tab === 'matches' && matchFilter !== 'UPCOMING' && !matches.some((item) => matchFilter === 'LIVE' ? item.state.status !== 'COMPLETED' : item.state.status === 'COMPLETED') && <div className="list-empty">No {matchFilter.toLowerCase()} matches yet.</div>}
                   </div>
                 )}
-                {tab === 'matches' && <JoinedTournamentMatches filter={matchFilter} online={online} />}
+                {tab === 'matches' && <JoinedTournamentMatches filter={matchFilter} online={online} matches={matches} onScoreMatch={setSelectedId} />}
                 {tab === 'matches' && <button className="match-create-action" disabled={!session} onClick={startSetup}>+ New standalone match</button>}
               </section>
               {tab === 'home' && <div className="local-note">

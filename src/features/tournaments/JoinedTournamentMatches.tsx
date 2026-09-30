@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { api } from '../identity/data/auth-client';
 import { restoreSession } from '../identity/data/session-store';
 import type { PublicTournamentDetail } from './TournamentExplorer';
+import { MatchActions } from '../scorecard/MatchActions';
+import type { LocalMatch } from '../scoring/domain/match-types';
 
-export function JoinedTournamentMatches({ filter, online }: { filter: 'UPCOMING' | 'LIVE' | 'COMPLETED'; online: boolean }) {
+export function JoinedTournamentMatches({ filter, online, matches, onScoreMatch }: { filter: 'UPCOMING' | 'LIVE' | 'COMPLETED'; online: boolean; matches: LocalMatch[]; onScoreMatch: (id: string) => void }) {
   const [details, setDetails] = useState<PublicTournamentDetail[]>([]);
   const [error, setError] = useState('');
   useEffect(() => {
@@ -33,6 +35,7 @@ export function JoinedTournamentMatches({ filter, online }: { filter: 'UPCOMING'
       <small>{fixture.tournament} · View only</small>
       <div className="upcoming-teams"><strong>{fixture.teams.find((team) => team.id === fixture.teamAId)?.name}</strong><span>{fixture.matchId ? `${fixture.scoreA ?? 0} : ${fixture.scoreB ?? 0}` : 'vs'}</span><strong>{fixture.teams.find((team) => team.id === fixture.teamBId)?.name}</strong></div>
       <p>{fixture.status?.replaceAll('_', ' ') ?? 'Upcoming'} · {fixture.scheduledAt ? new Date(fixture.scheduledAt).toLocaleString() : 'Time to be confirmed'}</p>
+      {fixture.matchId && <MatchActions matchId={fixture.matchId} matches={matches} onScore={onScoreMatch} completed={fixture.status === 'COMPLETED'} />}
     </article>)}
     {fixtures.length === 0 && <p>No {filter.toLowerCase()} matches in your joined tournaments.</p>}
   </section>;

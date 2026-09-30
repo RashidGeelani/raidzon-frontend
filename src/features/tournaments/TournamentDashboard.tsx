@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api, type AccountSession } from '../identity/data/auth-client';
 import type { LocalMatch } from '../scoring/domain/match-types';
 import type { PreparedFixture } from './types';
+import { MatchActions } from '../scorecard/MatchActions';
 import { normalizePhone } from '../matches/data/match-repository';
 
 interface Tournament {
@@ -59,12 +60,14 @@ export function TournamentDashboard({
   online,
   matches,
   onPrepareFixture,
+  onScoreMatch,
   startCreating = false,
 }: {
   account: AccountSession;
   online: boolean;
   matches: LocalMatch[];
   onPrepareFixture: (fixture: PreparedFixture) => void;
+  onScoreMatch?: (id: string) => void;
   startCreating?: boolean;
 }) {
   const [items, setItems] = useState<Tournament[]>([]);
@@ -360,6 +363,7 @@ export function TournamentDashboard({
           </p>
           {detail.fixtures.map((fixture) => (
             <div key={fixture.id} className="fixture-card">
+              {fixture.matchId && <MatchActions matchId={fixture.matchId} matches={matches} onScore={onScoreMatch} completed={fixture.status === 'COMPLETED'} />}
               <strong>
                 {teamName(fixture.teamAId)} vs {teamName(fixture.teamBId)}
               </strong>
