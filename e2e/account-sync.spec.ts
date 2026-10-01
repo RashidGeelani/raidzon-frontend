@@ -1,11 +1,23 @@
 import { test, expect } from '@playwright/test';
 
+test('unreachable sign-in service hides OTP form and supports retry', async ({ page }) => {
+  let reachable = false;
+  await page.route('**/api/v1/auth/capabilities', route => reachable
+    ? route.fulfill({ json: { smsAvailable: true } }) : route.abort());
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Retry sign-in' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Send code' })).toHaveCount(0);
+  reachable = true;
+  await page.getByRole('button', { name: 'Retry sign-in' }).click();
+  await expect(page.getByRole('button', { name: 'Send code' })).toBeVisible();
+});
+
 test('SMS disabled leaves guest scoring available', async ({ page }) => {
   await page.route('**/api/v1/auth/capabilities', (route) =>
     route.fulfill({ json: { smsAvailable: false } }),
   );
   await page.goto('/');
-  await expect(page.getByText('SMS sign-in is not enabled yet.')).toBeVisible();
+  await expect(page.getByText(/Phone sign-in is temporarily unavailable/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Start a match', exact: false })).toBeEnabled();
 });
 

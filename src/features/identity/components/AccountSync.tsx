@@ -36,6 +36,8 @@ export function AccountSync({
   const [message, setMessage] = useState('');
   const [available, setAvailable] = useState<boolean | null>(null);
   const [widgetAvailable, setWidgetAvailable] = useState(false);
+  const [capabilityError, setCapabilityError] = useState(false);
+  const [capabilityRetry, setCapabilityRetry] = useState(0);
   useEffect(() => {
     void restoreSession()
       .then(setAccount)
@@ -43,13 +45,19 @@ export function AccountSync({
   }, []);
   useEffect(() => {
     if (!online || account) return;
+    let active = true;
+    setCapabilityError(false);
+    setAvailable(null);
+    setWidgetAvailable(false);
     void api<{ smsAvailable: boolean; widgetAvailable?: boolean }>('/auth/capabilities')
       .then((result) => {
+        if (!active) return;
         setAvailable(result.smsAvailable);
         setWidgetAvailable(result.widgetAvailable === true);
       })
-      .catch(() => setAvailable(null));
-  }, [online, account]);
+      .catch(() => { if (active) setCapabilityError(true); });
+    return () => { active = false; };
+  }, [online, account, capabilityRetry]);
   const working = useRef(false);
   async function run(work: () => Promise<void>) {
     if (working.current) return;
@@ -178,6 +186,11 @@ export function AccountSync({
           >
             Sign out
           </button>
+        </div>
+      ) : available === null && !widgetAvailable ? (
+        <div className="profile-signin-note" role="status">
+          <p>{!online ? 'Connect to the internet to sign in.' : capabilityError ? 'The sign-in server could not be reached. Your offline matches remain saved on this device.' : 'Checking sign-in availability…'}</p>
+          {online && capabilityError && <button className="secondary" onClick={() => setCapabilityRetry((value) => value + 1)}>Retry sign-in</button>}
         </div>
       ) : widgetAvailable ? (
         <button
