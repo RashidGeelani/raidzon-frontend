@@ -16,7 +16,7 @@ async function fillMatch(page: Page) {
     }
   }
   await page.getByRole('button', { name: 'Start match →', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Every raid counts.' })).toBeVisible();
+  await expect(page.getByText('Scorer mode', { exact: true })).toBeVisible();
 }
 
 test('guest creates, scores, reloads, undoes and completes a match entirely offline', async ({

@@ -148,7 +148,7 @@ export function App() {
       </aside>
       <div className={`workspace ${setup ? 'workspace-wide' : ''}`}>
         <header className="topbar">
-          <span className="topbar-brand"><img src="/brand/raidzon-logo.png" alt="raidzOn" /> YOUR COURTSIDE COMPANION</span>
+          <span className="topbar-brand"><img src="/brand/raidzon-logo.png" alt="raidzOn" /><span>YOUR COURTSIDE COMPANION</span></span>
           <div>
             <span className="network">
               <i className={`dot ${online ? 'live' : ''}`} />

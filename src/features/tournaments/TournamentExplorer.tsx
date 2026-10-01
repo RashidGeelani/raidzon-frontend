@@ -26,6 +26,8 @@ export function TournamentExplorer({ account, online, matches, onPrepareFixture,
   const [detail, setDetail] = useState<PublicTournamentDetail | null>(null);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const [detailTab, setDetailTab] = useState<'teams' | 'matches' | 'standings'>('teams');
+  useEffect(() => { setMine(false); setDetail(null); }, [account?.accountId]);
   useEffect(() => {
     let active = true;
     if (!online) { setMessage('Reconnect to browse tournaments.'); return; }
@@ -37,12 +39,13 @@ export function TournamentExplorer({ account, online, matches, onPrepareFixture,
   }, [query, online]);
   useEffect(() => {
     let active = true;
-    setJoined([]); setMine(false);
+    setJoined([]);
     if (account && online) void api<string[]>('/account/joined-tournaments', undefined, account.token)
       .then((value) => { if (active) setJoined(value); }).catch(() => undefined);
     return () => { active = false; };
   }, [account?.accountId, account?.token, online]);
   async function open(id: string) {
+    setDetailTab('teams');
     setBusy(true); setMessage('');
     try { setDetail(await api<PublicTournamentDetail>(`/public/tournaments/${id}`)); }
     catch { setMessage('Could not load tournament details.'); }
@@ -69,7 +72,7 @@ export function TournamentExplorer({ account, online, matches, onPrepareFixture,
       {!detail ? <>
         <header className="list-screen-heading"><h2>Tournaments</h2><p>Find competitions, follow teams, and catch every score.</p></header>
         <form className="tournament-search" onSubmit={(event) => { event.preventDefault(); setQuery(search.trim()); }}>
-          <label>Search tournaments<input value={search} maxLength={100} onChange={(event) => setSearch(event.target.value)} placeholder="Tournament name or venue" /></label>
+          <label><span className="sr-only">Search tournaments</span><input type="search" value={search} maxLength={100} onChange={(event) => setSearch(event.target.value)} placeholder="Tournament name or venue" /></label>
           <button type="submit" disabled={!online}>Search</button>
         </form>
         <div className="tournament-list">{items.map((item) => <button className="tournament-list-card" key={item.id} disabled={!online || busy} onClick={() => void open(item.id)}>
@@ -81,10 +84,15 @@ export function TournamentExplorer({ account, online, matches, onPrepareFixture,
         <header className="tournament-detail-header"><button className="tournament-back" onClick={() => setDetail(null)} aria-label="Back to tournament search">←</button><div><h2>{detail.tournament.name}</h2><p>{detail.tournament.venue} · {detail.tournament.startsOn}</p></div></header>
         <button className="match-create-action" disabled={busy || !online || joined.includes(detail.tournament.id)} onClick={() => void join(detail.tournament.id)}>{joined.includes(detail.tournament.id) ? 'Joined tournament' : 'Join tournament'}</button>
         <p className="muted">Join to follow matches. Only the organizer can manage and score them.</p>
-        <h3>Teams</h3><ul className="tournament-team-list">{detail.teams.map((team) => <li key={team.id}><span><strong>{team.name}</strong><small>{team.players.length} players</small></span></li>)}</ul>
+        <div className="list-filter-tabs" role="tablist" aria-label="Tournament information">{(['teams', 'matches', 'standings'] as const).map((tab) => <button key={tab} role="tab" aria-selected={detailTab === tab} className={detailTab === tab ? 'active' : ''} onClick={() => setDetailTab(tab)}>{tab[0].toUpperCase() + tab.slice(1)}</button>)}</div>
+        {detailTab === 'teams' && <><h3>Teams</h3><ul className="tournament-team-list">{detail.teams.map((team) => <li key={team.id}><span><strong>{team.name}</strong><small>{team.players.length} players</small></span></li>)}</ul></>}
+        {detailTab === 'matches' && <>
         <h3>Matches</h3>{detail.fixtures.map((fixture) => <article className="upcoming-match-card" key={fixture.id}><strong>{teamName(fixture.teamAId)} vs {teamName(fixture.teamBId)}</strong><p>{fixture.status ? `${fixture.scoreA ?? 0} : ${fixture.scoreB ?? 0} · ${fixture.status.replaceAll('_', ' ')}` : 'Upcoming'}</p><small>{fixture.scheduledAt ? new Date(fixture.scheduledAt).toLocaleString() : 'Time to be confirmed'}</small>{fixture.matchId && <MatchActions matchId={fixture.matchId} matches={matches} onScore={onScoreMatch} completed={fixture.status === 'COMPLETED'} />}</article>)}
         {!detail.fixtures.length && <p>No fixtures yet.</p>}
+        </>}
+        {detailTab === 'standings' && <>
         <h3>Standings</h3>{detail.standings.map((row) => <div className="tournament-player-row" key={row.teamId}><strong>{row.rank}. {row.teamName}</strong><small>{row.tablePoints} pts · {row.scoreDifference > 0 ? '+' : ''}{row.scoreDifference}</small></div>)}
+        </>}
       </>}
       {message && <p role="status">{message}</p>}
     </>}

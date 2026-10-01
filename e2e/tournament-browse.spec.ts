@@ -22,6 +22,7 @@ test('guest browses without signing in and a member follows read-only matches', 
   await page.getByLabel('Search tournaments').fill('City');
   await page.getByRole('button', { name: 'Search', exact: true }).click();
   await page.getByRole('button', { name: /City Cup/ }).click();
+  await page.getByRole('tab', { name: 'Matches', exact: true }).click();
   await expect(page.getByText('Raiders vs Defenders', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Register team' })).toHaveCount(0);
   await page.getByLabel('Mobile number').fill('9876543210');

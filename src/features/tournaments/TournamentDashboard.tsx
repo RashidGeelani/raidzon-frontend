@@ -74,6 +74,7 @@ export function TournamentDashboard({
   const [summaries, setSummaries] = useState<Record<string, TournamentSummary>>({});
   const [filter, setFilter] = useState<TournamentFilter>('ACTIVE');
   const [detailTab, setDetailTab] = useState<DetailTab>('overview');
+  const [editingTeam, setEditingTeam] = useState<string | null>(null);
   const [selected, setSelected] = useState('');
   const [detail, setDetail] = useState<Detail | null>(null);
   const [revision, setRevision] = useState(0);
@@ -246,7 +247,7 @@ export function TournamentDashboard({
             <div><strong>{detail.fixtures.filter((fixture) => fixture.status !== 'COMPLETED').length}</strong><span>Left</span></div>
           </div>
           <div className="list-filter-tabs tournament-detail-tabs" role="tablist" aria-label="Tournament details">
-            {(['overview', 'teams', 'matches', 'standings', 'players'] as const).map((tab) => <button type="button" key={tab} role="tab" aria-selected={detailTab === tab} className={detailTab === tab ? 'active' : ''} onClick={() => setDetailTab(tab)}>{tab[0].toUpperCase() + tab.slice(1)}</button>)}
+            {(['overview', 'teams', 'matches', 'standings', 'players'] as const).map((tab) => <button type="button" key={tab} role="tab" aria-selected={detailTab === tab} className={detailTab === tab ? 'active' : ''} onClick={() => { setDetailTab(tab); setEditingTeam(null); }}>{tab[0].toUpperCase() + tab.slice(1)}</button>)}
           </div>
           {detailTab === 'overview' && <div className="tournament-overview">
             <div className="tournament-info-card"><small>TOURNAMENT INFO</small><dl>
@@ -258,17 +259,15 @@ export function TournamentDashboard({
             <div className="tournament-info-card"><small>NEXT STEP</small><p>Add teams and their reusable rosters, then schedule fixtures. Prepared matches can be scored offline.</p></div>
           </div>}
           {detailTab === 'teams' && <div className="tournament-tab-content">
-          <h4>Registered teams ({detail.teams.length})</h4>
-          <p>
-            Register team names here. Select seven starters and optional substitutes when preparing
-            each match.
-          </p>
+          {!editingTeam && <>
+          <div className="management-heading"><div><h3>Teams</h3><p>{detail.teams.length} registered · Select a team to manage its players.</p></div></div>
           <ul className="tournament-team-list">
             {detail.teams.map((item) => (
               <li key={item.id}>
                 <span className="tournament-team-code">{item.name.slice(0, 3).toUpperCase()}</span>
                 <span><strong>{item.name}</strong><small>{item.roster?.length ?? 0} players</small></span>
                 <b>{detail.standings?.find((row) => row.teamId === item.id)?.tablePoints ?? 0} <small>pts</small></b>
+                <button className="team-manage-button" onClick={() => setEditingTeam(item.id)}>Manage<span className="sr-only"> {item.name}</span></button>
               </li>
             ))}
           </ul>
@@ -287,12 +286,10 @@ export function TournamentDashboard({
             </label>
             <button disabled={busy || !online}>Register team</button>
           </form></details>
-          <h4>Reusable team rosters</h4>
-          <p>
-            Save seven starters and up to five substitutes once, then use them in future fixtures.
-            Player phones stay in the creator-only tournament.
-          </p>
-          {detail.teams.map((team) => (
+          {!detail.teams.length && <p className="list-empty">Add your first team to start building the roster.</p>}
+          </>}
+          {editingTeam && <button className="roster-back" onClick={() => setEditingTeam(null)}>← All teams</button>}
+          {detail.teams.filter((team) => team.id === editingTeam).map((team) => (
             <RosterEditor
               key={`${team.id}:${team.rosterRevision}`}
               team={team}
@@ -372,7 +369,7 @@ export function TournamentDashboard({
                   ? new Date(fixture.scheduledAt).toLocaleString()
                   : 'Time to be confirmed'}
               </p>
-              <FixtureSchedule
+              <details className="fixture-options"><summary>Edit schedule</summary><FixtureSchedule
                 key={`${fixture.id}:${fixture.scheduleRevision}`}
                 fixture={fixture}
                 busy={busy}
@@ -387,7 +384,7 @@ export function TournamentDashboard({
                     false,
                   )
                 }
-              />
+              /></details>
               {!fixture.matchId &&
                 !matches.some((match) => match.fixtureRef?.fixtureId === fixture.id) && (
                   <button
@@ -436,7 +433,7 @@ export function TournamentDashboard({
                   )}
                 </div>
               ) : (
-                <form
+                <details className="fixture-options"><summary>Link an existing match</summary><form
                   onSubmit={(event) => {
                     event.preventDefault();
                     const matchId = new FormData(event.currentTarget).get('matchId');
@@ -469,7 +466,7 @@ export function TournamentDashboard({
                     </select>
                   </label>
                   <button disabled={!online || busy}>Link match</button>
-                </form>
+                </form></details>
               )}
             </div>
           ))}
@@ -592,10 +589,8 @@ function RosterEditor({
     );
   }
   return (
-    <details className="fixture-card">
-      <summary>
-        {team.name} roster ({team.roster?.length ?? 0} saved)
-      </summary>
+    <section className="roster-workspace" aria-label={`${team.name} roster`}>
+      <header className="management-heading"><div><small>TEAM ROSTER</small><h3>{team.name}</h3><p>Seven starters · Up to five substitutes</p></div><span className="roster-count">{team.roster?.length ?? 0} saved</span></header>
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -616,7 +611,7 @@ function RosterEditor({
         }}
       >
         {players.map((player, index) => (
-          <div className="player-input" key={index}>
+          <div className="roster-player-card" key={index}>
             <span className="number">{String(index + 1).padStart(2, '0')}</span>
             <label>
               <span className="sr-only">
@@ -657,7 +652,7 @@ function RosterEditor({
             )}
           </div>
         ))}
-        <button
+        <div className="roster-actions"><button
           type="button"
           className="secondary"
           disabled={busy || !online || players.length >= 12}
@@ -676,8 +671,8 @@ function RosterEditor({
             Clear roster
           </button>
         ) : null}
-        {error && <p role="alert">{error}</p>}
+        </div>{error && <p role="alert">{error}</p>}
       </form>
-    </details>
+    </section>
   );
 }

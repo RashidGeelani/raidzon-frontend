@@ -89,9 +89,11 @@ test('organizer creates tournament, registers teams and schedules a fixture', as
   await panel.getByLabel('Team name', { exact: true }).fill('Defenders');
   await panel.getByRole('button', { name: 'Register team' }).click();
   await expect(
-    panel.getByRole('heading', { name: 'Registered teams (2)', exact: true }),
+    panel.getByText('2 registered', { exact: false }),
   ).toBeVisible();
-  await panel.getByText('Raiders roster (0 saved)').click();
+  await panel.getByRole('button', { name: 'Manage Raiders', exact: true }).click();
+  await expect(panel.getByRole('button', { name: 'Manage Defenders', exact: true })).toHaveCount(0);
+  await page.screenshot({ path: 'test-results/tournament-roster.png', fullPage: true });
   for (let index = 1; index <= 7; index++) {
     await panel.getByLabel(`Raiders player ${index} name`).fill(`Raider ${index}`);
     await panel
@@ -99,7 +101,7 @@ test('organizer creates tournament, registers teams and schedules a fixture', as
       .fill(`98765430${String(index).padStart(2, '0')}`);
   }
   await panel.getByRole('button', { name: 'Save roster' }).first().click();
-  await expect(panel.getByText('Raiders roster (7 saved)')).toBeVisible();
+  await expect(panel.getByText('7 saved', { exact: true })).toBeVisible();
   await panel.getByRole('tab', { name: 'Matches' }).click();
   await panel.getByText('+ Schedule Match').click();
   await panel
@@ -120,6 +122,7 @@ test('organizer creates tournament, registers teams and schedules a fixture', as
   await panel.getByRole('tab', { name: 'Matches' }).click();
   await expect(panel.getByText('Raiders vs Defenders', { exact: true })).toBeVisible();
   await panel.getByText('+ Schedule Match').click();
+  await panel.getByText('Edit schedule', { exact: true }).click();
   await panel.getByLabel('Fixture time (local)').fill('2026-10-11T10:00');
   await panel.getByRole('button', { name: 'Save fixture time' }).click();
   await expect(panel.getByRole('status')).toHaveText('Saved.');

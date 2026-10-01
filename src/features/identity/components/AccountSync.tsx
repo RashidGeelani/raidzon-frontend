@@ -181,6 +181,7 @@ export function AccountSync({
         </div>
       ) : widgetAvailable ? (
         <button
+          className="primary"
           disabled={!online || busy}
           onClick={() =>
             void run(async () => {
@@ -200,7 +201,7 @@ export function AccountSync({
           {busy ? 'Complete phone verification…' : 'Sign in with phone'}
         </button>
       ) : available === false ? (
-        <p className="profile-signin-note">Phone sign-in is unavailable in this local build. Start the backend with its PostgreSQL and MSG91 settings, then configure the frontend widget values. Your offline matches remain on this device.</p>
+        <p className="profile-signin-note">Phone sign-in is temporarily unavailable. You can still score offline; your matches stay saved on this device.</p>
       ) : (
         <form
           onSubmit={(event) => {
@@ -263,7 +264,7 @@ export function AccountSync({
             </label>
           )}
           <div className="sync-controls">
-            <button disabled={!online || busy}>
+            <button className="primary" disabled={!online || busy}>
               {busy ? 'Please wait…' : challenge ? 'Sign in' : 'Send code'}
             </button>
             {challenge && (
