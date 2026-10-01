@@ -40,6 +40,7 @@ async function fixture(rulesetVersion: 'raidzon-v2' | 'raidzon-v3' = 'raidzon-v3
   const match = await createMatch(setup(), device.deviceId, database);
   match.rulesetVersion = rulesetVersion;
   match.localAccountId = account.accountId;
+  await database.metadata.put({ key: 'scoring-account', value: account.accountId });
   await database.matches.put(match);
   await recordEvent(
     match.id,

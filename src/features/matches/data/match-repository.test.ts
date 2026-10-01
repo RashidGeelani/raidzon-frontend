@@ -30,6 +30,18 @@ afterEach(async () => {
 });
 
 describe('durable local events', () => {
+  it('requires the owning account but permits that account to score offline', async () => {
+    await database.metadata.put({ key: 'scoring-account', value: 'organizer' });
+    const match = await createMatch(setup(), 'session', database);
+    await database.metadata.delete('scoring-account');
+    await expect(recordEvent(match.id, 0, 'session', { type: 'TECHNICAL', side: 0 }, crypto.randomUUID(), database)).rejects.toThrow('organizer account');
+    await database.metadata.put({ key: 'scoring-account', value: 'someone-else' });
+    await expect(recordEvent(match.id, 0, 'session', { type: 'TECHNICAL', side: 0 }, crypto.randomUUID(), database)).rejects.toThrow('organizer account');
+    expect(await database.events.count()).toBe(0);
+    await database.metadata.put({ key: 'scoring-account', value: 'organizer' });
+    await recordEvent(match.id, 0, 'session', { type: 'TECHNICAL', side: 0 }, crypto.randomUUID(), database);
+    expect(await database.events.count()).toBe(1);
+  });
   it('continues a v2 match without relabelling its events', async () => {
     const match = await createMatch(setup(), 'session', database);
     await database.matches.put({ ...match, rulesetVersion: 'raidzon-v2' });

@@ -1710,6 +1710,54 @@ footer { border-color: #30304a; color: #7878a0; }
 .tournament-search button { background: #ff4500; color: white; }
 .joined-matches { display: grid; gap: 12px; margin-top: 24px; }
 .joined-matches h3 { margin: 0; }
+
+.live-match-view { max-width:520px; min-height:100vh; margin:auto; padding:18px; background:#090911; color:#f5f5ff; }
+.live-view-header { display:flex; align-items:center; gap:10px; margin:0 0 18px; }
+.live-view-header > small { margin-left:auto; color:#9696be; font-size:.72rem; }
+.live-status { padding:4px 9px; border-radius:7px; color:#ff476c; background:#361321; font-size:.7rem; font-weight:700; }
+.live-view-score { position:relative; display:grid; grid-template-columns:1fr 1fr; gap:16px; padding:22px 12px; border:1px solid #27263c; border-radius:18px; background:linear-gradient(135deg,#0e0e1b,#151025); }
+.live-view-score > div { display:grid; justify-items:center; gap:8px; }
+.viewer-team-mark { display:grid; place-items:center; width:52px; height:52px; border:1px solid #313b79; border-radius:15px; background:#151933; color:#617bff; font-size:.8rem; font-weight:800; }
+.viewer-side-1 { border-color:#4b246a; background:#251137; color:#b14dff; }
+.live-view-score small { font-size:.75rem; color:#9999bd; }
+.live-view-score strong { font-size:3.3rem; line-height:1; }
+.live-view-score em { color:#657fff; font-size:.65rem; font-style:normal; }
+.live-raid-label { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:#7e7ea7; font-size:.65rem; }
+.live-section-title { color:#9898bd; font-size:.67rem; text-transform:uppercase; letter-spacing:.2em; margin:20px 0 9px; }
+.live-current-raider,.live-court-team { margin:9px 0; padding:15px; border:1px solid #27263c; border-radius:16px; background:#12121f; }
+.live-current-raider { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.live-current-raider > div { display:grid; gap:5px; }
+.live-current-raider small,.live-court-team p { font-size:.7rem; color:#9292b8; }
+.live-countdown { display:grid; justify-items:center; padding:9px; border:2px solid #00b884; border-radius:50%; color:#00d298; min-width:57px; }
+.live-countdown.expired { border-color:#ff2857; color:#ff2857; }
+.live-countdown small { font-size:.5rem; }
+.live-court-team > strong { font-size:.78rem; color:#999bff; }
+.live-player-chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:11px; }
+.live-player-chips > span { display:grid; justify-items:center; gap:4px; width:44px; }
+.live-player-chips b { display:grid; place-items:center; width:33px; height:33px; background:#191b35; border:1px solid #313966; border-radius:9px; color:#8b9fff; font-size:.8rem; }
+.live-player-chips .current b { color:#fff; background:#4169e1; }
+.live-player-chips small { max-width:44px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#9696b9; font-size:.55rem; }
+.live-event-list { padding:0; list-style:none; }
+.live-event-list li { display:flex; gap:10px; align-items:center; justify-content:space-between; border-bottom:1px solid #242438; padding:12px 0; font-size:.78rem; }
+.live-event-list small { flex-shrink:0; color:#8e8eb6; }
+.viewer-footnote { color:#9292b4; text-align:center; font-size:.7rem; line-height:1.7; margin-top:25px; }
+.match-access-actions { display:flex; gap:8px; margin-top:12px; }
+.match-access-actions > * { display:block; flex:1; border-radius:9px; text-align:center; padding:10px 7px; text-decoration:none; font-size:.75rem; }
+.match-access-actions .watch-match { color:#abaadd; background:#1a192e; border:1px solid #34304c; }
+.match-access-actions button { background:#ff2857; color:white; border:0; }
+.scoring-screen .scoreboard { padding:15px 10px; border-radius:18px; margin-bottom:12px; }
+.scoring-screen .scores { gap:12px; }
+.scoring-screen .score-team strong { font-size:3.3rem; }
+.scoring-screen .score-team h2 { font-size:.9rem; }
+.scoring-screen .score-meta,.scoring-screen .score-footer { font-size:.63rem; }
+.scoring-screen .match-layout { display:block; }
+.scoring-screen .match-aside { margin:16px 0; }
+.scoring-screen .match-aside > summary { padding:14px; background:#171627; border-radius:12px; cursor:pointer; }
+.scoring-screen .panel { padding:15px; border-radius:16px; }
+.scoring-screen .raid-panel { margin-top:20px; }
+.scoring-screen .raid-panel .panel-title h2 { font-size:1.25rem; }
+.scoring-screen .raid-clock { width:66px; height:66px; border-radius:50%; display:grid; place-items:center; font-size:1rem; border:2px solid #00b884; color:#00d298; background:#151626; }
+.scoring-screen .raid-clock.expired { color:#ff2857; border-color:#ff2857; }
 .fixture-load-message { margin: 0; color: #aaaac5; font-size: .78rem; }
 .upcoming-match-card { padding: 15px; border: 1px solid #352438; border-radius: 16px; background: #171321; }
 .upcoming-match-card > small { color: #a0a0c1; font-size: .68rem; }

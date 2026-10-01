@@ -4,6 +4,7 @@ import { useRegisterSW } from 'virtual:pwa-register/react';
 import { db, recordEvent, sessionId } from '../features/matches/data/match-repository';
 import { MatchSetup } from '../features/matches/components/MatchSetup';
 import { LiveMatch } from '../features/scoring/components/LiveMatch';
+import { LiveMatchViewer } from '../features/scorecard/LiveMatchViewer';
 import { AccountSync } from '../features/identity/components/AccountSync';
 import { SyncedLeaderboards } from '../features/scoring/components/SyncedLeaderboards';
 import type { PreparedFixture } from '../features/tournaments/types';
@@ -17,6 +18,7 @@ export function App() {
   const [matches, setMatches] = useState<LocalMatch[]>([]);
   const [events, setEvents] = useState<MatchEvent[]>([]);
   const [session, setSession] = useState('');
+  const [scoringAccount, setScoringAccount] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [setup, setSetup] = useState(false);
   const [preparedFixture, setPreparedFixture] = useState<PreparedFixture | null>(null);
@@ -53,6 +55,13 @@ export function App() {
     };
   }, []);
   useEffect(() => {
+    const subscription = liveQuery(() => db.metadata.get('scoring-account')).subscribe({
+      next: (row) => setScoringAccount(row?.value ?? null),
+      error: () => setScoringAccount(null),
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+  useEffect(() => {
     setEvents([]);
     if (!selectedId) return;
     const subscription = liveQuery(() =>
@@ -64,6 +73,8 @@ export function App() {
     return () => subscription.unsubscribe();
   }, [selectedId]);
   const match = matches.find((item) => item.id === selectedId);
+  const matchOwner = match?.serverAccountId ?? match?.localAccountId;
+  const canScore = match && !match.scoringDelegated && match.ownerSessionId === session && (!matchOwner || matchOwner === scoringAccount);
   const liveCount = matches.filter((m) => m.state.status !== 'COMPLETED').length;
   async function record(intent: MatchIntent) {
     if (!match || busy.current) return;
@@ -179,7 +190,9 @@ export function App() {
                 setSelectedId(created.id);
               }}
             />
-          ) : match ? (
+            ) : match && !canScore ? (
+              <LiveMatchViewer matchId={match.id} onBack={home} />
+            ) : match ? (
             <LiveMatch
               match={match}
               events={events}

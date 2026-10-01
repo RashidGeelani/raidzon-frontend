@@ -171,7 +171,7 @@ export async function recordEvent(
   eventId = crypto.randomUUID(),
   database = db,
 ) {
-  return database.transaction('rw', database.matches, database.events, async () => {
+  return database.transaction('rw', database.matches, database.events, database.metadata, async () => {
     const match = await database.matches.get(matchId);
     if (!match) throw new Error('Match not found.');
     if (!['raidzon-v2', 'raidzon-v3'].includes(match.rulesetVersion ?? ''))
@@ -180,6 +180,9 @@ export async function recordEvent(
       );
     if (match.scoringDelegated || match.ownerSessionId !== ownerSessionId)
       throw new Error('This scoring session is read-only.');
+    const accountOwner = match.serverAccountId ?? match.localAccountId;
+    if (accountOwner && (await database.metadata.get('scoring-account'))?.value !== accountOwner)
+      throw new Error('Sign in with the organizer account to score this match.');
     const existing = await database.events.get(eventId);
     if (existing) {
       if (
