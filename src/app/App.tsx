@@ -424,7 +424,7 @@ export function App() {
           <span>
             raidzOn <b>·</b> Every raid has a story.
           </span>
-          <span>LOCAL DEVELOPMENT · v0.1</span>
+          <span>Testing · v0.1</span>
         </footer>
         {needRefresh && (
           <div className="update-banner">
