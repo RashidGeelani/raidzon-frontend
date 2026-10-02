@@ -1803,6 +1803,31 @@ footer { border-color: #30304a; color: #7878a0; }
 }
 
 /* Shared screen refinements: keep controls readable within the mobile shell. */
+.startup-shell > .sidebar, .startup-shell .topbar, .startup-shell .bottom-nav, .startup-shell footer, .startup-shell main > :not(.account-entry) { display:none; }
+.startup-shell .workspace { border:0; }
+.startup-shell .workspace main { padding:32px 24px; min-height:100dvh; }
+.launch-splash { position:fixed; inset:0; z-index:100; display:flex; flex-direction:column; justify-content:center; align-items:center; background:radial-gradient(ellipse at center,#27141b 0%,#090910 65%); }
+.launch-splash img { width:170px; height:170px; object-fit:contain; }
+.launch-splash h1 { font-size:3.6rem; margin:18px 0 6px; color:white; }
+.launch-splash h1 span, .signin-wordmark span { color:#ff5a18; }
+.launch-splash p { color:#aaaac5; letter-spacing:.22em; font-size:.65rem; }
+.launch-progress { width:72px; height:3px; margin-top:32px; background:#ff5a18; border-radius:4px; animation:launch-pulse .8s ease-in-out infinite alternate; }
+@keyframes launch-pulse { from { opacity:.25; transform:scaleX(.45); } to { opacity:1; transform:scaleX(1); } }
+.signin-screen { max-width:400px; margin:auto; }
+.signin-brand { text-align:center; padding:18px 0 20px; }
+.signin-brand img { width:92px; height:92px; object-fit:contain; }
+.signin-wordmark { font-family:Rajdhani, sans-serif; font-size:2rem; font-weight:700; margin:4px 0 22px; }
+.signin-brand h1 { font-size:2rem; margin:0 0 8px; }
+.signin-brand > p:last-child { font-size:.88rem; color:#aaaac5; }
+.signin-screen .account-sync { margin:0; padding:22px; }
+.signin-screen .account-sync > h2 { font-size:1.25rem; }
+.signin-screen .account-sync > p:first-of-type { display:none; }
+.signin-screen .sync-controls > .primary, .signin-screen .account-sync > .primary { width:100%; }
+.signin-guest { text-align:center; padding-top:24px; }
+.signin-guest > span { display:block; font-size:.72rem; color:#9292ad; margin-bottom:14px; }
+.signin-guest button { width:100%; padding:12px; }
+.signin-guest p { font-size:.75rem; color:#9292ad; margin:12px 0; }
+@media (prefers-reduced-motion:reduce) { .launch-progress { animation:none; } }
 :root { color-scheme: dark; }
 .topbar > .topbar-brand { display:inline-flex; min-width:0; }
 .topbar-brand > span { font-size:.6rem; line-height:1.5; }

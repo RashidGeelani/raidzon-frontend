@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 
 async function fillMatch(page: Page) {
+  await page.getByRole('button', { name: 'Continue offline', exact: true }).click();
   await page.getByRole('button', { name: 'Start a match' }).click();
   const names = page.getByLabel('Team name', { exact: true });
   await names.nth(0).fill('Valley Raiders');
@@ -42,6 +43,7 @@ test('guest creates, scores, reloads, undoes and completes a match entirely offl
   await page.getByRole('button', { name: 'Confirm raid →', exact: true }).click();
   await expect(page.getByText('Raider 1: touch', { exact: true })).toBeVisible();
   await page.reload();
+  await page.getByRole('button', { name: 'Continue offline', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Ready for the next raid?' })).toBeVisible();
   await page.getByRole('button', { name: /Resume match/ }).click();
   await expect(page.getByText('Raider 1: touch', { exact: true })).toBeVisible();
@@ -58,6 +60,7 @@ test('guest creates, scores, reloads, undoes and completes a match entirely offl
   await page.getByRole('button', { name: 'Accept draw', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Match drawn', exact: true })).toBeVisible();
   await page.reload();
+  await page.getByRole('button', { name: 'Continue offline', exact: true }).click();
   await page.getByRole('button', { name: /View result/ }).click();
   await expect(page.getByRole('heading', { name: 'Match drawn', exact: true })).toBeVisible();
   expect(errors).toEqual([]);

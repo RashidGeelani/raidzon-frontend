@@ -8,6 +8,7 @@ test('main screens fit small phones and desktop', async ({ page }) => {
   for (const width of [360, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/');
+    await page.getByRole('button', { name: 'Continue offline', exact: true }).click();
     for (const name of ['Home', 'Tournaments', 'Matches', 'Leaderboards', 'Profile']) {
       await page.getByRole('button', { name, exact: true }).last().click();
       await expect(page.locator('main')).toBeVisible();

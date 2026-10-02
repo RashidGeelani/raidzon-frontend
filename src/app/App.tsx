@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { restoreSession } from '../features/identity/data/session-store';
 import { liveQuery } from 'dexie';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { db, recordEvent, sessionId } from '../features/matches/data/match-repository';
@@ -13,6 +14,17 @@ import { JoinedTournamentMatches } from '../features/tournaments/JoinedTournamen
 import type { LocalMatch, MatchEvent, MatchIntent } from '../features/scoring/domain/match-types';
 
 export function App() {
+  const [startup, setStartup] = useState<'splash' | 'signin' | 'ready'>('splash');
+  const finishSignIn = useCallback(() => setStartup((current) => current === 'signin' ? 'ready' : current), []);
+  useEffect(() => {
+    let active = true;
+    let timer: ReturnType<typeof setTimeout>;
+    const minimumSplash = new Promise<void>((resolve) => { timer = setTimeout(resolve, 1200); });
+    void Promise.all([restoreSession().catch(() => null), minimumSplash]).then(([account]) => {
+      if (active) setStartup(account ? 'ready' : 'signin');
+    });
+    return () => { active = false; clearTimeout(timer); };
+  }, []);
   const [tab, setTab] = useState<'home' | 'tournaments' | 'matches' | 'leaderboards' | 'profile'>('home');
   const [matchFilter, setMatchFilter] = useState<'UPCOMING' | 'LIVE' | 'COMPLETED'>('LIVE');
   const [matches, setMatches] = useState<LocalMatch[]>([]);
@@ -117,7 +129,8 @@ export function App() {
     setSetup(true);
   }
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${startup !== 'ready' ? 'startup-shell' : ''}`}>
+      {startup === 'splash' && <div className="launch-splash" role="status" aria-label="Starting raidzOn"><img src="/brand/raidzon-logo.png" alt="" /><h1>raidz<span>On</span></h1><p>EVERY RAID. EVERY POINT.</p><span className="launch-progress" /></div>}
       <aside className="sidebar">
         <a
           className="brand"
@@ -162,14 +175,17 @@ export function App() {
           </div>
         </header>
         <main>
-          <div hidden={!!setup || !!match || (tab !== 'home' && tab !== 'tournaments' && tab !== 'profile')}>
+          <div className={startup === 'signin' ? 'account-entry signin-screen' : 'account-entry'} hidden={startup === 'splash' || (startup === 'ready' && (!!setup || !!match || (tab !== 'tournaments' && tab !== 'profile')))}>
+            {startup === 'signin' && <header className="signin-brand"><img src="/brand/raidzon-logo.png" alt="" /><p className="signin-wordmark">raidz<span>On</span></p><h1>Welcome to the court</h1><p>Sign in to keep your matches with you.</p></header>}
             <AccountSync
+              onSignedIn={finishSignIn}
               section={tab === 'tournaments' ? 'tournaments' : tab === 'profile' ? 'profile' : 'all'}
               online={online}
               matches={matches}
               onPrepareFixture={prepareFixture}
               onScoreMatch={setSelectedId}
             />
+            {startup === 'signin' && <div className="signin-guest"><span>or get straight to the game</span><button className="secondary" onClick={() => setStartup('ready')}>Continue offline</button><p>No account needed to score. Sign in later from Profile.</p></div>}
           </div>
           {error && (
             <div className="error" role="alert">

@@ -15,12 +15,14 @@ export function AccountSync({
   matches,
   onPrepareFixture,
   onScoreMatch,
+  onSignedIn,
   section = 'all',
 }: {
   online: boolean;
   matches: LocalMatch[];
   onPrepareFixture: (fixture: PreparedFixture) => void;
   onScoreMatch?: (id: string) => void;
+  onSignedIn?: () => void;
   section?: 'all' | 'tournaments' | 'profile';
 }) {
   // Session survives reload until expiry; scoring remains available independently.
@@ -38,6 +40,7 @@ export function AccountSync({
   const [widgetAvailable, setWidgetAvailable] = useState(false);
   const [capabilityError, setCapabilityError] = useState(false);
   const [capabilityRetry, setCapabilityRetry] = useState(0);
+  useEffect(() => { if (account) onSignedIn?.(); }, [account, onSignedIn]);
   useEffect(() => {
     void restoreSession()
       .then(setAccount)

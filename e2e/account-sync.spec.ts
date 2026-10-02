@@ -18,6 +18,7 @@ test('SMS disabled leaves guest scoring available', async ({ page }) => {
   );
   await page.goto('/');
   await expect(page.getByText(/Phone sign-in is temporarily unavailable/)).toBeVisible();
+  await page.getByRole('button', { name: 'Continue offline', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Start a match', exact: false })).toBeEnabled();
 });
 
@@ -117,7 +118,8 @@ test('OTP form binds verification to the same device and signs out', async ({ pa
   await page.getByRole('button', { name: 'Send code', exact: true }).click();
   await page.getByLabel('Verification code').fill('012345');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await expect(page.getByText('Matches are up to date')).toBeVisible();
+  await page.getByRole('button', { name: 'Profile', exact: true }).click();
+  await expect(page.getByText('Matches are up to date', { exact: false }).first()).toBeVisible();
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
   await expect(page.getByText('Signed out. Local matches remain available.')).toBeVisible();
 });

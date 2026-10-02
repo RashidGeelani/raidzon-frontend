@@ -18,6 +18,7 @@ test('guest browses without signing in and a member follows read-only matches', 
     await route.fulfill({ json });
   });
   await page.goto('/');
+  await page.getByRole('button', { name: 'Continue offline', exact: true }).click();
   await page.getByRole('button', { name: 'Tournaments', exact: true }).click();
   await page.getByLabel('Search tournaments').fill('City');
   await page.getByRole('button', { name: 'Search', exact: true }).click();
