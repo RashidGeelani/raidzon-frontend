@@ -6,7 +6,7 @@ import {
   recordEvent,
   type SetupInput,
 } from '../../matches/data/match-repository';
-import { deviceCredentials } from '../../identity/data/auth-client';
+import { ApiError, deviceCredentials } from '../../identity/data/auth-client';
 import { needsSync, syncMatch, type SyncTransport } from './sync-matches';
 import type { MatchState } from '../../scoring/domain/match-types';
 
@@ -273,11 +273,30 @@ it('repairs a half-saved tap so the upload is not blocked by a gap', async () =>
 it('sends events again when the server lost them (e.g. its database was reset)', async () => {
   const f = await fixture();
   await syncMatch(f.match.id, f.account, database, f.transport);
-  const claim = f.transport.claim;
-  f.transport.claim = async (body) => ({ ...(await claim(body)), version: 0, state: f.match.state });
+  let reset = true;
+  const { claim, append } = f.transport;
+  f.transport.claim = async (body) => (reset ? ((reset = false), { ...(await claim(body)), version: 0, state: f.match.state }) : claim(body));
+  f.transport.append = async (id, body) => {
+    if (reset) throw new ApiError(400, 'Match not found.');
+    return append(id, body);
+  };
+  const next = await recordEvent(f.match.id, 2, f.account.deviceId, { type: 'TECHNICAL', side: 0 }, 'next', database);
+  f.events.push((await database.events.get('next'))!);
   await syncMatch(f.match.id, f.account, database, f.transport);
-  expect(f.received).toEqual([f.events[0].id, f.events[1].id, f.events[0].id, f.events[1].id]);
-  expect(needsSync((await database.matches.get(f.match.id))!)).toBe(false);
+  expect(f.received).toEqual([f.events[0].id, f.events[1].id, f.events[0].id, f.events[1].id, 'next']);
+  expect(needsSync((await database.matches.get(next.id))!)).toBe(false);
+});
+it('sends a new tap in one request once the match is registered', async () => {
+  const f = await fixture();
+  await syncMatch(f.match.id, f.account, database, f.transport);
+  let claims = 0;
+  const { claim } = f.transport;
+  f.transport.claim = async (body) => { claims++; return claim(body); };
+  await recordEvent(f.match.id, 2, f.account.deviceId, { type: 'TECHNICAL', side: 1 }, 'tap', database);
+  f.events.push((await database.events.get('tap'))!);
+  await syncMatch(f.match.id, f.account, database, f.transport);
+  expect(claims).toBe(0);
+  expect(f.received.at(-1)).toBe('tap');
 });
 it('a later tap replaces a half-saved event instead of failing on it', async () => {
   const f = await fixture();

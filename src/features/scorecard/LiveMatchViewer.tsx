@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { watchMatch, type LiveConnection } from './live-socket';
+import { watchMatch, type LiveConnection, type LiveStateUpdate } from './live-socket';
 import type { ClockState, MatchState, Player } from '../scoring/domain/match-types';
 
 type ViewerState = Pick<MatchState, 'scores' | 'tieScores' | 'status' | 'phase' | 'half' | 'raidNumber' | 'turn' | 'currentRaiderId' | 'clock' | 'raidClock' | 'winner'> & {
@@ -24,6 +24,29 @@ export function LiveMatchViewer({ matchId, onBack }: { matchId: string; onBack?:
         if (result.version < latest) return; // ignore an older poll that arrives after a newer push
         latest = result.version;
         setView(result); setAnchor({ server: result.serverTime, local: performance.now() }); setMessage('');
+      },
+      // Instant update from the scorer's tap; keeps the event list and players' own names until
+      // the full view arrives a moment later.
+      onState: (update: LiveStateUpdate) => {
+        if (update.version <= latest) return;
+        latest = update.version;
+        const incoming = update.state as ViewerState;
+        setView((current) => current && {
+          ...current,
+          version: update.version,
+          serverTime: update.serverTime,
+          state: {
+            ...incoming,
+            teams: incoming.teams.map((team, side) => ({
+              ...team,
+              players: team.players.map((player) => ({
+                ...player,
+                name: current.state.teams[side]?.players.find((known) => known.id === player.id)?.name ?? player.name,
+              })),
+            })),
+          },
+        });
+        setAnchor({ server: update.serverTime, local: performance.now() });
       },
       onUnavailable: () => { setView(null); setMessage('This match is not available to watch.'); },
       onConnection: setConnection,

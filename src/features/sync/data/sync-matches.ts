@@ -1,6 +1,6 @@
 import Dexie from 'dexie';
 import { db, type RaidzOnDatabase } from '../../matches/data/match-repository';
-import { api, type AccountSession } from '../../identity/data/auth-client';
+import { api, ApiError, type AccountSession } from '../../identity/data/auth-client';
 import { clockStartsWithFirstRaid, isScorable, type LocalMatch, type MatchEvent, type MatchState } from '../../scoring/domain/match-types';
 
 interface Registration {
@@ -64,7 +64,21 @@ export function repairHistory(matchId: string, database: RaidzOnDatabase = db) {
     }),
   );
 }
-export async function syncMatch(
+/**
+ * Uploads a match's unsent events. Once a match is registered, each tap is a single request
+ * (no re-registration); if the server rejects it, the full check with registration runs once.
+ */
+export async function syncMatch(...args: Parameters<typeof syncOnce>) {
+  const [matchId, account, database = db, transport] = args;
+  try {
+    return await syncOnce(matchId, account, database, transport, false);
+  } catch (error) {
+    if (error instanceof ApiError && error.status >= 400 && error.status < 500 && ![401, 408, 429].includes(error.status))
+      return syncOnce(matchId, account, database, transport, true);
+    throw error;
+  }
+}
+async function syncOnce(
   matchId: string,
   account: AccountSession,
   database = db,
@@ -80,6 +94,7 @@ export async function syncMatch(
         SYNC_TIMEOUT_MS,
       ),
   },
+  verify = true,
 ) {
   try {
     await repairHistory(matchId, database);
@@ -133,6 +148,14 @@ export async function syncMatch(
           'Server and device history differ. Upload stopped; no local scores were replaced.',
         );
     };
+    // Fast path: already registered and in step with the server, so only the new events are sent.
+    const registered =
+      !verify &&
+      match.serverAccountId === account.accountId &&
+      typeof match.serverVersion === 'number' &&
+      !match.syncError &&
+      events.every((event) => event.syncStatus !== 'SYNCED' || event.sequence <= match.serverVersion!);
+    const register = async () => {
     const registration = await transport.claim({
       rulesetVersion: match.rulesetVersion,
       matchId,
@@ -160,6 +183,8 @@ export async function syncMatch(
       serverVersion: registration.version,
       syncError: '',
     });
+    };
+    if (!registered) await register();
     for (const event of events) {
       if (event.syncStatus === 'SYNCED') continue;
       const ack = await transport.append(matchId, {

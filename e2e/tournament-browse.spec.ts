@@ -30,10 +30,11 @@ test('guest browses without signing in and a member follows read-only matches', 
   await page.getByRole('button', { name: 'Send code', exact: true }).click();
   await page.getByLabel('Verification code', { exact: true }).fill('123456');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await expect(page.getByRole('button', { name: '+ Create tournament', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'My tournaments', exact: true })).toBeVisible();
+  await expect(page.getByText('Host your own tournament')).toHaveCount(0);
   await page.getByRole('button', { name: /City Cup/ }).click();
-  await page.getByRole('button', { name: 'Join tournament', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Joined tournament' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Join', exact: true }).click();
+  await expect(page.getByRole('button', { name: '✓ Joined' })).toBeDisabled();
   await page.getByRole('button', { name: 'Matches', exact: true }).click();
   const section = page.getByRole('region', { name: 'Joined tournament matches' });
   await expect(section.getByText('12 : 9')).toBeVisible();

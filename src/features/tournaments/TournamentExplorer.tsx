@@ -26,6 +26,7 @@ export function TournamentExplorer({ account, online, matches, onPrepareFixture,
   const [query, setQuery] = useState('');
   const [items, setItems] = useState<TournamentListItem[]>([]);
   const [joined, setJoined] = useState<string[]>([]);
+  const [own, setOwn] = useState<string[]>([]);
   const [detail, setDetail] = useState<PublicTournamentDetail | null>(null);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -45,14 +46,27 @@ export function TournamentExplorer({ account, online, matches, onPrepareFixture,
   useEffect(() => {
     let active = true;
     setJoined([]);
-    if (account && online) void api<string[]>('/account/joined-tournaments', undefined, account.token)
-      .then((value) => { if (active) setJoined(value); }).catch(() => undefined);
+    setOwn([]);
+    if (account && online) {
+      void api<string[]>('/account/joined-tournaments', undefined, account.token)
+        .then((value) => { if (active) setJoined(value); }).catch(() => undefined);
+      // Tournaments this account organizes: managed from My tournaments, not joined or requested.
+      void api<{ id: string }[]>('/tournaments', undefined, account.token)
+        .then((value) => { if (active) setOwn(value.map((item) => item.id)); }).catch(() => undefined);
+    }
     return () => { active = false; };
-  }, [account?.accountId, account?.token, online]);
+  }, [account?.accountId, account?.token, online, mine]);
   async function open(id: string) {
     setDetailTab('teams');
     setBusy(true); setMessage('');
-    try { setDetail(await api<PublicTournamentDetail>(`/public/tournaments/${id}`)); }
+    try {
+      const [result, mineNow] = await Promise.all([
+        api<PublicTournamentDetail>(`/public/tournaments/${id}`),
+        account ? api<{ id: string }[]>('/tournaments', undefined, account.token).catch(() => null) : Promise.resolve(null),
+      ]);
+      if (mineNow) setOwn(mineNow.map((item) => item.id));
+      setDetail(result);
+    }
     catch { setMessage('Could not load tournament details.'); }
     finally { setBusy(false); }
   }
@@ -72,7 +86,6 @@ export function TournamentExplorer({ account, online, matches, onPrepareFixture,
       <button className={!mine ? 'active' : ''} onClick={() => { setMine(false); setDetail(null); }}>Explore tournaments</button>
       {account && <button className={mine ? 'active' : ''} onClick={() => { setCreating(false); setMine(true); }}>My tournaments</button>}
     </div>
-    {account && !mine && <button className="match-create-action" onClick={() => { setCreating(true); setMine(true); }}>+ Create tournament</button>}
     {mine && account ? <TournamentDashboard account={account} online={online} matches={matches} onPrepareFixture={onPrepareFixture} onScoreMatch={onScoreMatch} startCreating={creating} focus={focus} /> : <>
       {!detail ? <>
         <header className="list-screen-heading"><h2>Tournaments</h2><p>Find competitions, follow teams, and catch every score.</p></header>
@@ -81,17 +94,24 @@ export function TournamentExplorer({ account, online, matches, onPrepareFixture,
           <button type="submit" disabled={!online}>Search</button>
         </form>
         <div className="tournament-list">{items.map((item) => <button className="tournament-list-card" key={item.id} disabled={!online || busy} onClick={() => void open(item.id)}>
-          <span className="tournament-card-top"><strong>{item.name}</strong>{joined.includes(item.id) && <em>JOINED</em>}</span>
+          <span className="tournament-card-top"><strong>{item.name}</strong>{own.includes(item.id) ? <em>ORGANIZER</em> : joined.includes(item.id) && <em>JOINED</em>}</span>
           <span className="tournament-card-venue">{item.venue}</span><span className="tournament-card-date">{item.startsOn}</span>
         </button>)}</div>
         {!message && items.length === 0 && <p className="list-empty">No tournaments found.</p>}
       </> : <>
-        <header className="tournament-detail-header"><button className="tournament-back" onClick={() => setDetail(null)} aria-label="Back to tournament search">←</button><div><h2>{detail.tournament.name}</h2><p>{detail.tournament.venue} · {detail.tournament.startsOn}</p></div></header>
-        <button className="match-create-action" disabled={busy || !online || joined.includes(detail.tournament.id)} onClick={() => void join(detail.tournament.id)}>{joined.includes(detail.tournament.id) ? 'Joined tournament' : 'Join tournament'}</button>
-        <p className="muted">Join to follow matches. Only the organizer can manage and score them.</p>
-        <RequestToJoin account={account} online={online} tournamentId={detail.tournament.id} registrationOpen={detail.registrationOpen !== false} />
+        <header className="tournament-detail-header"><button className="tournament-back" onClick={() => setDetail(null)} aria-label="Back to tournament search">←</button><div><h2>{detail.tournament.name}</h2><p>{detail.tournament.venue} · {detail.tournament.startsOn}</p></div>
+          {own.includes(detail.tournament.id)
+            ? <button className="tournament-join-inline" onClick={() => { setCreating(false); setMine(true); setDetail(null); }}>Manage</button>
+            : <button className={`tournament-join-inline ${joined.includes(detail.tournament.id) ? 'joined' : ''}`} disabled={busy || !online || joined.includes(detail.tournament.id)} onClick={() => void join(detail.tournament.id)}>{joined.includes(detail.tournament.id) ? '✓ Joined' : 'Join'}</button>}
+        </header>
+        {own.includes(detail.tournament.id)
+          ? <p className="muted">You organize this tournament. Manage teams, fixtures and scoring from My tournaments.</p>
+          : <>
+            <p className="muted">Join to follow matches. Only the organizer can manage and score them.</p>
+            <RequestToJoin account={account} online={online} tournamentId={detail.tournament.id} registrationOpen={detail.registrationOpen !== false} />
+          </>}
         <div className="list-filter-tabs" role="tablist" aria-label="Tournament information">{(['teams', 'matches', 'standings'] as const).map((tab) => <button key={tab} role="tab" aria-selected={detailTab === tab} className={detailTab === tab ? 'active' : ''} onClick={() => setDetailTab(tab)}>{tab[0].toUpperCase() + tab.slice(1)}</button>)}</div>
-        {detailTab === 'teams' && <><h3>Teams</h3><ul className="tournament-team-list">{detail.teams.map((team) => <li key={team.id}><span><strong>{team.name}</strong><small>{team.players.length} players</small></span></li>)}</ul></>}
+        {detailTab === 'teams' && <><h3>Teams</h3><ul className="tournament-team-list">{detail.teams.map((team, index) => <li key={team.id}><span className={`tournament-team-mark side-${index % 2}`} aria-hidden="true">{team.name.slice(0, 2).toUpperCase()}</span><span className="tournament-team-text"><strong>{team.name}</strong><small>{team.players.length ? `${team.players.length} player${team.players.length === 1 ? '' : 's'}` : 'Squad not added yet'}</small></span></li>)}</ul></>}
         {detailTab === 'matches' && <>
         <h3>Matches</h3>{detail.fixtures.map((fixture) => <article className="upcoming-match-card" key={fixture.id}><strong>{teamName(fixture.teamAId)} vs {teamName(fixture.teamBId)}</strong><p>{fixture.status ? `${fixture.scoreA ?? 0} : ${fixture.scoreB ?? 0} · ${fixture.status.replaceAll('_', ' ')}` : 'Upcoming'}</p><small>{fixture.scheduledAt ? new Date(fixture.scheduledAt).toLocaleString() : 'Time to be confirmed'}</small>{fixture.matchId && <MatchActions matchId={fixture.matchId} matches={matches} onScore={onScoreMatch} completed={fixture.status === 'COMPLETED'} />}</article>)}
         {!detail.fixtures.length && <p>No fixtures yet.</p>}

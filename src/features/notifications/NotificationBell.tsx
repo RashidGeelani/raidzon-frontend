@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AccountSession } from '../identity/data/auth-client';
 import { restoreSession } from '../identity/data/session-store';
-import { fetchInbox, focusFor, isInbox, markAllRead, markRead, timeAgo, type AppNotification, type Focus, type Inbox } from './notification-client';
+import { OPEN_NOTIFICATIONS, fetchInbox, focusFor, isInbox, markAllRead, markRead, timeAgo, type AppNotification, type Focus, type Inbox } from './notification-client';
 
 const POLL_MS = 60_000;
 
@@ -21,6 +21,13 @@ export function NotificationBell({ online, onOpen }: { online: boolean; onOpen: 
     if (isInbox(result)) setInbox(result);
   }, []);
 
+  useEffect(() => {
+    const show = () => { setOpen(true); void refresh(); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+    const close = (event: KeyboardEvent) => { if (event.key === 'Escape') setOpen(false); };
+    window.addEventListener(OPEN_NOTIFICATIONS, show);
+    window.addEventListener('keydown', close);
+    return () => { window.removeEventListener(OPEN_NOTIFICATIONS, show); window.removeEventListener('keydown', close); };
+  }, [refresh]);
   useEffect(() => {
     void refresh();
     const timer = setInterval(() => void refresh(), POLL_MS);

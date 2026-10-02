@@ -1,6 +1,8 @@
 import { api, ApiError, apiBaseUrl } from '../identity/data/auth-client';
 
 export type LiveConnection = 'connecting' | 'live' | 'reconnecting';
+/** Sent the moment an event is accepted, before the full view (event list, own names) follows. */
+export interface LiveStateUpdate<S = unknown> { version: number; serverTime: number; state: S }
 const RECONNECT_SECONDS = [1, 2, 5, 10, 15];
 const WATCHDOG_MS = 70_000; // the server sends a keepalive every 25s
 const FALLBACK_POLL_MS = 10_000;
@@ -15,7 +17,12 @@ export function liveSocketUrl(matchId: string, base = apiBaseUrl(), origin = glo
  */
 export function watchMatch<V>(
   matchId: string,
-  handlers: { onView: (view: V) => void; onUnavailable: () => void; onConnection: (state: LiveConnection) => void },
+  handlers: {
+    onView: (view: V) => void;
+    onUnavailable: () => void;
+    onConnection: (state: LiveConnection) => void;
+    onState?: (update: LiveStateUpdate) => void;
+  },
   deps: { WebSocketImpl?: typeof WebSocket; fetchView?: () => Promise<V> } = {},
 ) {
   const Socket = deps.WebSocketImpl ?? WebSocket;
@@ -42,8 +49,10 @@ export function watchMatch<V>(
     socket.onmessage = (event) => {
       armWatchdog();
       try {
-        const message = JSON.parse(String(event.data)) as { type: string; view?: V };
+        const message = JSON.parse(String(event.data)) as { type: string; view?: V } & Partial<LiveStateUpdate>;
         if (message.type === 'view' && message.view) handlers.onView(message.view);
+        else if (message.type === 'state' && message.state && typeof message.version === 'number')
+          handlers.onState?.({ version: message.version, serverTime: message.serverTime ?? Date.now(), state: message.state });
         else if (message.type === 'unavailable') handlers.onUnavailable();
       } catch { /* ignore malformed frames */ }
     };

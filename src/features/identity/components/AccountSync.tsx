@@ -206,14 +206,23 @@ export function AccountSync({
             Sign out
           </button>
         </div>
-      ) : available === null && !widgetAvailable ? (
+      ) : (
+        <div className="signin-card">
+          <div className="signin-card-head">
+            <span className="signin-card-icon" aria-hidden="true">✆</span>
+            <div>
+              <strong>Sign in with your phone</strong>
+              <small>{widgetAvailable ? 'Verify your number in a few seconds. No password needed.' : challenge ? `Enter the 6-digit code we sent to ${phone}.` : 'We’ll text you a 6-digit code. No password needed.'}</small>
+            </div>
+          </div>
+          {available === null && !widgetAvailable ? (
         <div className="profile-signin-note" role="status">
           <p>{!online ? 'Connect to the internet to sign in.' : capabilityError ? 'The sign-in server could not be reached. Your offline matches remain saved on this device.' : 'Checking sign-in availability…'}</p>
           {online && capabilityError && <button className="secondary" onClick={() => setCapabilityRetry((value) => value + 1)}>Retry sign-in</button>}
         </div>
       ) : widgetAvailable ? (
         <button
-          className="primary"
+          className="primary signin-card-submit"
           disabled={!online || busy}
           onClick={() =>
             void run(async () => {
@@ -271,15 +280,19 @@ export function AccountSync({
         >
           <label>
             Mobile number
-            <input
-              type="tel"
-              autoComplete="tel"
-              value={phone}
-              required
-              disabled={!!challenge || busy}
-              onChange={(event) => setPhone(event.target.value)}
-              placeholder="+91"
-            />
+            <span className="signin-phone">
+              <b aria-hidden="true">🇮🇳 +91</b>
+              <input
+                type="tel"
+                autoComplete="tel"
+                inputMode="tel"
+                value={phone}
+                required
+                disabled={!!challenge || busy}
+                onChange={(event) => setPhone(event.target.value)}
+                placeholder="98765 43210"
+              />
+            </span>
           </label>
           {challenge && (
             <label>
@@ -296,7 +309,7 @@ export function AccountSync({
             </label>
           )}
           <div className="sync-controls">
-            <button className="primary" disabled={!online || busy}>
+            <button className="primary signin-card-submit" disabled={!online || busy}>
               {busy ? 'Please wait…' : challenge ? 'Sign in' : 'Send code'}
             </button>
             {challenge && (
@@ -319,6 +332,9 @@ export function AccountSync({
             )}
           </div>
         </form>
+      )}
+          <p className="signin-card-legal">Your number is never shown on public scorecards. <a href="/privacy">Privacy policy</a></p>
+        </div>
       )}
       {message && <p role="status">{message}</p>}
       {matches

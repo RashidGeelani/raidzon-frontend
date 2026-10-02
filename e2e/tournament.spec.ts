@@ -75,7 +75,7 @@ test('organizer creates tournament, registers teams and schedules a fixture', as
   await page.getByRole('button', { name: 'Tournaments', exact: true }).click();
   await page.getByRole('button', { name: 'My tournaments', exact: true }).click();
   const panel = page.getByRole('region', { name: 'My tournaments' });
-  await panel.getByText('+ Create Tournament').click();
+  await panel.getByText('Host your own tournament').click();
   await panel.getByLabel('Tournament name').fill('District Cup');
   await panel.getByLabel('Venue').fill('Main court');
   await panel.getByLabel('Start date').fill('2026-10-10');

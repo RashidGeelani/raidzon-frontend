@@ -210,8 +210,12 @@ export function TournamentDashboard({
           scores.
         </p>
       )}
-      {!selected && <details className="tournament-create" open={startCreating || undefined}>
-        <summary>+ Create Tournament</summary>
+      {!selected && <details className="tournament-create tournament-create-banner" open={startCreating || undefined}>
+        <summary>
+          <span className="tournament-create-banner-icon" aria-hidden="true">🏆</span>
+          <span className="tournament-create-banner-text"><strong>Host your own tournament</strong><small>Register teams, schedule fixtures and score every raid live.</small></span>
+          <span className="tournament-create-banner-cta">+ Create</span>
+        </summary>
         <form
           onSubmit={(event) => {
             event.preventDefault();

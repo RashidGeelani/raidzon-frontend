@@ -49,3 +49,6 @@ export function timeAgo(iso: string, now = Date.now()) {
   const days = Math.round(hours / 24);
   return days === 1 ? 'yesterday' : `${days} days ago`;
 }
+
+/** Window event that opens the notification panel from anywhere (e.g. the profile menu). */
+export const OPEN_NOTIFICATIONS = 'raidzon:open-notifications';

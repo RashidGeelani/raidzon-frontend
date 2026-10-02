@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, type AccountSession } from '../data/auth-client';
+import { OPEN_NOTIFICATIONS } from '../../notifications/notification-client';
 import { ShareScorecard } from '../../scorecard/ShareScorecard';
 import { EditPlayerProfile } from './EditPlayerProfile';
 
@@ -94,9 +95,10 @@ export function AccountDashboard({
             <div><strong>Edit Profile</strong><small>Update your player name</small></div>
             {profile ? <EditPlayerProfile account={account} phone={data.phone} name={profile.name} online={online} onSaved={() => setRefresh((value) => value + 1)} /> : <span className="profile-later">Link a player first</span>}
           </div>
-          <div className="profile-menu-row profile-menu-planned"><span className="profile-menu-icon" aria-hidden="true">♢</span><div><strong>Notifications</strong><small>Match alerts & updates · later</small></div></div>
+          <button type="button" className="profile-menu-row profile-menu-link" onClick={() => window.dispatchEvent(new Event(OPEN_NOTIFICATIONS))}><span className="profile-menu-icon" aria-hidden="true">♢</span><div><strong>Notifications</strong><small>Join requests, approvals and team updates</small></div><span className="profile-menu-chevron" aria-hidden="true">›</span></button>
           <div className="profile-menu-row profile-menu-planned"><span className="profile-menu-icon" aria-hidden="true">⚙</span><div><strong>Settings</strong><small>App preferences · later</small></div></div>
-          <div className="profile-menu-row profile-menu-planned"><span className="profile-menu-icon" aria-hidden="true">?</span><div><strong>Help & Support</strong><small>More support options are coming</small></div></div>
+          <a className="profile-menu-row profile-menu-link" href="/help"><span className="profile-menu-icon" aria-hidden="true">?</span><div><strong>Help & Support</strong><small>How scoring works, FAQs and contact</small></div><span className="profile-menu-chevron" aria-hidden="true">›</span></a>
+          <a className="profile-menu-row profile-menu-link" href="/privacy"><span className="profile-menu-icon" aria-hidden="true">⛉</span><div><strong>Privacy policy</strong><small>What we collect and how it is used</small></div><span className="profile-menu-chevron" aria-hidden="true">›</span></a>
         </div>
         <div className="profile-brand"><strong>RaidzOn</strong><span>Live Kabaddi. Every Raid.</span></div>
         <details className="profile-matches">

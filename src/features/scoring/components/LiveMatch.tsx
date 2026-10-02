@@ -13,6 +13,8 @@ import {
 } from '../domain/match-types';
 import { scoreRaid, type RaidOutcome } from '../domain/score-raid';
 import { undoTarget } from '../../matches/data/match-repository';
+import { CourtDrawers } from './CourtDrawers';
+import { MatchResult } from './MatchResult';
 import { raidWarning, unlockRaidAudio, useRaidWarning } from '../raid-warning';
 
 const clockText = (ms: number) =>
@@ -214,27 +216,11 @@ export function LiveMatch({
           )}
         </div>
       </section>
-      <h3 className="live-section-title">On court</h3>
-      {state.teams.map((team, side) => <div className="live-court-team" key={side}><strong>{team.name}</strong><div className="live-player-chips">{team.players.map((player, index) => player.status === 'ACTIVE' && <span className={player.id === state.currentRaiderId ? 'current' : ''} key={player.id}><b title="Roster position">{index + 1}</b><small>{player.name}</small></span>)}</div></div>)}
+      {state.status !== 'COMPLETED' && <CourtDrawers teams={state.teams} currentRaiderId={state.currentRaiderId} />}
       <div className="match-layout">
         <div className="match-main">
           {state.status === 'COMPLETED' ? (
-            <section className="panel result">
-              <p className="eyebrow">
-                {state.winner === 'DRAW' ? 'HONOURS SHARED' : 'MATCH DECIDED'}
-              </p>
-              <h2>
-                {state.winner === 'DRAW'
-                  ? 'Match drawn'
-                  : `${state.teams[state.winner as Side].name} win`}
-              </h2>
-              <p>
-                {state.winner === 'DRAW'
-                  ? '1 table point each when added to a tournament.'
-                  : '3 table points to the winner when added to a tournament.'}
-              </p>
-              <p>Saved on this device. Use Account & sync above to upload when connected.</p>
-            </section>
+            <MatchResult match={match} events={events} watchLink={match.serverAccountId ? `${window.location.origin}/watch/${match.id}` : undefined} />
           ) : state.status === 'TIED' ? (
             <section className="panel">
               <p className="eyebrow">LEVEL AT FULL TIME</p>
@@ -459,7 +445,7 @@ export function LiveMatch({
                           </small>
                         </span>
                       </label>
-                      {outcome !== 'EMPTY' && (
+                      {outcome !== 'EMPTY' && outcome !== 'TACKLE' && (
                         <>
                           <p className="field-note">Select defenders OUT, in OUT order.</p>
                           <div className="player-grid">
@@ -534,6 +520,28 @@ export function LiveMatch({
                           </div>
                         </details>
                       }
+                      {outcome === 'TACKLE' && (
+                        <>
+                          <p className="field-note">Defenders OUT before the tackle (if any), in OUT order.</p>
+                          <div className="player-grid">
+                            {defendersOnCourt.map((p) => (
+                              <button
+                                key={p.id}
+                                className={`player-chip ${defenders.includes(p.id) ? 'selected' : ''}`}
+                                aria-pressed={defenders.includes(p.id)}
+                                onClick={() => toggleDefender(p.id)}
+                              >
+                                {p.name}
+                                <small>
+                                  {defenders.includes(p.id)
+                                    ? `OUT #${outOrder.indexOf(p.id) + 1}`
+                                    : 'On court'}
+                                </small>
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
                       <div className="outcome-preview">{raidPreview}</div>
                       <button
                         className="primary full"
