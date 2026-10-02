@@ -177,6 +177,11 @@ export async function createMatch(
   );
 }
 
+/**
+ * Records one scoring tap. The transaction body is a plain Dexie promise chain (no native
+ * async/await): iOS Safari can otherwise commit the IndexedDB transaction before the body
+ * finishes ("Transaction committed too early"), which skipped the live upload for that tap.
+ */
 export async function recordEvent(
   matchId: string,
   expectedVersion: number,
@@ -184,61 +189,70 @@ export async function recordEvent(
   intent: MatchIntent,
   eventId = crypto.randomUUID(),
   database = db,
-) {
-  return database.transaction('rw', database.matches, database.events, database.metadata, async () => {
-    const match = await database.matches.get(matchId);
-    if (!match) throw new Error('Match not found.');
-    if (!isScorable(match.rulesetVersion))
-      throw new Error(
-        'This match uses the previous rules. Its history is preserved; start a new match for the updated rules.',
-      );
-    if (match.scoringDelegated || match.ownerSessionId !== ownerSessionId)
-      throw new Error('This scoring session is read-only.');
-    const accountOwner = match.serverAccountId ?? match.localAccountId;
-    if (accountOwner && (await database.metadata.get('scoring-account'))?.value !== accountOwner)
-      throw new Error('Sign in with the organizer account to score this match.');
-    const existing = await database.events.get(eventId);
-    if (existing) {
-      if (
-        existing.matchId !== matchId ||
-        JSON.stringify(existing.intent) !== JSON.stringify(intent)
-      )
-        throw new Error('Event ID was reused with different facts.');
-      return match;
+): Promise<LocalMatch> {
+  try {
+    return await database.transaction('rw', database.matches, database.events, database.metadata, () =>
+      Dexie.Promise.all([
+        database.matches.get(matchId),
+        database.metadata.get('scoring-account'),
+        database.events.get(eventId),
+        intent.type === 'UNDO'
+          ? database.events.where('matchId').equals(matchId).toArray()
+          : Dexie.Promise.resolve([] as MatchEvent[]),
+      ]).then(([match, scoringAccount, existing, unsorted]) => {
+        if (!match) throw new Error('Match not found.');
+        if (!isScorable(match.rulesetVersion))
+          throw new Error(
+            'This match uses the previous rules. Its history is preserved; start a new match for the updated rules.',
+          );
+        if (match.scoringDelegated || match.ownerSessionId !== ownerSessionId)
+          throw new Error('This scoring session is read-only.');
+        const accountOwner = match.serverAccountId ?? match.localAccountId;
+        if (accountOwner && scoringAccount?.value !== accountOwner)
+          throw new Error('Sign in with the organizer account to score this match.');
+        if (existing) {
+          if (existing.matchId !== matchId || JSON.stringify(existing.intent) !== JSON.stringify(intent))
+            throw new Error('Event ID was reused with different facts.');
+          return match;
+        }
+        if (match.version !== expectedVersion)
+          throw new Error('Another tab updated this match. Refresh its saved state before scoring.');
+        const now = Math.max(Date.now(), Date.parse(match.updatedAt));
+        const history = [...unsorted].sort((a, b) => a.sequence - b.sequence);
+        const result = applyRecordedEvent(match.state, intent, now, history, match.rulesetVersion);
+        const event: MatchEvent = {
+          id: eventId,
+          matchId,
+          sequence: expectedVersion + 1,
+          baseVersion: expectedVersion,
+          rulesetVersion: match.rulesetVersion!,
+          scorerSessionId: ownerSessionId,
+          createdAt: new Date(now).toISOString(),
+          intent,
+          components: result.components,
+          summary: result.summary,
+          before: result.before,
+          after: result.state,
+          syncStatus: 'PENDING',
+        };
+        const updated: LocalMatch = { ...match, version: event.sequence, state: result.state, updatedAt: event.createdAt };
+        // Rows past the saved version are leftovers of a tap that was never fully saved.
+        return database.events
+          .where('[matchId+sequence]')
+          .between([matchId, event.sequence], [matchId, Dexie.maxKey], true, true)
+          .delete()
+          .then(() => database.events.add(event))
+          .then(() => database.matches.put(updated))
+          .then(() => updated);
+      }),
+    );
+  } catch (error) {
+    // The writes are atomic: if the event is stored, the tap was saved even though the browser
+    // reported the transaction finishing early.
+    if (error instanceof Error && error.name === 'PrematureCommitError') {
+      const [saved, match] = await Promise.all([database.events.get(eventId), database.matches.get(matchId)]);
+      if (saved && match && match.version >= saved.sequence) return match;
     }
-    if (match.version !== expectedVersion)
-      throw new Error('Another tab updated this match. Refresh its saved state before scoring.');
-    const now = Math.max(Date.now(), Date.parse(match.updatedAt));
-    const history =
-      intent.type === 'UNDO'
-        ? (await database.events.where('matchId').equals(matchId).toArray()).sort(
-            (a, b) => a.sequence - b.sequence,
-          )
-        : [];
-    const result = applyRecordedEvent(match.state, intent, now, history, match.rulesetVersion);
-    const event: MatchEvent = {
-      id: eventId,
-      matchId,
-      sequence: expectedVersion + 1,
-      baseVersion: expectedVersion,
-      rulesetVersion: match.rulesetVersion!,
-      scorerSessionId: ownerSessionId,
-      createdAt: new Date(now).toISOString(),
-      intent,
-      components: result.components,
-      summary: result.summary,
-      before: result.before,
-      after: result.state,
-      syncStatus: 'PENDING',
-    };
-    const updated = {
-      ...match,
-      version: event.sequence,
-      state: result.state,
-      updatedAt: event.createdAt,
-    };
-    await database.events.add(event);
-    await database.matches.put(updated);
-    return updated;
-  });
+    throw error;
+  }
 }

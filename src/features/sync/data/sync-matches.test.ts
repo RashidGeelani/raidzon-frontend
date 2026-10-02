@@ -260,3 +260,30 @@ it('retries a prepared fixture link after match events are already synced', asyn
   expect(needsSync(linked)).toBe(false);
   expect(attempts).toBe(2);
 });
+it('repairs a half-saved tap so the upload is not blocked by a gap', async () => {
+  const f = await fixture();
+  const stray = (sequence: number, id: string, after: MatchState) => ({ ...f.events[1], id, sequence, baseVersion: sequence - 1, after });
+  // An event row whose match update never landed.
+  await database.events.add(stray(3, 'orphan', f.events[1].after));
+  await syncMatch(f.match.id, f.account, database, f.transport);
+  expect(f.received).toEqual([f.events[0].id, f.events[1].id]);
+  expect(await database.events.get('orphan')).toBeUndefined();
+  expect(needsSync((await database.matches.get(f.match.id))!)).toBe(false);
+});
+it('sends events again when the server lost them (e.g. its database was reset)', async () => {
+  const f = await fixture();
+  await syncMatch(f.match.id, f.account, database, f.transport);
+  const claim = f.transport.claim;
+  f.transport.claim = async (body) => ({ ...(await claim(body)), version: 0, state: f.match.state });
+  await syncMatch(f.match.id, f.account, database, f.transport);
+  expect(f.received).toEqual([f.events[0].id, f.events[1].id, f.events[0].id, f.events[1].id]);
+  expect(needsSync((await database.matches.get(f.match.id))!)).toBe(false);
+});
+it('a later tap replaces a half-saved event instead of failing on it', async () => {
+  const f = await fixture();
+  await database.events.add({ ...f.events[1], id: 'orphan', sequence: 3, baseVersion: 2 });
+  const next = await recordEvent(f.match.id, 2, f.account.deviceId, { type: 'TECHNICAL', side: 0 }, 'next', database);
+  expect(next.version).toBe(3);
+  expect(await database.events.get('orphan')).toBeUndefined();
+  expect((await database.events.get('next'))?.sequence).toBe(3);
+});

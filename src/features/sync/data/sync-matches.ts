@@ -1,6 +1,7 @@
-import { db } from '../../matches/data/match-repository';
+import Dexie from 'dexie';
+import { db, type RaidzOnDatabase } from '../../matches/data/match-repository';
 import { api, type AccountSession } from '../../identity/data/auth-client';
-import { clockStartsWithFirstRaid, isScorable, type LocalMatch, type MatchState } from '../../scoring/domain/match-types';
+import { clockStartsWithFirstRaid, isScorable, type LocalMatch, type MatchEvent, type MatchState } from '../../scoring/domain/match-types';
 
 interface Registration {
   matchId: string;
@@ -29,6 +30,40 @@ function canonical(value: unknown): string {
       .join(',')}}`;
   return JSON.stringify(value);
 }
+/**
+ * Removes leftovers of a scoring tap that was only half saved (an event row without the match
+ * update, or two rows for the same step). Keeps the chain of events that leads to the saved
+ * score, so the upload is not blocked by a "gap". Only unsent events are ever removed.
+ */
+export function repairHistory(matchId: string, database: RaidzOnDatabase = db) {
+  return database.transaction('rw', database.matches, database.events, () =>
+    Dexie.Promise.all([
+      database.matches.get(matchId),
+      database.events.where('matchId').equals(matchId).toArray(),
+    ]).then(([match, events]) => {
+      if (!match) return 0;
+      const bySequence = new Map<number, MatchEvent[]>();
+      for (const event of events) bySequence.set(event.sequence, [...(bySequence.get(event.sequence) ?? []), event]);
+      const remove: string[] = events
+        .filter((event) => event.sequence > match.version && event.syncStatus !== 'SYNCED')
+        .map((event) => event.id);
+      let expected: MatchState = match.state;
+      for (let sequence = match.version; sequence >= 1; sequence--) {
+        const candidates = bySequence.get(sequence) ?? [];
+        if (candidates.length <= 1) {
+          if (!candidates[0]) break;
+          expected = candidates[0].before;
+          continue;
+        }
+        const keep = candidates.find((event) => canonical(event.after) === canonical(expected));
+        if (!keep) break;
+        remove.push(...candidates.filter((event) => event !== keep && event.syncStatus !== 'SYNCED').map((event) => event.id));
+        expected = keep.before;
+      }
+      return remove.length ? database.events.bulkDelete(remove).then(() => remove.length) : 0;
+    }),
+  );
+}
 export async function syncMatch(
   matchId: string,
   account: AccountSession,
@@ -47,14 +82,16 @@ export async function syncMatch(
   },
 ) {
   try {
+    await repairHistory(matchId, database);
     const snapshot = await database.transaction(
       'r',
       database.matches,
       database.events,
-      async () => ({
-        match: await database.matches.get(matchId),
-        events: await database.events.where('matchId').equals(matchId).sortBy('sequence'),
-      }),
+      () =>
+        Dexie.Promise.all([
+          database.matches.get(matchId),
+          database.events.where('matchId').equals(matchId).sortBy('sequence'),
+        ]).then(([match, events]) => ({ match, events })),
     );
     const { match, events } = snapshot;
     if (!match) throw new Error('Match not found.');
@@ -111,12 +148,13 @@ export async function syncMatch(
     if (registration.matchId !== matchId || registration.rulesetVersion !== match.rulesetVersion)
       throw new Error('Unexpected server match acknowledgement.');
     checkState(registration.version, registration.state);
-    if (
-      events.some((event) => event.syncStatus === 'SYNCED' && event.sequence > registration.version)
-    )
-      throw new Error(
-        'Server history is behind a previously saved acknowledgement. Upload stopped.',
-      );
+    // The server has fewer events than this phone marked as sent (e.g. its database was reset).
+    // The history up to the server's version matched, so send the rest again.
+    const resend = events.filter((event) => event.syncStatus === 'SYNCED' && event.sequence > registration.version);
+    if (resend.length) {
+      await database.events.bulkUpdate(resend.map((event) => ({ key: event.id, changes: { syncStatus: 'PENDING' as const } })));
+      for (const event of resend) event.syncStatus = 'PENDING';
+    }
     await database.matches.update(matchId, {
       serverAccountId: account.accountId,
       serverVersion: registration.version,
@@ -138,15 +176,19 @@ export async function syncMatch(
       )
         throw new Error('Unexpected server event acknowledgement.');
       checkState(ack.currentVersion, ack.state);
-      await database.transaction('rw', database.matches, database.events, async () => {
-        await database.events.update(event.id, { syncStatus: 'SYNCED' });
-        const latest = await database.matches.get(matchId);
-        if (latest)
-          await database.matches.update(matchId, {
-            serverVersion: Math.max(latest.serverVersion ?? 0, ack.currentVersion),
-            syncError: '',
-          });
-      });
+      await database.transaction('rw', database.matches, database.events, () =>
+        database.events
+          .update(event.id, { syncStatus: 'SYNCED' })
+          .then(() => database.matches.get(matchId))
+          .then((latest) =>
+            latest
+              ? database.matches.update(matchId, {
+                  serverVersion: Math.max(latest.serverVersion ?? 0, ack.currentVersion),
+                  syncError: '',
+                })
+              : 0,
+          ),
+      );
     }
     if (match.fixtureRef && !match.fixtureRef.linked) {
       if (!transport.linkFixture)

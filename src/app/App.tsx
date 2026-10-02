@@ -14,6 +14,7 @@ import { JoinedTournamentMatches } from '../features/tournaments/JoinedTournamen
 import type { LocalMatch, MatchEvent, MatchIntent } from '../features/scoring/domain/match-types';
 import { NotificationBell } from '../features/notifications/NotificationBell';
 import { pushNow } from '../features/sync/data/live-sync';
+import { needsSync } from '../features/sync/data/sync-matches';
 import { LiveSyncBadge } from '../features/sync/LiveSyncBadge';
 import { ShareMatchPopup } from '../features/scorecard/ShareMatchPopup';
 import type { Focus } from '../features/notifications/notification-client';
@@ -97,6 +98,13 @@ export function App() {
   useEffect(() => {
     if (selectedId && online) void pushNow(selectedId);
   }, [selectedId, online]);
+  // Anything the server has not acknowledged yet is sent again, whatever happened to the tap that
+  // recorded it (a failed save, a reload, a dropped connection).
+  const unsent = !!match && needsSync(match);
+  useEffect(() => {
+    if (match && online && unsent) void pushNow(match.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [match?.id, match?.version, match?.serverVersion, online, unsent]);
   const matchOwner = match?.serverAccountId ?? match?.localAccountId;
   const canScore = match && !match.scoringDelegated && match.ownerSessionId === session && (!matchOwner || matchOwner === scoringAccount);
   const liveCount = matches.filter((m) => m.state.status !== 'COMPLETED').length;
@@ -107,11 +115,11 @@ export function App() {
     setError('');
     try {
       await recordEvent(match.id, match.version, session, intent);
-      // Online scoring: send this tap to the server now so watchers see it within a second.
-      void pushNow(match.id);
     } catch (cause) {
       setError((cause as Error).message);
     } finally {
+      // Online scoring: send this tap to the server now so watchers see it within a second.
+      void pushNow(match.id);
       busy.current = false;
       setSaving(false);
     }
@@ -238,7 +246,7 @@ export function App() {
               <LiveMatchViewer matchId={match.id} onBack={home} />
             ) : match ? (
             <>
-            <LiveSyncBadge matchId={match.id} online={online} />
+            <LiveSyncBadge matchId={match.id} online={online} pending={unsent} syncError={match.syncError} />
             <LiveMatch
               match={match}
               events={events}
