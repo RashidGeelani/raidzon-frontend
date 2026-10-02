@@ -7,4 +7,6 @@ export interface PreparedFixture {
   raidSeconds: number;
   rosterA: { name: string; phone: string }[];
   rosterB: { name: string; phone: string }[];
+  /** Knockout fixture: the match must have a winner (no draw). */
+  knockout?: boolean;
 }

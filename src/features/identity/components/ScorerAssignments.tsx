@@ -1,3 +1,4 @@
+import Dexie from 'dexie';
 import { useEffect, useState } from 'react';
 import { api, type AccountSession } from '../data/auth-client';
 import { db, normalizePhone } from '../../matches/data/match-repository';
@@ -129,18 +130,15 @@ export function ScorerAssignments({
                   account.token,
                 );
                 const now = new Date().toISOString();
-                await db.transaction('rw', db.matches, db.events, async () => {
-                  const latest = await db.matches.get(item.matchId);
-                  if (
-                    (latest && latest.version > 0) ||
-                    (await db.events.where('matchId').equals(item.matchId).count())
-                  )
+                await db.transaction('rw', db.matches, db.events, () =>
+                  Dexie.Promise.all([db.matches.get(item.matchId), db.events.where('matchId').equals(item.matchId).count()]).then(([latest, localEvents]) => {
+                  if ((latest && latest.version > 0) || localEvents)
                     throw new Error('Local history exists. It will not be replaced.');
-                  await db.matches.put({
+                  return db.matches.put({
                     id: item.matchId,
                     name: `${item.teamA} vs ${item.teamB}`,
                     rulesetVersion: item.rulesetVersion,
-                    createdAt: new Date(state.clock.startedAt!).toISOString(),
+                    createdAt: new Date(state.clock.startedAt ?? Date.now()).toISOString(),
                     updatedAt: now,
                     ownerSessionId: account.deviceId,
                     version: 0,
@@ -150,7 +148,7 @@ export function ScorerAssignments({
                     initialState: structuredClone(state),
                     state,
                   });
-                });
+                }));
                 setMessage(
                   'Ready on this device. Open the match from your match list; offline scoring is available.',
                 );

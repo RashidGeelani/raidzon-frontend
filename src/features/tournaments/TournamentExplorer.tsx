@@ -7,13 +7,18 @@ import type { PreparedFixture } from './types';
 import type { TournamentListItem } from './data/upcoming-fixtures';
 import { RequestToJoin } from './RequestToJoin';
 import type { Focus } from '../notifications/notification-client';
+import { BracketView, GroupTables, StagedFixtures } from './FormatViews';
+import { FORMAT_LABELS, sideName, type FormatFixture, type FormatStanding, type TournamentFormat, type TournamentGroup } from './data/format-types';
 
 export interface PublicTournamentDetail {
   tournament: TournamentListItem;
   teams: { id: string; name: string; players: string[] }[];
-  fixtures: { id: string; teamAId: string; teamBId: string; scheduledAt: string | null; matchId: string | null; status: string | null; scoreA: number | null; scoreB: number | null }[];
-  standings: { teamId: string; teamName: string; rank: number; tablePoints: number; scoreDifference: number }[];
+  fixtures: FormatFixture[];
+  standings: FormatStanding[];
   registrationOpen?: boolean;
+  format?: TournamentFormat;
+  groups?: TournamentGroup[];
+  championId?: string | null;
 }
 
 export function TournamentExplorer({ account, online, matches, onPrepareFixture, onScoreMatch, focus = null }: {
@@ -30,7 +35,7 @@ export function TournamentExplorer({ account, online, matches, onPrepareFixture,
   const [detail, setDetail] = useState<PublicTournamentDetail | null>(null);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
-  const [detailTab, setDetailTab] = useState<'teams' | 'matches' | 'standings'>('teams');
+  const [detailTab, setDetailTab] = useState<'teams' | 'matches' | 'standings' | 'bracket'>('teams');
   useEffect(() => { setMine(false); setDetail(null); }, [account?.accountId]);
   // A tapped notification opens the organizer's own view of that tournament.
   useEffect(() => { if (focus?.tournamentId && account) { setCreating(false); setMine(true); setDetail(null); } }, [focus?.nonce, focus?.tournamentId, account]);
@@ -110,15 +115,18 @@ export function TournamentExplorer({ account, online, matches, onPrepareFixture,
             <p className="muted">Join to follow matches. Only the organizer can manage and score them.</p>
             <RequestToJoin account={account} online={online} tournamentId={detail.tournament.id} registrationOpen={detail.registrationOpen !== false} />
           </>}
-        <div className="list-filter-tabs" role="tablist" aria-label="Tournament information">{(['teams', 'matches', 'standings'] as const).map((tab) => <button key={tab} role="tab" aria-selected={detailTab === tab} className={detailTab === tab ? 'active' : ''} onClick={() => setDetailTab(tab)}>{tab[0].toUpperCase() + tab.slice(1)}</button>)}</div>
+        {detail.format && <p className="tournament-format-chip">{FORMAT_LABELS[detail.format.type]}{detail.format.type === 'GROUPS_KNOCKOUT' ? ` · ${detail.format.groupCount} group${detail.format.groupCount === 1 ? '' : 's'}` : ''}</p>}
+        {detail.championId && <div className="champion-banner"><span aria-hidden="true">🏆</span><div><small>CHAMPIONS</small><strong>{teamName(detail.championId)}</strong></div></div>}
+        <div className="list-filter-tabs" role="tablist" aria-label="Tournament information">{(['teams', 'matches', 'standings', 'bracket'] as const)
+          .filter((tab) => (tab === 'bracket' ? !!detail.format && detail.format.type !== 'LEAGUE' : tab === 'standings' ? detail.format?.type !== 'KNOCKOUT' : true))
+          .map((tab) => <button key={tab} role="tab" aria-selected={detailTab === tab} className={detailTab === tab ? 'active' : ''} onClick={() => setDetailTab(tab)}>{tab === 'standings' ? 'Table' : tab[0].toUpperCase() + tab.slice(1)}</button>)}</div>
         {detailTab === 'teams' && <><h3>Teams</h3><ul className="tournament-team-list">{detail.teams.map((team, index) => <li key={team.id}><span className={`tournament-team-mark side-${index % 2}`} aria-hidden="true">{team.name.slice(0, 2).toUpperCase()}</span><span className="tournament-team-text"><strong>{team.name}</strong><small>{team.players.length ? `${team.players.length} player${team.players.length === 1 ? '' : 's'}` : 'Squad not added yet'}</small></span></li>)}</ul></>}
         {detailTab === 'matches' && <>
-        <h3>Matches</h3>{detail.fixtures.map((fixture) => <article className="upcoming-match-card" key={fixture.id}><strong>{teamName(fixture.teamAId)} vs {teamName(fixture.teamBId)}</strong><p>{fixture.status ? `${fixture.scoreA ?? 0} : ${fixture.scoreB ?? 0} · ${fixture.status.replaceAll('_', ' ')}` : 'Upcoming'}</p><small>{fixture.scheduledAt ? new Date(fixture.scheduledAt).toLocaleString() : 'Time to be confirmed'}</small>{fixture.matchId && <MatchActions matchId={fixture.matchId} matches={matches} onScore={onScoreMatch} completed={fixture.status === 'COMPLETED'} />}</article>)}
+        <StagedFixtures fixtures={detail.fixtures} groups={detail.groups ?? []} renderFixture={(fixture) => <article className="upcoming-match-card">{fixture.roundName && <small className="fixture-stage">{fixture.roundName}</small>}<strong>{sideName(fixture, 'A', teamName)} vs {sideName(fixture, 'B', teamName)}</strong><p>{fixture.status ? `${fixture.scoreA ?? 0} : ${fixture.scoreB ?? 0} · ${fixture.status.replaceAll('_', ' ')}` : 'Upcoming'}</p><small>{fixture.scheduledAt ? new Date(fixture.scheduledAt).toLocaleString() : 'Time to be confirmed'}</small>{fixture.matchId && <MatchActions matchId={fixture.matchId} matches={matches} onScore={onScoreMatch} completed={fixture.status === 'COMPLETED'} />}</article>} />
         {!detail.fixtures.length && <p>No fixtures yet.</p>}
         </>}
-        {detailTab === 'standings' && <>
-        <h3>Standings</h3>{detail.standings.map((row) => <div className="tournament-player-row" key={row.teamId}><strong>{row.rank}. {row.teamName}</strong><small>{row.tablePoints} pts · {row.scoreDifference > 0 ? '+' : ''}{row.scoreDifference}</small></div>)}
-        </>}
+        {detailTab === 'standings' && <GroupTables standings={detail.standings} groups={detail.groups ?? []} format={detail.format} />}
+        {detailTab === 'bracket' && <BracketView fixtures={detail.fixtures} teamName={teamName} championId={detail.championId} />}
       </>}
       {message && <p role="status">{message}</p>}
     </>}

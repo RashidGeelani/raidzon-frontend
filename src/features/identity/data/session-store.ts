@@ -1,3 +1,4 @@
+import Dexie from 'dexie';
 import { db } from '../../matches/data/match-repository';
 import { api, ApiError, type AccountSession } from './auth-client';
 const sessionKey = 'account-session';
@@ -28,15 +29,16 @@ export async function restoreSession(): Promise<AccountSession | null> {
   return null;
 }
 export async function clearSession(session?: AccountSession) {
-  await db.transaction('rw', db.metadata, db.teams, async () => {
-    if (session)
-      await db.metadata.put({ key: `logout:${session.token}`, value: JSON.stringify(session) });
-    await db.metadata.delete(sessionKey);
-    if (session) await db.metadata.delete('scoring-account');
-    if (session) await db.metadata.delete(`upcoming-fixtures:${session.accountId}`);
-    // Cached squads include players' phone numbers; do not leave them on a shared device.
-    if (session) await db.teams.where('accountId').equals(session.accountId).delete();
-  });
+  await db.transaction('rw', db.metadata, db.teams, () =>
+    Dexie.Promise.all([
+      session ? db.metadata.put({ key: `logout:${session.token}`, value: JSON.stringify(session) }) : undefined,
+      db.metadata.delete(sessionKey),
+      session ? db.metadata.delete('scoring-account') : undefined,
+      session ? db.metadata.delete(`upcoming-fixtures:${session.accountId}`) : undefined,
+      // Cached squads include players' phone numbers; do not leave them on a shared device.
+      session ? db.teams.where('accountId').equals(session.accountId).delete() : undefined,
+    ]),
+  );
 }
 export async function flushLogouts() {
   for (const row of await db.metadata.where('key').startsWith('logout:').toArray()) {

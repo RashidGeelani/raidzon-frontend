@@ -44,16 +44,16 @@ export async function api<T>(path: string, body?: unknown, token?: string, timeo
 export const apiBaseUrl = () => (import.meta.env.VITE_API_BASE_URL ?? '').trim().replace(/\/+$/, '');
 export async function deviceCredentials(database = db) {
   const deviceId = await sessionId(database);
-  const deviceSecret = await database.transaction('rw', database.metadata, async () => {
-    const saved = await database.metadata.get('device-secret');
-    if (saved) return saved.value;
-    const bytes = crypto.getRandomValues(new Uint8Array(32));
-    const value = btoa(String.fromCharCode(...bytes))
-      .replaceAll('+', '-')
-      .replaceAll('/', '_')
-      .replaceAll('=', '');
-    await database.metadata.add({ key: 'device-secret', value });
-    return value;
-  });
+  const deviceSecret = await database.transaction('rw', database.metadata, () =>
+    database.metadata.get('device-secret').then((saved) => {
+      if (saved) return saved.value;
+      const bytes = crypto.getRandomValues(new Uint8Array(32));
+      const value = btoa(String.fromCharCode(...bytes))
+        .replaceAll('+', '-')
+        .replaceAll('/', '_')
+        .replaceAll('=', '');
+      return database.metadata.add({ key: 'device-secret', value }).then(() => value);
+    }),
+  );
   return { deviceId, deviceSecret };
 }

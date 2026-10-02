@@ -7,6 +7,9 @@ import { normalizePhone } from '../matches/data/match-repository';
 import { cachedTeams, refreshTeamCache, type TeamDetail } from '../teams/data/team-client';
 import { JoinRequestsPanel } from './JoinRequestsPanel';
 import type { Focus } from '../notifications/notification-client';
+import { FormatSetup } from './FormatSetup';
+import { BracketView, GroupTables, StagedFixtures } from './FormatViews';
+import { FORMAT_LABELS, isKnockout, sideName, type FormatFixture, type FormatStanding, type TournamentFormat, type TournamentGroup } from './data/format-types';
 
 interface Tournament {
   id: string;
@@ -24,43 +27,21 @@ interface Team {
   /** Set when the team was registered from a saved team. */
   teamId?: string | null;
 }
-interface Fixture {
-  id: string;
-  teamAId: string;
-  teamBId: string;
-  scheduledAt: string | null;
-  matchId: string | null;
-  status: string | null;
-  scoreA: number | null;
-  scoreB: number | null;
-  phase: string | null;
-  tieScoreA: number | null;
-  tieScoreB: number | null;
-  winner: string | null;
-  scheduleRevision: number;
-}
+type Fixture = FormatFixture & { scheduleRevision: number };
 interface Detail {
   tournament: Tournament;
   teams: Team[];
   fixtures: Fixture[];
-  standings: {
-    teamId: string;
-    teamName: string;
-    rank: number;
-    played: number;
-    won: number;
-    drawn: number;
-    lost: number;
-    tablePoints: number;
-    pointsFor: number;
-    pointsAgainst: number;
-    scoreDifference: number;
-  }[];
+  standings: FormatStanding[];
   registrationOpen?: boolean;
+  format?: TournamentFormat;
+  groups?: TournamentGroup[];
+  championId?: string | null;
 }
 type TournamentFilter = 'ACTIVE' | 'UPCOMING' | 'COMPLETED';
 type TournamentSummary = { teams: number; matches: number; status: TournamentFilter };
-type DetailTab = 'overview' | 'teams' | 'matches' | 'standings' | 'players';
+type DetailTab = 'overview' | 'teams' | 'format' | 'matches' | 'standings' | 'bracket' | 'players';
+const TAB_LABELS: Record<DetailTab, string> = { overview: 'Overview', teams: 'Teams', format: 'Format', matches: 'Matches', standings: 'Table', bracket: 'Bracket', players: 'Players' };
 export function TournamentDashboard({
   account,
   online,
@@ -275,7 +256,9 @@ export function TournamentDashboard({
             <div><strong>{detail.fixtures.filter((fixture) => fixture.status !== 'COMPLETED').length}</strong><span>Left</span></div>
           </div>
           <div className="list-filter-tabs tournament-detail-tabs" role="tablist" aria-label="Tournament details">
-            {(['overview', 'teams', 'matches', 'standings', 'players'] as const).map((tab) => <button type="button" key={tab} role="tab" aria-selected={detailTab === tab} className={detailTab === tab ? 'active' : ''} onClick={() => { setDetailTab(tab); setEditingTeam(null); }}>{tab[0].toUpperCase() + tab.slice(1)}</button>)}
+            {(['overview', 'teams', 'format', 'matches', 'standings', 'bracket', 'players'] as const)
+              .filter((tab) => (tab === 'bracket' ? detail.format?.type !== undefined && detail.format.type !== 'LEAGUE' : tab === 'standings' ? detail.format?.type !== 'KNOCKOUT' : true))
+              .map((tab) => <button type="button" key={tab} role="tab" aria-selected={detailTab === tab} className={detailTab === tab ? 'active' : ''} onClick={() => { setDetailTab(tab); setEditingTeam(null); }}>{TAB_LABELS[tab]}</button>)}
           </div>
           {detailTab === 'overview' && <div className="tournament-overview">
             <div className="tournament-info-card"><small>TOURNAMENT INFO</small><dl>
@@ -283,8 +266,11 @@ export function TournamentDashboard({
               <div><dt>Start date</dt><dd>{detail.tournament.startsOn}</dd></div>
               <div><dt>Half duration</dt><dd>{detail.tournament.halfMinutes} minutes</dd></div>
               <div><dt>Raid duration</dt><dd>{detail.tournament.raidSeconds} seconds</dd></div>
+              <div><dt>Format</dt><dd>{FORMAT_LABELS[detail.format?.type ?? 'LEAGUE']}{detail.format?.type === 'GROUPS_KNOCKOUT' ? ` · ${detail.format.groupCount} group${detail.format.groupCount === 1 ? '' : 's'}, top ${detail.format.advancePerGroup} go through` : ''}{detail.format?.thirdPlace ? ' · third-place match' : ''}</dd></div>
             </dl></div>
-            <div className="tournament-info-card"><small>NEXT STEP</small><p>Add teams and their reusable rosters, then schedule fixtures. Prepared matches can be scored offline.</p></div>
+            {detail.championId && <div className="champion-banner"><span aria-hidden="true">🏆</span><div><small>CHAMPIONS</small><strong>{teamName(detail.championId)}</strong></div></div>}
+            <div className="tournament-info-card"><small>NEXT STEP</small><p>{!detail.teams.length ? 'Add teams and their rosters.' : !detail.fixtures.length ? 'Choose the format and generate fixtures in the Format tab.' : 'Prepare and score fixtures from Matches. Prepared matches can be scored offline.'}</p>
+              {detail.teams.length > 1 && !detail.fixtures.length && <button type="button" className="secondary" onClick={() => setDetailTab('format')}>Set up format →</button>}</div>
           </div>}
           {detailTab === 'teams' && <div className="tournament-tab-content">
           {!editingTeam && <>
@@ -363,8 +349,22 @@ export function TournamentDashboard({
             />
           ))}
           </div>}
+          {detailTab === 'format' && detail.format && <div className="tournament-tab-content">
+            <FormatSetup
+              format={detail.format}
+              groups={detail.groups ?? []}
+              teamCount={detail.teams.length}
+              fixtureCount={detail.fixtures.length}
+              teamName={teamName}
+              busy={busy}
+              online={online}
+              onSaveFormat={(input) => void save(`/tournaments/${selected}/format`, input, false)}
+              onArrange={(groups) => void save(`/tournaments/${selected}/arrangement`, { groups }, false)}
+              onGenerate={() => void save(`/tournaments/${selected}/fixtures/generate`, {}, false).then(() => setDetailTab('matches'))}
+            />
+          </div>}
           {detailTab === 'matches' && <div className="tournament-tab-content">
-          <details className="tournament-action-form"><summary>+ Schedule Match</summary><form
+          {(detail.format?.type ?? 'LEAGUE') === 'LEAGUE' && <details className="tournament-action-form"><summary>+ Schedule Match</summary><form
             onSubmit={(event) => {
               event.preventDefault();
               const data = new FormData(event.currentTarget);
@@ -410,17 +410,18 @@ export function TournamentDashboard({
               </label>
               <button>Add fixture</button>
             </fieldset>
-          </form></details>
+          </form></details>}
           <h4>Fixtures ({detail.fixtures.length})</h4>
           <p>
             Prepare match preloads team names, saved rosters and tournament timers. Its fixture link
             is retried automatically after sync. The tournament organizer scores it in the MVP.
           </p>
-          {detail.fixtures.map((fixture) => (
-            <div key={fixture.id} className="fixture-card">
+          <StagedFixtures fixtures={detail.fixtures} groups={detail.groups ?? []} renderFixture={(item) => { const fixture = item as Fixture; const decided = !!fixture.teamAId && !!fixture.teamBId; return (
+            <div className={`fixture-card ${isKnockout(fixture) ? 'knockout' : ''}`}>
               {fixture.matchId && <MatchActions matchId={fixture.matchId} matches={matches} onScore={onScoreMatch} completed={fixture.status === 'COMPLETED'} />}
+              {fixture.roundName && <small className="fixture-stage">{fixture.roundName}</small>}
               <strong>
-                {teamName(fixture.teamAId)} vs {teamName(fixture.teamBId)}
+                {sideName(fixture, 'A', teamName)} vs {sideName(fixture, 'B', teamName)}
               </strong>
               <p>
                 {fixture.scheduledAt
@@ -443,7 +444,8 @@ export function TournamentDashboard({
                   )
                 }
               /></details>
-              {!fixture.matchId &&
+              {!fixture.matchId && !decided && <p className="field-note">Teams are decided by earlier results.</p>}
+              {!fixture.matchId && decided &&
                 !matches.some((match) => match.fixtureRef?.fixtureId === fixture.id) && (
                   <button
                     className="secondary"
@@ -452,14 +454,15 @@ export function TournamentDashboard({
                       onPrepareFixture({
                         tournamentId: selected,
                         fixtureId: fixture.id,
-                        teamA: teamName(fixture.teamAId),
-                        teamB: teamName(fixture.teamBId),
+                        teamA: teamName(fixture.teamAId!),
+                        teamB: teamName(fixture.teamBId!),
                         halfMinutes: detail.tournament.halfMinutes,
                         raidSeconds: detail.tournament.raidSeconds,
                         rosterA:
                           detail.teams.find((team) => team.id === fixture.teamAId)?.roster ?? [],
                         rosterB:
                           detail.teams.find((team) => team.id === fixture.teamBId)?.roster ?? [],
+                        knockout: isKnockout(fixture),
                       })
                     }
                   >
@@ -485,12 +488,12 @@ export function TournamentDashboard({
                   {fixture.winner && (
                     <p>
                       {fixture.winner === 'DRAW'
-                        ? 'Draw'
-                        : `Winner: ${teamName(fixture.winner === 'TEAM_A' ? fixture.teamAId : fixture.teamBId)}`}
+                        ? isKnockout(fixture) ? 'Drawn — knockout needs a winner: undo and play the tie-break' : 'Draw'
+                        : `Winner: ${sideName(fixture, fixture.winner === 'TEAM_A' ? 'A' : 'B', teamName)}`}
                     </p>
                   )}
                 </div>
-              ) : (
+              ) : decided && (
                 <details className="fixture-options"><summary>Link an existing match</summary><form
                   onSubmit={(event) => {
                     event.preventDefault();
@@ -510,8 +513,8 @@ export function TournamentDashboard({
                         .filter(
                           (match) =>
                             match.serverAccountId === account.accountId &&
-                            match.state.teams[0].name === teamName(fixture.teamAId) &&
-                            match.state.teams[1].name === teamName(fixture.teamBId) &&
+                            match.state.teams[0].name === teamName(fixture.teamAId!) &&
+                            match.state.teams[1].name === teamName(fixture.teamBId!) &&
                             match.state.halfMinutes === detail.tournament.halfMinutes &&
                             match.state.raidSeconds === detail.tournament.raidSeconds &&
                             !detail.fixtures.some((item) => item.matchId === match.id),
@@ -527,51 +530,15 @@ export function TournamentDashboard({
                 </form></details>
               )}
             </div>
-          ))}
+          ); }} />
           {!detail.fixtures.length && <p>No fixtures scheduled yet.</p>}
           </div>}
           {detailTab === 'standings' && <div className="tournament-tab-content">
-          <h4>Standings</h4>
-          <p>
-            Completed synced matches only. Win 3 points, accepted tie 1, loss 0. Ranked by table
-            points, then score difference. Equal rows share a rank.
-          </p>
-          <div className="standings-scroll">
-            <table className="standings-table">
-              <thead>
-                <tr>
-                  <th>Rank</th>
-                  <th>Team</th>
-                  <th>Played</th>
-                  <th>W</th>
-                  <th>D</th>
-                  <th>L</th>
-                  <th>Points</th>
-                  <th>For</th>
-                  <th>Against</th>
-                  <th>Diff</th>
-                </tr>
-              </thead>
-              <tbody>
-                {detail.standings?.map((row) => (
-                  <tr key={row.teamId}>
-                    <td>{row.rank}</td>
-                    <td>{row.teamName}</td>
-                    <td>{row.played}</td>
-                    <td>{row.won}</td>
-                    <td>{row.drawn}</td>
-                    <td>{row.lost}</td>
-                    <td>{row.tablePoints}</td>
-                    <td>{row.pointsFor}</td>
-                    <td>{row.pointsAgainst}</td>
-                    <td>
-                      {row.scoreDifference > 0 ? `+${row.scoreDifference}` : row.scoreDifference}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+            <GroupTables standings={detail.standings ?? []} groups={detail.groups ?? []} format={detail.format} />
+            <p className="field-note">Completed, synced matches only.</p>
+          </div>}
+          {detailTab === 'bracket' && <div className="tournament-tab-content">
+            <BracketView fixtures={detail.fixtures} teamName={teamName} championId={detail.championId} />
           </div>}
           {detailTab === 'players' && <div className="tournament-tab-content">
             <h4>Players</h4>

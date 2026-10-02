@@ -60,7 +60,7 @@ export function MatchSetup({
             halfMinutes,
             raidSeconds,
             fixtureRef: preset
-              ? { tournamentId: preset.tournamentId, fixtureId: preset.fixtureId }
+              ? { tournamentId: preset.tournamentId, fixtureId: preset.fixtureId, knockout: !!preset.knockout }
               : undefined,
           },
           session,

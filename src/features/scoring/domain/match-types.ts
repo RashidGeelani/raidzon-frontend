@@ -94,7 +94,8 @@ export interface MatchEvent {
   syncStatus: 'PENDING' | 'SYNCED';
 }
 export interface LocalMatch {
-  fixtureRef?: { tournamentId: string; fixtureId: string; linked: boolean };
+  /** knockout: a draw is not allowed; a tie goes to the five-raid tie-break. */
+  fixtureRef?: { tournamentId: string; fixtureId: string; linked: boolean; knockout?: boolean };
   initialState?: MatchState;
   serverAccountId?: string;
   localAccountId?: string;

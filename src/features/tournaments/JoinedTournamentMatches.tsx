@@ -33,7 +33,7 @@ export function JoinedTournamentMatches({ filter, online, matches, onScoreMatch 
     {error && <p role="status">{error}</p>}
     {fixtures.map((fixture) => <article className="upcoming-match-card" key={fixture.id}>
       <small>{fixture.tournament} · View only</small>
-      <div className="upcoming-teams"><strong>{fixture.teams.find((team) => team.id === fixture.teamAId)?.name}</strong><span>{fixture.matchId ? `${fixture.scoreA ?? 0} : ${fixture.scoreB ?? 0}` : 'vs'}</span><strong>{fixture.teams.find((team) => team.id === fixture.teamBId)?.name}</strong></div>
+      <div className="upcoming-teams"><strong>{fixture.teams.find((team) => team.id === fixture.teamAId)?.name ?? fixture.labelA ?? 'To be decided'}</strong><span>{fixture.matchId ? `${fixture.scoreA ?? 0} : ${fixture.scoreB ?? 0}` : 'vs'}</span><strong>{fixture.teams.find((team) => team.id === fixture.teamBId)?.name ?? fixture.labelB ?? 'To be decided'}</strong></div>
       <p>{fixture.status?.replaceAll('_', ' ') ?? 'Upcoming'} · {fixture.scheduledAt ? new Date(fixture.scheduledAt).toLocaleString() : 'Time to be confirmed'}</p>
       {fixture.matchId && <MatchActions matchId={fixture.matchId} matches={matches} onScore={onScoreMatch} completed={fixture.status === 'COMPLETED'} />}
     </article>)}

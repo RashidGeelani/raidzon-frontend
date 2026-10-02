@@ -51,7 +51,7 @@ export interface TeamInput {
   players: { name: string; phone: string }[];
 }
 export interface SetupInput {
-  fixtureRef?: { tournamentId: string; fixtureId: string };
+  fixtureRef?: { tournamentId: string; fixtureId: string; knockout?: boolean };
   teams: [TeamInput, TeamInput];
   firstTurn: Side;
   halfMinutes: number;
@@ -67,13 +67,13 @@ export function normalizePhone(value: string) {
 }
 
 export async function sessionId(database = db) {
-  return database.transaction('rw', database.metadata, async () => {
-    const existing = await database.metadata.get('scorer-session');
-    if (existing) return existing.value;
-    const value = crypto.randomUUID();
-    await database.metadata.add({ key: 'scorer-session', value });
-    return value;
-  });
+  return database.transaction('rw', database.metadata, () =>
+    database.metadata.get('scorer-session').then((existing) => {
+      if (existing) return existing.value;
+      const value = crypto.randomUUID();
+      return database.metadata.add({ key: 'scorer-session', value }).then(() => value);
+    }),
+  );
 }
 
 export async function createMatch(
@@ -108,73 +108,81 @@ export async function createMatch(
     throw new Error('Each player must have a unique phone number across both teams.');
   if (normalized.some((t) => t.players.some((p) => !p.name)))
     throw new Error('Every player needs a name.');
-  return database.transaction(
-    'rw',
-    database.matches,
-    database.players,
-    database.metadata,
-    async () => {
-      const localAccountId = (await database.metadata.get('scoring-account'))?.value;
-      const teams: Team[] = [];
-      for (const team of normalized) {
-        const players: Player[] = [];
-        for (const [index, candidate] of team.players.entries()) {
-          let identity = await database.players.where('phone').equals(candidate.phone).first();
-          if (!identity) {
-            identity = { ...candidate, id: crypto.randomUUID() };
-            await database.players.add(identity);
-          }
-          // Reuse identity without allowing setup to overwrite protected personal data.
-          players.push({
-            ...identity,
-            status: index < 7 ? 'ACTIVE' : 'BENCH',
-            raidPoints: 0,
-            tacklePoints: 0,
-          });
+  // Reads happen first and the writes run as one short Dexie chain: a transaction body with
+  // native async/await can be committed early by some mobile browsers ("Transaction committed
+  // too early"), which made Start match fail.
+  const build = async () => {
+    const localAccountId = (await database.metadata.get('scoring-account'))?.value;
+    const known = await database.players.where('phone').anyOf(phones).toArray();
+    const byPhone = new Map(known.map((player) => [player.phone, player]));
+    const added: LocalPlayer[] = [];
+    const teams: Team[] = normalized.map((team) => ({
+      name: team.name.trim(),
+      queue: [],
+      activeSubstitutions: 0,
+      players: team.players.map((candidate, index) => {
+        let identity = byPhone.get(candidate.phone);
+        if (!identity) {
+          identity = { ...candidate, id: crypto.randomUUID() };
+          byPhone.set(candidate.phone, identity);
+          added.push(identity);
         }
-        teams.push({ name: team.name.trim(), players, queue: [], activeSubstitutions: 0 });
-      }
-      const now = Date.now();
-      const match: LocalMatch = {
-        fixtureRef: input.fixtureRef ? { ...input.fixtureRef, linked: false } : undefined,
-        rulesetVersion: CURRENT_RULESET,
-        id: crypto.randomUUID(),
-        name: `${teams[0].name} vs ${teams[1].name}`,
-        createdAt: new Date(now).toISOString(),
-        updatedAt: new Date(now).toISOString(),
-        ownerSessionId,
-        localAccountId,
-        version: 0,
-        state: {
-          teams: teams as [Team, Team],
-          scores: [0, 0],
-          tieScores: [0, 0],
-          pairScores: [0, 0],
-          tieRaids: [0, 0],
-          tieBreakerRaiders: [[], []],
-          lastTieRaiders: ['', ''],
-          goldenPair: 0,
-          half: 1,
-          phase: 'REGULATION',
-          status: 'LIVE',
-          turn: input.firstTurn,
-          firstTurn: input.firstTurn,
-          raidNumber: 1,
-          winner: null,
-          halfMinutes: input.halfMinutes,
-          raidSeconds: input.raidSeconds,
-          // v4: the match clock starts with the first raid, not when the match is set up.
-          clock: { remainingMs: input.halfMinutes * 60_000, startedAt: clockStartsWithFirstRaid(CURRENT_RULESET) ? null : now },
-          raidClock: { remainingMs: input.raidSeconds * 1000, startedAt: null },
-          currentRaiderId: null,
-          expiryReviewed: false,
-        },
-      };
-      match.initialState = structuredClone(match.state);
-      await database.matches.add(match);
+        // Reuse identity without allowing setup to overwrite protected personal data.
+        return { ...identity, status: index < 7 ? 'ACTIVE' : 'BENCH', raidPoints: 0, tacklePoints: 0 } as Player;
+      }),
+    }));
+    const now = Date.now();
+    const match: LocalMatch = {
+      fixtureRef: input.fixtureRef ? { ...input.fixtureRef, linked: false } : undefined,
+      rulesetVersion: CURRENT_RULESET,
+      id: crypto.randomUUID(),
+      name: `${teams[0].name} vs ${teams[1].name}`,
+      createdAt: new Date(now).toISOString(),
+      updatedAt: new Date(now).toISOString(),
+      ownerSessionId,
+      localAccountId,
+      version: 0,
+      state: {
+        teams: teams as [Team, Team],
+        scores: [0, 0],
+        tieScores: [0, 0],
+        pairScores: [0, 0],
+        tieRaids: [0, 0],
+        tieBreakerRaiders: [[], []],
+        lastTieRaiders: ['', ''],
+        goldenPair: 0,
+        half: 1,
+        phase: 'REGULATION',
+        status: 'LIVE',
+        turn: input.firstTurn,
+        firstTurn: input.firstTurn,
+        raidNumber: 1,
+        winner: null,
+        halfMinutes: input.halfMinutes,
+        raidSeconds: input.raidSeconds,
+        // v4: the match clock starts with the first raid, not when the match is set up.
+        clock: { remainingMs: input.halfMinutes * 60_000, startedAt: clockStartsWithFirstRaid(CURRENT_RULESET) ? null : now },
+        raidClock: { remainingMs: input.raidSeconds * 1000, startedAt: null },
+        currentRaiderId: null,
+        expiryReviewed: false,
+      },
+    };
+    match.initialState = structuredClone(match.state);
+    return { match, added };
+  };
+  for (let attempt = 0; ; attempt++) {
+    const { match, added } = await build();
+    try {
+      await database.transaction('rw', database.matches, database.players, () =>
+        database.players.bulkAdd(added).then(() => database.matches.add(match)),
+      );
       return match;
-    },
-  );
+    } catch (error) {
+      // Another tab saved one of these phone numbers in between: read again and retry once.
+      if (attempt === 0 && error instanceof Error && /Constraint|BulkError/i.test(error.name)) continue;
+      throw error;
+    }
+  }
 }
 
 /**

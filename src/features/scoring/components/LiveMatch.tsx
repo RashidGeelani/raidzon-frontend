@@ -264,19 +264,22 @@ export function LiveMatch({
                 the raider is OUT. Golden Raids cannot repeat your team's previous raider.
               </p>
               <p>
-                Share the points, or play five raids each. Still level? Golden Raid pairs decide the
-                winner.
+                {match.fixtureRef?.knockout
+                  ? 'Knockout match: there must be a winner. Play five raids each; still level? Golden Raid pairs decide it.'
+                  : 'Share the points, or play five raids each. Still level? Golden Raid pairs decide the winner.'}
               </p>
               <div className="actions">
-                <button
-                  className="secondary"
-                  disabled={saving}
-                  onClick={() =>
-                    confirmAction({ type: 'DRAW' }, 'Accept a draw and finish this match?')
-                  }
-                >
-                  Accept draw
-                </button>
+                {!match.fixtureRef?.knockout && (
+                  <button
+                    className="secondary"
+                    disabled={saving}
+                    onClick={() =>
+                      confirmAction({ type: 'DRAW' }, 'Accept a draw and finish this match?')
+                    }
+                  >
+                    Accept draw
+                  </button>
+                )}
                 <button
                   className="primary"
                   disabled={

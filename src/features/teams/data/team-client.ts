@@ -71,12 +71,17 @@ export async function refreshTeamCache(account: AccountSession, database: RaidzO
   const summaries = await listTeams(account);
   const active = summaries.filter((team) => !team.archived).slice(0, 30);
   const details = await Promise.all(active.map((team) => api<TeamDetail>(`/teams/${team.id}`, undefined, account.token)));
-  await database.transaction('rw', database.teams, async () => {
-    const keep = new Set(details.map((team) => team.id));
-    const stale = (await database.teams.where('accountId').equals(account.accountId).toArray()).filter((row) => !keep.has(row.id));
-    await database.teams.bulkDelete(stale.map((row) => row.id));
-    for (const detail of details) await database.teams.put({ id: detail.id, accountId: account.accountId, detail, savedAt: Date.now() });
-  });
+  const keep = new Set(details.map((team) => team.id));
+  await database.transaction('rw', database.teams, () =>
+    database.teams
+      .where('accountId')
+      .equals(account.accountId)
+      .toArray()
+      .then((rows) => database.teams.bulkDelete(rows.filter((row) => !keep.has(row.id)).map((row) => row.id)))
+      .then(() =>
+        database.teams.bulkPut(details.map((detail) => ({ id: detail.id, accountId: account.accountId, detail, savedAt: Date.now() }))),
+      ),
+  );
   return summaries;
 }
 

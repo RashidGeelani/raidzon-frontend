@@ -13,7 +13,7 @@ export interface TournamentListItem {
 export interface TournamentFixtureDetail {
   tournament: TournamentListItem;
   teams: { id: string; name: string; roster: { name: string; phone: string }[] }[];
-  fixtures: { id: string; teamAId: string; teamBId: string; scheduledAt: string | null; matchId: string | null }[];
+  fixtures: { id: string; teamAId: string | null; teamBId: string | null; scheduledAt: string | null; matchId: string | null; stage?: string }[];
 }
 
 export interface UpcomingFixture {
@@ -28,7 +28,7 @@ export function collectUpcomingFixtures(details: TournamentFixtureDetail[], matc
   const localFixtureIds = new Set(matches.map((match) => match.fixtureRef?.fixtureId).filter(Boolean));
   return details.flatMap(({ tournament, teams, fixtures }) => fixtures
     .filter((fixture) => !fixture.matchId && !localFixtureIds.has(fixture.id))
-    .map((fixture) => {
+    .map((fixture): UpcomingFixture | null => {
       const teamA = teams.find((team) => team.id === fixture.teamAId);
       const teamB = teams.find((team) => team.id === fixture.teamBId);
       if (!teamA || !teamB) return null;
@@ -46,6 +46,7 @@ export function collectUpcomingFixtures(details: TournamentFixtureDetail[], matc
           raidSeconds: tournament.raidSeconds,
           rosterA: teamA.roster ?? [],
           rosterB: teamB.roster ?? [],
+          knockout: fixture.stage === 'KNOCKOUT' || fixture.stage === 'THIRD_PLACE',
         },
       };
     }).filter((fixture): fixture is UpcomingFixture => fixture !== null))
