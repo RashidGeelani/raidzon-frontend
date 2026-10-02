@@ -3,6 +3,9 @@ import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { applyRecordedEvent } from '../../scoring/domain/apply-recorded-event';
 export { undoTarget } from '../../scoring/domain/apply-recorded-event';
 import {
+  CURRENT_RULESET,
+  clockStartsWithFirstRaid,
+  isScorable,
   type LocalMatch,
   type MatchEvent,
   type MatchIntent,
@@ -10,7 +13,14 @@ import {
   type Side,
   type Team,
 } from '../../scoring/domain/match-types';
+import type { TeamDetail } from '../../teams/data/team-types';
 
+export interface CachedTeam {
+  id: string;
+  accountId: string;
+  detail: TeamDetail;
+  savedAt: number;
+}
 interface LocalPlayer {
   id: string;
   phone: string;
@@ -21,6 +31,7 @@ export class RaidzOnDatabase extends Dexie {
   events!: Table<MatchEvent, string>;
   players!: Table<LocalPlayer, string>;
   metadata!: Table<{ key: string; value: string }, string>;
+  teams!: Table<CachedTeam, string>;
   constructor(name = 'raidzon') {
     super(name);
     this.version(1).stores({
@@ -29,6 +40,8 @@ export class RaidzOnDatabase extends Dexie {
       players: 'id, &phone',
       metadata: 'key',
     });
+    // Saved squads cached per account so a lineup can be picked offline.
+    this.version(2).stores({ teams: 'id, accountId' });
   }
 }
 export const db = new RaidzOnDatabase();
@@ -124,7 +137,7 @@ export async function createMatch(
       const now = Date.now();
       const match: LocalMatch = {
         fixtureRef: input.fixtureRef ? { ...input.fixtureRef, linked: false } : undefined,
-        rulesetVersion: 'raidzon-v3',
+        rulesetVersion: CURRENT_RULESET,
         id: crypto.randomUUID(),
         name: `${teams[0].name} vs ${teams[1].name}`,
         createdAt: new Date(now).toISOString(),
@@ -150,7 +163,8 @@ export async function createMatch(
           winner: null,
           halfMinutes: input.halfMinutes,
           raidSeconds: input.raidSeconds,
-          clock: { remainingMs: input.halfMinutes * 60_000, startedAt: now },
+          // v4: the match clock starts with the first raid, not when the match is set up.
+          clock: { remainingMs: input.halfMinutes * 60_000, startedAt: clockStartsWithFirstRaid(CURRENT_RULESET) ? null : now },
           raidClock: { remainingMs: input.raidSeconds * 1000, startedAt: null },
           currentRaiderId: null,
           expiryReviewed: false,
@@ -174,7 +188,7 @@ export async function recordEvent(
   return database.transaction('rw', database.matches, database.events, database.metadata, async () => {
     const match = await database.matches.get(matchId);
     if (!match) throw new Error('Match not found.');
-    if (!['raidzon-v2', 'raidzon-v3'].includes(match.rulesetVersion ?? ''))
+    if (!isScorable(match.rulesetVersion))
       throw new Error(
         'This match uses the previous rules. Its history is preserved; start a new match for the updated rules.',
       );

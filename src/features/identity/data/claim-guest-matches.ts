@@ -1,3 +1,4 @@
+import { isScorable } from '../../scoring/domain/match-types';
 import { db, type RaidzOnDatabase } from '../../matches/data/match-repository';
 import type { AccountSession } from './auth-client';
 import type { LocalMatch } from '../../scoring/domain/match-types';
@@ -8,7 +9,7 @@ export function isClaimableGuest(match: LocalMatch, session: AccountSession) {
     !match.serverAccountId &&
     !match.scoringDelegated &&
     match.ownerSessionId === session.deviceId &&
-    ['raidzon-v2', 'raidzon-v3'].includes(match.rulesetVersion ?? '')
+    isScorable(match.rulesetVersion)
   );
 }
 

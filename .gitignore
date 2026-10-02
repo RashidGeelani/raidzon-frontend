@@ -1,6 +1,5 @@
 # Dependencies
 node_modules/
-package-lock.json
 
 # Build output
 dist/
@@ -11,7 +10,6 @@ dist/
 .env.*.local
 .env.development
 .env.production
-.env.example
 
 # Test results
 test-results/

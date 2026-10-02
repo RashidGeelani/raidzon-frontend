@@ -52,7 +52,7 @@ describe('durable local events', () => {
   });
   it('preserves earlier ruleset matches and refuses to mix revised rules into their history', async () => {
     const match = await createMatch(setup(), 'session', database);
-    expect(match.rulesetVersion).toBe('raidzon-v3');
+    expect(match.rulesetVersion).toBe('raidzon-v4');
     await database.matches.put({ ...match, rulesetVersion: 'raidzon-v1' });
     await expect(
       recordEvent(

@@ -29,7 +29,7 @@ const setup = (): SetupInput => ({
     })),
   })) as SetupInput['teams'],
 });
-async function fixture(rulesetVersion: 'raidzon-v2' | 'raidzon-v3' = 'raidzon-v3') {
+async function fixture(rulesetVersion: 'raidzon-v2' | 'raidzon-v3' | 'raidzon-v4' = 'raidzon-v3') {
   const device = await deviceCredentials(database);
   const account = {
     deviceId: device.deviceId,
@@ -39,6 +39,12 @@ async function fixture(rulesetVersion: 'raidzon-v2' | 'raidzon-v3' = 'raidzon-v3
   };
   const match = await createMatch(setup(), device.deviceId, database);
   match.rulesetVersion = rulesetVersion;
+  if (rulesetVersion !== 'raidzon-v4') {
+    // Matches saved by earlier versions started the half clock at setup.
+    const startedAt = Date.parse(match.createdAt);
+    match.state.clock.startedAt = startedAt;
+    if (match.initialState) match.initialState.clock.startedAt = startedAt;
+  }
   match.localAccountId = account.accountId;
   await database.metadata.put({ key: 'scoring-account', value: account.accountId });
   await database.matches.put(match);
@@ -102,7 +108,7 @@ it('does not upload an unreviewed guest match', async () => {
   );
   expect(f.received).toEqual([]);
 });
-it.each(['raidzon-v2', 'raidzon-v3'] as const)(
+it.each(['raidzon-v2', 'raidzon-v3', 'raidzon-v4'] as const)(
   'uploads %s in order and safely retries an acknowledgement lost after server acceptance',
   async (ruleset) => {
     const f = await fixture(ruleset);

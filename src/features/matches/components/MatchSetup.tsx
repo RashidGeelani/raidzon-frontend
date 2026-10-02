@@ -2,6 +2,9 @@ import { useState, type FormEvent } from 'react';
 import { createMatch, type TeamInput } from '../data/match-repository';
 import type { LocalMatch, Side } from '../../scoring/domain/match-types';
 import type { PreparedFixture } from '../../tournaments/types';
+import { SavedTeamPicker } from '../../teams/SavedTeamPicker';
+import { LineupPicker } from '../../teams/LineupPicker';
+import { defaultLineup, lineupToTeamInput, rosterMembers } from '../../teams/data/team-client';
 
 const emptyTeam = (): TeamInput => ({
   name: '',
@@ -24,8 +27,11 @@ export function MatchSetup({
     if (preset) {
       teamA.name = preset.teamA;
       teamB.name = preset.teamB;
-      if (preset.rosterA.length >= 7) teamA.players = structuredClone(preset.rosterA);
-      if (preset.rosterB.length >= 7) teamB.players = structuredClone(preset.rosterB);
+      // Tournament squads hold up to 20; start with the default 7 starters + 5 substitutes.
+      const fromRoster = (name: string, roster: { name: string; phone: string }[]) =>
+        lineupToTeamInput({ name, members: rosterMembers(roster) }, defaultLineup(rosterMembers(roster))).players;
+      if (preset.rosterA.length >= 7) teamA.players = fromRoster(preset.teamA, preset.rosterA);
+      if (preset.rosterB.length >= 7) teamB.players = fromRoster(preset.teamB, preset.rosterB);
     }
     return [teamA, teamB];
   });
@@ -90,6 +96,27 @@ export function MatchSetup({
           return (
             <section className="panel" key={side}>
               <p className="eyebrow">TEAM {side === 0 ? 'A' : 'B'}</p>
+              {preset ? (
+                // Fixture matches may only use the team's registered tournament roster.
+                (side === 0 ? preset.rosterA : preset.rosterB).length >= 7 && (
+                  <LineupPicker
+                    startOpen={false}
+                    teamName={side === 0 ? preset.teamA : preset.teamB}
+                    members={rosterMembers(side === 0 ? preset.rosterA : preset.rosterB)}
+                    onApply={(picked) => update(side, (t) => { t.players = picked.players; })}
+                  />
+                )
+              ) : (
+                <SavedTeamPicker
+                  label={`Team ${side === 0 ? 'A' : 'B'}`}
+                  onApply={(saved) =>
+                    update(side, (t) => {
+                      t.name = saved.name;
+                      t.players = saved.players;
+                    })
+                  }
+                />
+              )}
               <label>
                 Team name
                 <input

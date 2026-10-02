@@ -272,3 +272,29 @@ describe('local match state transitions', () => {
     expect(state.tieScores).toEqual([8, 6]);
   });
 });
+
+describe('raidzon-v4 half clock', () => {
+  const waiting = (): MatchState => ({ ...initialState(), clock: { remainingMs: 1_200_000, startedAt: null } });
+  it('starts the half clock with the first raid of the half', () => {
+    const started = applyEvent(waiting(), { type: 'START_RAID', raiderId: '0-0' }, 5000, 'raidzon-v4').state;
+    expect(started.clock).toEqual({ remainingMs: 1_200_000, startedAt: 5000 });
+    expect(started.raidClock.startedAt).toBe(5000);
+  });
+  it('keeps the v3 clock unchanged', () => {
+    const state = initialState();
+    const started = applyEvent(state, { type: 'START_RAID', raiderId: '0-0' }, 5000, 'raidzon-v3').state;
+    expect(started.clock).toEqual(state.clock);
+  });
+  it('waits again for the first raid of the second half', () => {
+    const ended = { ...initialState(), status: 'HALF_TIME' as const, clock: { remainingMs: 0, startedAt: null } };
+    const second = applyEvent(ended, { type: 'SECOND_HALF' }, 9000, 'raidzon-v4').state;
+    expect(second.clock).toEqual({ remainingMs: 1_200_000, startedAt: null });
+    const raid = applyEvent(second, { type: 'START_RAID', raiderId: second.teams[second.turn].players[0].id }, 12_000, 'raidzon-v4').state;
+    expect(raid.clock.startedAt).toBe(12_000);
+  });
+  it('does not start the half clock on resume before the first raid', () => {
+    const paused = applyEvent(waiting(), { type: 'PAUSE' }, 1000, 'raidzon-v4').state;
+    const resumed = applyEvent(paused, { type: 'RESUME' }, 2000, 'raidzon-v4').state;
+    expect(resumed.clock.startedAt).toBeNull();
+  });
+});

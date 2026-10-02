@@ -2,12 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import { api, ApiError, deviceCredentials, type AccountSession } from '../data/auth-client';
 import { db, normalizePhone } from '../../matches/data/match-repository';
 import { needsSync, syncMatch } from '../../sync/data/sync-matches';
-import type { LocalMatch } from '../../scoring/domain/match-types';
+import { markSynced, runSerialized } from '../../sync/data/live-sync';
+import { isScorable, type LocalMatch } from '../../scoring/domain/match-types';
 import { verifyWithWidget } from '../data/widget-client';
 import { clearSession, flushLogouts, restoreSession, saveSession } from '../data/session-store';
 import { AccountDashboard } from './AccountDashboard';
 import { claimDeviceGuestMatches, isClaimableGuest } from '../data/claim-guest-matches';
 import { TournamentExplorer } from '../../tournaments/TournamentExplorer';
+import { TeamsScreen } from '../../teams/TeamsScreen';
+import type { Focus } from '../../notifications/notification-client';
 import type { PreparedFixture } from '../../tournaments/types';
 
 export function AccountSync({
@@ -17,13 +20,15 @@ export function AccountSync({
   onScoreMatch,
   onSignedIn,
   section = 'all',
+  focus = null,
 }: {
   online: boolean;
   matches: LocalMatch[];
   onPrepareFixture: (fixture: PreparedFixture) => void;
   onScoreMatch?: (id: string) => void;
   onSignedIn?: () => void;
-  section?: 'all' | 'tournaments' | 'profile';
+  section?: 'all' | 'tournaments' | 'teams' | 'profile';
+  focus?: Focus | null;
 }) {
   // Session survives reload until expiry; scoring remains available independently.
   const [account, setAccount] = useState<AccountSession | null>(null);
@@ -90,7 +95,7 @@ export function AccountSync({
     let count = 0;
     let failed = 0;
     for (const match of await db.matches.toArray()) {
-      if (!['raidzon-v2', 'raidzon-v3'].includes(match.rulesetVersion ?? '') || !needsSync(match))
+      if (!isScorable(match.rulesetVersion) || !needsSync(match))
         continue;
       if (match.serverAccountId && match.serverAccountId !== session.accountId) continue;
       if (match.localAccountId && match.localAccountId !== session.accountId) continue;
@@ -98,7 +103,9 @@ export function AccountSync({
       if (match.ownerSessionId !== session.deviceId) continue;
       if (!match.localAccountId && !match.serverAccountId) continue;
       try {
-        await syncMatch(match.id, session);
+        // Shares the per-match queue with live scoring, so the two never upload the same match at once.
+        await runSerialized(match.id, () => syncMatch(match.id, session));
+        markSynced(match.id);
         count++;
       } catch (error) {
         if (error instanceof ApiError && error.status === 401) throw error;
@@ -139,8 +146,15 @@ export function AccountSync({
       ).length
     : 0;
   return (
-    <section className={`account-sync ${section === 'profile' ? 'account-sync-profile' : section === 'tournaments' ? 'account-sync-tournaments' : ''}`}>
-      <h2>{section === 'tournaments' ? 'My tournaments' : account ? 'Your account' : 'Sign in'}</h2>
+    <section className={`account-sync ${section === 'profile' ? 'account-sync-profile' : section === 'tournaments' ? 'account-sync-tournaments' : section === 'teams' ? 'account-sync-teams' : ''}`}>
+      <h2>{section === 'tournaments' ? 'My tournaments' : section === 'teams' ? 'My teams' : account ? 'Your account' : 'Sign in'}</h2>
+      {!account && section === 'teams' && (
+        <div className="profile-guest" aria-label="Signed-out teams">
+          <span className="profile-avatar" aria-hidden="true">⚑</span>
+          <h2>Your teams</h2>
+          <p>Sign in with your phone to save squads, add a manager and coach, and load a lineup in one tap.</p>
+        </div>
+      )}
       {!account && section === 'profile' && (
         <div className="profile-guest" aria-label="Signed-out profile">
           <span className="profile-avatar" aria-hidden="true">G</span>
@@ -160,6 +174,7 @@ export function AccountSync({
           revision={matches.map((match) => `${match.id}:${match.serverVersion ?? -1}`).join('|')}
         />
       )}
+      {account && section === 'teams' && <TeamsScreen key={`teams-${account.accountId}`} account={account} online={online} focusTeamId={focus?.teamId ? `${focus.teamId}#${focus.nonce}` : undefined} />}
       {section === 'tournaments' ? (
         <TournamentExplorer
           key={`tournaments-${account?.accountId ?? 'guest'}`}
@@ -168,6 +183,7 @@ export function AccountSync({
           matches={matches}
           onPrepareFixture={onPrepareFixture}
           onScoreMatch={onScoreMatch}
+          focus={focus?.tournamentId ? focus : null}
         />
       ) : null}
       {account ? (

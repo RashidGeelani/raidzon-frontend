@@ -59,7 +59,7 @@ export function EditPlayerProfile({
       setEditing(false);
       setChallenge(null);
       setCode('');
-      setMessage('Player name updated. Recorded match rosters are unchanged.');
+      setMessage('Name updated. It now shows on your teams, tournaments, leaderboards and live matches.');
       onSaved();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Unable to save your profile.');
@@ -94,7 +94,8 @@ export function EditPlayerProfile({
           }}
         >
           <p>
-            Verify {phone} again to save. This changes your profile name, not past match rosters.
+            Verify {phone} again to save. Your name shows everywhere you play, including past matches.
+            You can change it once every 30 days.
           </p>
           <label>
             Player display name

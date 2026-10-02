@@ -4,6 +4,9 @@ import type { LocalMatch } from '../scoring/domain/match-types';
 import type { PreparedFixture } from './types';
 import { MatchActions } from '../scorecard/MatchActions';
 import { normalizePhone } from '../matches/data/match-repository';
+import { cachedTeams, refreshTeamCache, type TeamDetail } from '../teams/data/team-client';
+import { JoinRequestsPanel } from './JoinRequestsPanel';
+import type { Focus } from '../notifications/notification-client';
 
 interface Tournament {
   id: string;
@@ -18,6 +21,8 @@ interface Team {
   name: string;
   rosterRevision: number;
   roster: { name: string; phone: string }[];
+  /** Set when the team was registered from a saved team. */
+  teamId?: string | null;
 }
 interface Fixture {
   id: string;
@@ -51,6 +56,7 @@ interface Detail {
     pointsAgainst: number;
     scoreDifference: number;
   }[];
+  registrationOpen?: boolean;
 }
 type TournamentFilter = 'ACTIVE' | 'UPCOMING' | 'COMPLETED';
 type TournamentSummary = { teams: number; matches: number; status: TournamentFilter };
@@ -62,6 +68,7 @@ export function TournamentDashboard({
   onPrepareFixture,
   onScoreMatch,
   startCreating = false,
+  focus = null,
 }: {
   account: AccountSession;
   online: boolean;
@@ -69,6 +76,7 @@ export function TournamentDashboard({
   onPrepareFixture: (fixture: PreparedFixture) => void;
   onScoreMatch?: (id: string) => void;
   startCreating?: boolean;
+  focus?: Focus | null;
 }) {
   const [items, setItems] = useState<Tournament[]>([]);
   const [summaries, setSummaries] = useState<Record<string, TournamentSummary>>({});
@@ -82,6 +90,14 @@ export function TournamentDashboard({
   const [message, setMessage] = useState('');
   const working = useRef(false);
   const requests = useRef(new Map<string, string>());
+  useEffect(() => {
+    if (!focus?.tournamentId) return;
+    setSelected(focus.tournamentId);
+    setDetail(null);
+    setEditingTeam(null);
+    setDetailTab('teams');
+    setMessage('');
+  }, [focus?.nonce, focus?.tournamentId]);
   useEffect(() => {
     if (!online) return;
     let active = true;
@@ -129,6 +145,14 @@ export function TournamentDashboard({
       active = false;
     };
   }, [selected, account.token, online, revision]);
+  const [savedTeams, setSavedTeams] = useState<TeamDetail[]>([]);
+  useEffect(() => {
+    if (!selected) return;
+    let active = true;
+    const show = () => cachedTeams(account.accountId).then((rows) => { if (active) setSavedTeams(rows.filter((team) => team.myRole !== 'COACH')); });
+    void show().then(() => (online ? refreshTeamCache(account).then(show) : undefined)).catch(() => undefined);
+    return () => { active = false; };
+  }, [account, online, selected]);
   async function save(path: string, body: object, withId = true) {
     if (working.current || !online) return;
     working.current = true;
@@ -265,7 +289,7 @@ export function TournamentDashboard({
             {detail.teams.map((item) => (
               <li key={item.id}>
                 <span className="tournament-team-code">{item.name.slice(0, 3).toUpperCase()}</span>
-                <span><strong>{item.name}</strong><small>{item.roster?.length ?? 0} players</small></span>
+                <span><strong>{item.name}</strong><small>{item.roster?.length ?? 0} players{item.teamId ? ' · saved team' : ''}</small></span>
                 <b>{detail.standings?.find((row) => row.teamId === item.id)?.tablePoints ?? 0} <small>pts</small></b>
                 <button className="team-manage-button" onClick={() => setEditingTeam(item.id)}>Manage<span className="sr-only"> {item.name}</span></button>
               </li>
@@ -286,7 +310,36 @@ export function TournamentDashboard({
             </label>
             <button disabled={busy || !online}>Register team</button>
           </form></details>
+          {savedTeams.length > 0 && <details className="tournament-action-form"><summary>+ Add from my teams</summary><form
+            onSubmit={(event) => {
+              event.preventDefault();
+              const teamId = String(new FormData(event.currentTarget).get('savedTeam'));
+              if (teamId) void save(`/tournaments/${selected}/teams/from-saved`, { teamId });
+            }}
+          >
+            <label>
+              Saved team
+              <select name="savedTeam" required disabled={busy || !online} defaultValue="">
+                <option value="" disabled>Choose a team</option>
+                {savedTeams.map((team) => {
+                  const registered = detail.teams.some((item) => item.teamId === team.id);
+                  return <option key={team.id} value={team.id} disabled={registered || team.members.length < 7}>
+                    {team.name} ({team.members.length} players{registered ? ', registered' : team.members.length < 7 ? ', needs 7' : ''})
+                  </option>;
+                })}
+              </select>
+            </label>
+            <p className="field-note">The squad is copied as this team's tournament roster. A player can play for only one team in a tournament.</p>
+            <button disabled={busy || !online}>Register saved team</button>
+          </form></details>}
           {!detail.teams.length && <p className="list-empty">Add your first team to start building the roster.</p>}
+          {selected && <JoinRequestsPanel<Detail>
+            account={account}
+            online={online}
+            tournamentId={selected}
+            registrationOpen={detail.registrationOpen !== false}
+            onDetail={(next) => { setDetail(next); setRevision((value) => value + 1); }}
+          />}
           </>}
           {editingTeam && <button className="roster-back" onClick={() => setEditingTeam(null)}>← All teams</button>}
           {detail.teams.filter((team) => team.id === editingTeam).map((team) => (
@@ -302,6 +355,7 @@ export function TournamentDashboard({
                   false,
                 )
               }
+              onSync={team.teamId ? () => void save(`/tournaments/${selected}/teams/${team.id}/sync`, {}, false) : undefined}
             />
           ))}
           </div>}
@@ -571,11 +625,13 @@ function RosterEditor({
   busy,
   online,
   onSave,
+  onSync,
 }: {
   team: Team;
   busy: boolean;
   online: boolean;
   onSave: (players: { name: string; phone: string }[]) => void;
+  onSync?: () => void;
 }) {
   const [players, setPlayers] = useState(() =>
     team.roster?.length
@@ -590,7 +646,13 @@ function RosterEditor({
   }
   return (
     <section className="roster-workspace" aria-label={`${team.name} roster`}>
-      <header className="management-heading"><div><small>TEAM ROSTER</small><h3>{team.name}</h3><p>Seven starters · Up to five substitutes</p></div><span className="roster-count">{team.roster?.length ?? 0} saved</span></header>
+      <header className="management-heading"><div><small>TEAM ROSTER</small><h3>{team.name}</h3><p>Squad of 7–20 · Each match uses 7 starters and up to 5 substitutes</p></div><span className="roster-count">{team.roster?.length ?? 0} saved</span></header>
+      {onSync && (
+        <div className="roster-sync">
+          <p className="field-note">Copied from your saved team. Update it here after changing the squad on the Teams tab.</p>
+          <button type="button" className="secondary" disabled={busy || !online} onClick={onSync}>Update from squad</button>
+        </div>
+      )}
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -620,7 +682,7 @@ function RosterEditor({
               <input
                 required
                 maxLength={70}
-                placeholder={index < 7 ? 'Starter name' : 'Substitute name'}
+                placeholder={index < 7 ? 'Player name' : 'Squad player name'}
                 value={player.name}
                 disabled={busy || !online}
                 onChange={(event) => update(index, 'name', event.target.value)}
@@ -644,7 +706,7 @@ function RosterEditor({
                 type="button"
                 className="quiet"
                 disabled={busy || !online}
-                aria-label={`Remove ${team.name} substitute ${index - 6}`}
+                aria-label={`Remove ${team.name} squad player ${index + 1}`}
                 onClick={() => setPlayers((current) => current.filter((_, at) => at !== index))}
               >
                 Remove
@@ -655,10 +717,10 @@ function RosterEditor({
         <div className="roster-actions"><button
           type="button"
           className="secondary"
-          disabled={busy || !online || players.length >= 12}
+          disabled={busy || !online || players.length >= 20}
           onClick={() => setPlayers((current) => [...current, { name: '', phone: '' }])}
         >
-          Add substitute
+          Add player <small>{players.length}/20</small>
         </button>
         <button disabled={busy || !online}>Save roster</button>
         {team.roster?.length ? (

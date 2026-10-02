@@ -68,7 +68,7 @@ test('profile name edit re-verifies the phone without replacing the active sessi
   await page.getByLabel('Profile verification code').fill('654321');
   await page.getByRole('button', { name: 'Verify phone and save' }).click();
   await expect(
-    page.getByText('Player name updated. Recorded match rosters are unchanged.'),
+    page.getByText('Name updated. It now shows on your teams, tournaments, leaderboards and live matches.'),
   ).toBeVisible();
   await expect(page.getByText('Updated Player', { exact: true })).toBeVisible();
   expect(verifications).toBe(2);

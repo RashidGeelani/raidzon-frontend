@@ -1,6 +1,6 @@
 import { db } from '../../matches/data/match-repository';
 import { api, type AccountSession } from '../../identity/data/auth-client';
-import type { LocalMatch, MatchState } from '../../scoring/domain/match-types';
+import { clockStartsWithFirstRaid, isScorable, type LocalMatch, type MatchState } from '../../scoring/domain/match-types';
 
 interface Registration {
   matchId: string;
@@ -19,6 +19,7 @@ export interface SyncTransport {
   append(matchId: string, body: unknown): Promise<Acknowledgement>;
   linkFixture?(tournamentId: string, fixtureId: string, matchId: string): Promise<unknown>;
 }
+export const SYNC_TIMEOUT_MS = 45_000;
 function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
   if (value !== null && typeof value === 'object')
@@ -32,14 +33,16 @@ export async function syncMatch(
   matchId: string,
   account: AccountSession,
   database = db,
+  // 45s allows a sleeping server (e.g. Render free tier) to wake up instead of failing the upload.
   transport: SyncTransport = {
-    claim: (body) => api('/matches', body, account.token),
-    append: (id, body) => api(`/matches/${id}/events`, body, account.token),
+    claim: (body) => api('/matches', body, account.token, SYNC_TIMEOUT_MS),
+    append: (id, body) => api(`/matches/${id}/events`, body, account.token, SYNC_TIMEOUT_MS),
     linkFixture: (tournamentId, fixtureId, id) =>
       api(
         `/tournaments/${tournamentId}/fixtures/${fixtureId}/match`,
         { matchId: id },
         account.token,
+        SYNC_TIMEOUT_MS,
       ),
   },
 ) {
@@ -59,7 +62,7 @@ export async function syncMatch(
       throw new Error('Review and claim this guest match before syncing.');
     if (match.localAccountId && match.localAccountId !== account.accountId)
       throw new Error('Sign in to the account that created this match.');
-    if (!['raidzon-v2', 'raidzon-v3'].includes(match.rulesetVersion ?? ''))
+    if (!isScorable(match.rulesetVersion))
       throw new Error('This older ruleset cannot be synced yet. Its local history is preserved.');
     if (match.ownerSessionId !== account.deviceId)
       throw new Error('Only the original scoring device can upload this match.');
@@ -79,7 +82,7 @@ export async function syncMatch(
     const initial = structuredClone(match.initialState ?? events[0]?.before ?? match.state);
     initial.clock = {
       remainingMs: initial.halfMinutes * 60_000,
-      startedAt: Date.parse(match.createdAt),
+      startedAt: clockStartsWithFirstRaid(match.rulesetVersion) ? null : Date.parse(match.createdAt),
     };
     const atVersion = (version: number) => (version === 0 ? initial : events[version - 1]?.after);
     const checkState = (version: number, state: MatchState) => {

@@ -12,6 +12,11 @@ import type { PreparedFixture } from '../features/tournaments/types';
 import { UpcomingMatches } from '../features/tournaments/UpcomingMatches';
 import { JoinedTournamentMatches } from '../features/tournaments/JoinedTournamentMatches';
 import type { LocalMatch, MatchEvent, MatchIntent } from '../features/scoring/domain/match-types';
+import { NotificationBell } from '../features/notifications/NotificationBell';
+import { pushNow } from '../features/sync/data/live-sync';
+import { LiveSyncBadge } from '../features/sync/LiveSyncBadge';
+import { ShareMatchPopup } from '../features/scorecard/ShareMatchPopup';
+import type { Focus } from '../features/notifications/notification-client';
 
 export function App() {
   const [startup, setStartup] = useState<'splash' | 'signin' | 'ready'>('splash');
@@ -25,7 +30,7 @@ export function App() {
     });
     return () => { active = false; clearTimeout(timer); };
   }, []);
-  const [tab, setTab] = useState<'home' | 'tournaments' | 'matches' | 'leaderboards' | 'profile'>('home');
+  const [tab, setTab] = useState<'home' | 'tournaments' | 'teams' | 'matches' | 'leaderboards' | 'profile'>('home');
   const [matchFilter, setMatchFilter] = useState<'UPCOMING' | 'LIVE' | 'COMPLETED'>('LIVE');
   const [matches, setMatches] = useState<LocalMatch[]>([]);
   const [events, setEvents] = useState<MatchEvent[]>([]);
@@ -34,10 +39,13 @@ export function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [setup, setSetup] = useState(false);
   const [preparedFixture, setPreparedFixture] = useState<PreparedFixture | null>(null);
+  const [focus, setFocus] = useState<Focus | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [online, setOnline] = useState(navigator.onLine);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [shareId, setShareId] = useState<string | null>(null);
+  const closeShare = useCallback(() => setShareId(null), []);
   const busy = useRef(false);
   const {
     offlineReady: [offlineReady],
@@ -85,6 +93,10 @@ export function App() {
     return () => subscription.unsubscribe();
   }, [selectedId]);
   const match = matches.find((item) => item.id === selectedId);
+  // Opening a match or reconnecting uploads anything still pending, without waiting for the background loop.
+  useEffect(() => {
+    if (selectedId && online) void pushNow(selectedId);
+  }, [selectedId, online]);
   const matchOwner = match?.serverAccountId ?? match?.localAccountId;
   const canScore = match && !match.scoringDelegated && match.ownerSessionId === session && (!matchOwner || matchOwner === scoringAccount);
   const liveCount = matches.filter((m) => m.state.status !== 'COMPLETED').length;
@@ -95,6 +107,8 @@ export function App() {
     setError('');
     try {
       await recordEvent(match.id, match.version, session, intent);
+      // Online scoring: send this tap to the server now so watchers see it within a second.
+      void pushNow(match.id);
     } catch (cause) {
       setError((cause as Error).message);
     } finally {
@@ -103,6 +117,7 @@ export function App() {
     }
   }
   function home() {
+    setShareId(null);
     setTab('home');
     setPreparedFixture(null);
     setSetup(false);
@@ -122,6 +137,13 @@ export function App() {
     setSetup(false);
     setSelectedId(null);
     setError('');
+  }
+  function openNotification(next: Focus) {
+    setSetup(false);
+    setSelectedId(null);
+    setError('');
+    setTab(next.teamId ? 'teams' : 'tournaments');
+    setFocus(next);
   }
   function prepareFixture(fixture: PreparedFixture) {
     setSelectedId(null);
@@ -163,6 +185,7 @@ export function App() {
         <header className="topbar">
           <span className="topbar-brand"><img src="/brand/raidzon-logo.png" alt="raidzOn" /><span>YOUR COURTSIDE COMPANION</span></span>
           <div>
+            {startup === 'ready' && <NotificationBell online={online} onOpen={openNotification} />}
             <span className="network">
               <i className={`dot ${online ? 'live' : ''}`} />
               {online ? 'Online' : 'Offline'}
@@ -175,15 +198,16 @@ export function App() {
           </div>
         </header>
         <main>
-          <div className={startup === 'signin' ? 'account-entry signin-screen' : 'account-entry'} hidden={startup === 'splash' || (startup === 'ready' && (!!setup || !!match || (tab !== 'tournaments' && tab !== 'profile')))}>
+          <div className={startup === 'signin' ? 'account-entry signin-screen' : 'account-entry'} hidden={startup === 'splash' || (startup === 'ready' && (!!setup || !!match || (tab !== 'tournaments' && tab !== 'teams' && tab !== 'profile')))}>
             {startup === 'signin' && <header className="signin-brand"><img src="/brand/raidzon-logo.png" alt="" /><p className="signin-wordmark">raidz<span>On</span></p><h1>Welcome to the court</h1><p>Sign in to keep your matches with you.</p></header>}
             <AccountSync
               onSignedIn={finishSignIn}
-              section={tab === 'tournaments' ? 'tournaments' : tab === 'profile' ? 'profile' : 'all'}
+              section={tab === 'tournaments' ? 'tournaments' : tab === 'teams' ? 'teams' : tab === 'profile' ? 'profile' : 'all'}
               online={online}
               matches={matches}
               onPrepareFixture={prepareFixture}
               onScoreMatch={setSelectedId}
+              focus={focus}
             />
             {startup === 'signin' && <div className="signin-guest"><span>or get straight to the game</span><button className="secondary" onClick={() => setStartup('ready')}>Continue offline</button><p>No account needed to score. Sign in later from Profile.</p></div>}
           </div>
@@ -204,21 +228,30 @@ export function App() {
               onCreated={(created) => {
                 setSetup(false);
                 setSelectedId(created.id);
+                // Create the match on the server immediately so it can be watched from the first raid.
+                void pushNow(created.id);
+                // Signed-in scorers get a live link straight away; it goes public once the upload lands.
+                void restoreSession().catch(() => null).then((account) => { if (account) setShareId(created.id); });
               }}
             />
             ) : match && !canScore ? (
               <LiveMatchViewer matchId={match.id} onBack={home} />
             ) : match ? (
+            <>
+            <LiveSyncBadge matchId={match.id} online={online} />
             <LiveMatch
               match={match}
               events={events}
               onRecord={record}
               onBack={home}
+              onShare={() => setShareId(match.id)}
               saving={saving}
             />
+            {shareId === match.id && <ShareMatchPopup matchId={match.id} online={online} onClose={closeShare} />}
+            </>
           ) : tab === 'leaderboards' ? (
             <SyncedLeaderboards matches={matches} online={online} />
-          ) : tab === 'tournaments' || tab === 'profile' ? null : (
+          ) : tab === 'tournaments' || tab === 'teams' || tab === 'profile' ? null : (
             <>
               {tab === 'matches' ? <header className="list-screen-heading"><h2>Matches</h2><p>Your saved and scheduled games</p></header> : <div className="section-heading">
                 <div>
@@ -371,9 +404,9 @@ export function App() {
         </main>
         {!setup && !match && (
           <nav className="bottom-nav" aria-label="Main navigation">
-            {(['home', 'tournaments', 'matches', 'leaderboards', 'profile'] as const).map((item) => (
+            {(['home', 'tournaments', 'teams', 'matches', 'leaderboards', 'profile'] as const).map((item) => (
               <button key={item} className={tab === item ? 'active' : ''} onClick={() => navigate(item)} aria-current={tab === item ? 'page' : undefined}>
-                <span aria-hidden="true">{{ home: '⌂', tournaments: '▦', matches: '◉', leaderboards: '▥', profile: '●' }[item]}</span>
+                <span aria-hidden="true">{{ home: '⌂', tournaments: '▦', teams: '⚑', matches: '◉', leaderboards: '▥', profile: '●' }[item]}</span>
                 {item[0].toUpperCase() + item.slice(1)}
               </button>
             ))}

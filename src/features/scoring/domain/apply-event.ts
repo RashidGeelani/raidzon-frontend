@@ -1,7 +1,10 @@
 import { scoreRaid } from './score-raid';
 import {
   activePlayers,
+  clockStartsWithFirstRaid,
+  isScorable,
   opposite,
+  usesV3Rules,
   remainingTime,
   type MatchIntent,
   type MatchState,
@@ -20,10 +23,10 @@ export function applyEvent(
   now: number,
   rulesetVersion: string = 'raidzon-v3',
 ) {
-  requireRule(
-    ['raidzon-v2', 'raidzon-v3'].includes(rulesetVersion),
-    'Unsupported ruleset version.',
-  );
+  requireRule(isScorable(rulesetVersion), 'Unsupported ruleset version.');
+  // v4: the half clock is waiting for its first raid (stopped with the full half remaining).
+  const halfClockPending = () =>
+    state.clock.startedAt === null && state.clock.remainingMs === state.halfMinutes * 60_000;
   const state = structuredClone(previous);
   const intent =
     input.type === 'RAID' &&
@@ -95,6 +98,8 @@ export function applyEvent(
       }
       player(state.turn, intent.raiderId, 'ACTIVE');
       state.currentRaiderId = intent.raiderId;
+      if (clockStartsWithFirstRaid(rulesetVersion) && state.phase === 'REGULATION' && halfClockPending())
+        state.clock = { remainingMs: state.clock.remainingMs, startedAt: now };
       state.raidClock = { remainingMs: state.raidSeconds * 1000, startedAt: now };
       state.expiryReviewed = false;
       summary = `Raid ${state.raidNumber} started`;
@@ -165,7 +170,7 @@ export function applyEvent(
       if (intent.outcome === 'TACKLE' || intent.outcome === 'SELF_OUT') out(attack, raider.id);
       // A defender self-out cannot rescue a team whose last raider was tackled.
       const lastRaiderTackled =
-        rulesetVersion === 'raidzon-v3' &&
+        usesV3Rules(rulesetVersion) &&
         intent.outcome === 'TACKLE' &&
         selfOuts.length > 0 &&
         activePlayers(team(attack)).length === 0;
@@ -237,7 +242,8 @@ export function applyEvent(
     case 'RESUME':
       requireRule(state.status === 'PAUSED', 'The match is not paused.');
       state.status = 'LIVE';
-      state.clock.startedAt = state.phase === 'REGULATION' ? now : null;
+      state.clock.startedAt =
+        state.phase === 'REGULATION' && !(clockStartsWithFirstRaid(rulesetVersion) && halfClockPending()) ? now : null;
       if (state.currentRaiderId) state.raidClock.startedAt = now;
       break;
     case 'END_HALF':
@@ -259,7 +265,10 @@ export function applyEvent(
       state.teams.forEach((t) => {
         t.activeSubstitutions = 0;
       });
-      state.clock = { remainingMs: state.halfMinutes * 60_000, startedAt: now };
+      state.clock = {
+        remainingMs: state.halfMinutes * 60_000,
+        startedAt: clockStartsWithFirstRaid(rulesetVersion) ? null : now,
+      };
       break;
     case 'END_MATCH':
       requireRule(!state.currentRaiderId, 'Finish the raid before ending the match.');

@@ -28,12 +28,14 @@ export async function restoreSession(): Promise<AccountSession | null> {
   return null;
 }
 export async function clearSession(session?: AccountSession) {
-  await db.transaction('rw', db.metadata, async () => {
+  await db.transaction('rw', db.metadata, db.teams, async () => {
     if (session)
       await db.metadata.put({ key: `logout:${session.token}`, value: JSON.stringify(session) });
     await db.metadata.delete(sessionKey);
     if (session) await db.metadata.delete('scoring-account');
     if (session) await db.metadata.delete(`upcoming-fixtures:${session.accountId}`);
+    // Cached squads include players' phone numbers; do not leave them on a shared device.
+    if (session) await db.teams.where('accountId').equals(session.accountId).delete();
   });
 }
 export async function flushLogouts() {

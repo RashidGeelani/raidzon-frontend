@@ -5,17 +5,20 @@ import { MatchActions } from '../scorecard/MatchActions';
 import type { LocalMatch } from '../scoring/domain/match-types';
 import type { PreparedFixture } from './types';
 import type { TournamentListItem } from './data/upcoming-fixtures';
+import { RequestToJoin } from './RequestToJoin';
+import type { Focus } from '../notifications/notification-client';
 
 export interface PublicTournamentDetail {
   tournament: TournamentListItem;
   teams: { id: string; name: string; players: string[] }[];
   fixtures: { id: string; teamAId: string; teamBId: string; scheduledAt: string | null; matchId: string | null; status: string | null; scoreA: number | null; scoreB: number | null }[];
   standings: { teamId: string; teamName: string; rank: number; tablePoints: number; scoreDifference: number }[];
+  registrationOpen?: boolean;
 }
 
-export function TournamentExplorer({ account, online, matches, onPrepareFixture, onScoreMatch }: {
+export function TournamentExplorer({ account, online, matches, onPrepareFixture, onScoreMatch, focus = null }: {
   account: AccountSession | null; online: boolean; matches: LocalMatch[]; onPrepareFixture: (fixture: PreparedFixture) => void;
-  onScoreMatch?: (id: string) => void;
+  onScoreMatch?: (id: string) => void; focus?: Focus | null;
 }) {
   const [mine, setMine] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -28,6 +31,8 @@ export function TournamentExplorer({ account, online, matches, onPrepareFixture,
   const [busy, setBusy] = useState(false);
   const [detailTab, setDetailTab] = useState<'teams' | 'matches' | 'standings'>('teams');
   useEffect(() => { setMine(false); setDetail(null); }, [account?.accountId]);
+  // A tapped notification opens the organizer's own view of that tournament.
+  useEffect(() => { if (focus?.tournamentId && account) { setCreating(false); setMine(true); setDetail(null); } }, [focus?.nonce, focus?.tournamentId, account]);
   useEffect(() => {
     let active = true;
     if (!online) { setMessage('Reconnect to browse tournaments.'); return; }
@@ -68,7 +73,7 @@ export function TournamentExplorer({ account, online, matches, onPrepareFixture,
       {account && <button className={mine ? 'active' : ''} onClick={() => { setCreating(false); setMine(true); }}>My tournaments</button>}
     </div>
     {account && !mine && <button className="match-create-action" onClick={() => { setCreating(true); setMine(true); }}>+ Create tournament</button>}
-    {mine && account ? <TournamentDashboard account={account} online={online} matches={matches} onPrepareFixture={onPrepareFixture} onScoreMatch={onScoreMatch} startCreating={creating} /> : <>
+    {mine && account ? <TournamentDashboard account={account} online={online} matches={matches} onPrepareFixture={onPrepareFixture} onScoreMatch={onScoreMatch} startCreating={creating} focus={focus} /> : <>
       {!detail ? <>
         <header className="list-screen-heading"><h2>Tournaments</h2><p>Find competitions, follow teams, and catch every score.</p></header>
         <form className="tournament-search" onSubmit={(event) => { event.preventDefault(); setQuery(search.trim()); }}>
@@ -84,6 +89,7 @@ export function TournamentExplorer({ account, online, matches, onPrepareFixture,
         <header className="tournament-detail-header"><button className="tournament-back" onClick={() => setDetail(null)} aria-label="Back to tournament search">←</button><div><h2>{detail.tournament.name}</h2><p>{detail.tournament.venue} · {detail.tournament.startsOn}</p></div></header>
         <button className="match-create-action" disabled={busy || !online || joined.includes(detail.tournament.id)} onClick={() => void join(detail.tournament.id)}>{joined.includes(detail.tournament.id) ? 'Joined tournament' : 'Join tournament'}</button>
         <p className="muted">Join to follow matches. Only the organizer can manage and score them.</p>
+        <RequestToJoin account={account} online={online} tournamentId={detail.tournament.id} registrationOpen={detail.registrationOpen !== false} />
         <div className="list-filter-tabs" role="tablist" aria-label="Tournament information">{(['teams', 'matches', 'standings'] as const).map((tab) => <button key={tab} role="tab" aria-selected={detailTab === tab} className={detailTab === tab ? 'active' : ''} onClick={() => setDetailTab(tab)}>{tab[0].toUpperCase() + tab.slice(1)}</button>)}</div>
         {detailTab === 'teams' && <><h3>Teams</h3><ul className="tournament-team-list">{detail.teams.map((team) => <li key={team.id}><span><strong>{team.name}</strong><small>{team.players.length} players</small></span></li>)}</ul></>}
         {detailTab === 'matches' && <>

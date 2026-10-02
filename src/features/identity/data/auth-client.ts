@@ -14,7 +14,7 @@ export class ApiError extends Error {
     super(message);
   }
 }
-export async function api<T>(path: string, body?: unknown, token?: string): Promise<T> {
+export async function api<T>(path: string, body?: unknown, token?: string, timeoutMs = 15_000): Promise<T> {
   const baseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').trim().replace(/\/+$/, '');
   const response = await fetch(`${baseUrl}/api/v1${path}`, {
     method: body === undefined ? 'GET' : 'POST',
@@ -25,7 +25,7 @@ export async function api<T>(path: string, body?: unknown, token?: string): Prom
     body: body === undefined ? undefined : JSON.stringify(body),
     cache: 'no-store',
     credentials: 'omit',
-    signal: AbortSignal.timeout(15_000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   let data;
   try {
@@ -40,6 +40,8 @@ export async function api<T>(path: string, body?: unknown, token?: string): Prom
     throw new ApiError(response.status, data.message ?? 'The request could not be completed.');
   return data as T;
 }
+/** The API origin, e.g. https://raidzon-backend.onrender.com, or '' for same-origin deployments. */
+export const apiBaseUrl = () => (import.meta.env.VITE_API_BASE_URL ?? '').trim().replace(/\/+$/, '');
 export async function deviceCredentials(database = db) {
   const deviceId = await sessionId(database);
   const deviceSecret = await database.transaction('rw', database.metadata, async () => {

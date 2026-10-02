@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
 import {
   activePlayers,
+  clockStartsWithFirstRaid,
+  isScorable,
   opposite,
   remainingTime,
+  usesV3Rules,
   type LocalMatch,
   type MatchEvent,
   type MatchIntent,
@@ -10,6 +13,7 @@ import {
 } from '../domain/match-types';
 import { scoreRaid, type RaidOutcome } from '../domain/score-raid';
 import { undoTarget } from '../../matches/data/match-repository';
+import { raidWarning, unlockRaidAudio, useRaidWarning } from '../raid-warning';
 
 const clockText = (ms: number) =>
   `${Math.floor(Math.ceil(ms / 1000) / 60)
@@ -21,12 +25,14 @@ export function LiveMatch({
   events,
   onRecord,
   onBack,
+  onShare,
   saving,
 }: {
   match: LocalMatch;
   events: MatchEvent[];
   onRecord: (intent: MatchIntent) => Promise<void>;
   onBack: () => void;
+  onShare?: () => void;
   saving: boolean;
 }) {
   const state = match.state;
@@ -70,6 +76,15 @@ export function LiveMatch({
     raidRemaining === 0 &&
     !state.expiryReviewed &&
     state.status === 'LIVE';
+  const halfWaiting =
+    clockStartsWithFirstRaid(match.rulesetVersion) &&
+    state.phase === 'REGULATION' &&
+    state.status !== 'COMPLETED' &&
+    state.clock.startedAt === null &&
+    state.clock.remainingMs === state.halfMinutes * 60_000;
+  const raiding = !!state.currentRaiderId && state.status === 'LIVE';
+  const raidWarn = raidWarning(raidRemaining, raiding);
+  useRaidWarning(raiding ? `${state.half}:${state.raidNumber}:${state.currentRaiderId}` : null, raidRemaining);
   const target = undoTarget(events);
   const reversed = new Set(
     events.flatMap((e) => (e.intent.type === 'UNDO' ? [e.intent.targetEventId] : [])),
@@ -87,7 +102,7 @@ export function LiveMatch({
               : p.id !== state.lastTieRaiders?.[state.turn]),
         );
   const live =
-    state.status === 'LIVE' && ['raidzon-v2', 'raidzon-v3'].includes(match.rulesetVersion ?? '');
+    state.status === 'LIVE' && isScorable(match.rulesetVersion);
   const displayScores = state.phase === 'REGULATION' ? state.scores : state.tieScores;
   async function confirmAction(intent: MatchIntent, question: string) {
     if (window.confirm(question)) await onRecord(intent);
@@ -132,9 +147,9 @@ export function LiveMatch({
       );
 
   return (
-    <div className="scoring-screen">
-      <header className="live-view-header"><button className="tournament-back" onClick={onBack} aria-label="Back to matches">←</button><span className="live-status">{state.status.replaceAll('_', ' ')}</span><small>{state.status === 'COMPLETED' ? 'Match result' : 'Scorer mode'}</small></header>
-      {!['raidzon-v2', 'raidzon-v3'].includes(match.rulesetVersion ?? '') && (
+    <div className="scoring-screen" onPointerDown={unlockRaidAudio}>
+      <header className="live-view-header"><button className="tournament-back" onClick={onBack} aria-label="Back to matches">←</button><span className="live-status">{state.status.replaceAll('_', ' ')}</span><small>{state.status === 'COMPLETED' ? 'Match result' : 'Scorer mode'}</small>{onShare && <button className="share-live-button secondary" onClick={onShare}>Share live link</button>}</header>
+      {!isScorable(match.rulesetVersion) && (
         <p role="status" className="field-note">
           Previous ruleset: history is preserved. Start a new match to use the updated rules.
         </p>
@@ -147,7 +162,7 @@ export function LiveMatch({
           </span>
           <span>
             {state.phase === 'REGULATION'
-              ? `HALF ${state.half} · ${clockText(remainingTime(state.clock, now))}`
+              ? `HALF ${state.half} · ${clockText(remainingTime(state.clock, now))}${halfWaiting ? ' · starts with first raid' : ''}`
               : state.phase === 'TIE_BREAK'
                 ? 'FIVE RAIDS EACH'
                 : `GOLDEN RAID · PAIR ${state.goldenPair}`}
@@ -325,7 +340,7 @@ export function LiveMatch({
                   </h2>
                 </div>
                 <div
-                  className={`raid-clock ${expiryPending ? 'expired' : ''}`}
+                  className={`raid-clock ${expiryPending ? 'expired' : raidWarn ? 'warning' : ''}`}
                   aria-label="Raid timer"
                 >
                   {clockText(raidRemaining)}
@@ -485,7 +500,7 @@ export function LiveMatch({
                           <p className="field-note">
                             Included in this same raid event. Team points and revivals only; no
                             individual credit.
-                            {match.rulesetVersion === 'raidzon-v3' &&
+                            {usesV3Rules(match.rulesetVersion) &&
                               ' If the last on-court raider is tackled, the self-out point stays but All-Out replaces the attacking revival: the opponent gets two extra points and all seven playing members return.'}
                           </p>
                           <div className="player-grid">
