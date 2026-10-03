@@ -234,3 +234,4 @@ html[data-sideline] .scoreboard-compact .scores { gap: 22px; }
 .avatar-initials { background: linear-gradient(145deg, #ff6d1d, #ff4500); color: #fff; }
 .avatar-guest { background: var(--card-raised); color: var(--text-muted); border: 1px solid var(--line-strong); }
 .tournament-detail-pending { display: flex; align-items: center; gap: var(--space-3); margin: var(--space-2) 0; }
+.settings-locked { grid-column: 1 / -1; margin: 0; }

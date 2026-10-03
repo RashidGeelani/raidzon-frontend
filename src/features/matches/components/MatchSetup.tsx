@@ -119,6 +119,9 @@ export function MatchSetup({
         </button>
       </div>
       <section className="panel settings" aria-label="Match settings">
+        {preset && (
+          <p className="field-note settings-locked">Team names come from the fixture. Timers start at the tournament’s defaults — change them if this match is shorter or longer.</p>
+        )}
         <label>
           First raid
           <select value={firstTurn} onChange={(e) => setFirstTurn(Number(e.target.value) as Side)}>
@@ -192,6 +195,8 @@ export function MatchSetup({
                 <input
                   required
                   maxLength={60}
+                  readOnly={!!preset}
+                  title={preset ? 'Set by the tournament fixture' : undefined}
                   value={team.name}
                   placeholder={side === 0 ? 'e.g. Valley Raiders' : 'e.g. City Warriors'}
                   onChange={(e) =>

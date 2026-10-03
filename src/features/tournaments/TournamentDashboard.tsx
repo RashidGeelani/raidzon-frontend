@@ -499,10 +499,8 @@ export function TournamentDashboard({
                             .filter(
                               (match) =>
                                 match.serverAccountId === account.accountId &&
-                                match.state.teams[0].name === teamName(fixture.teamAId!) &&
-                                match.state.teams[1].name === teamName(fixture.teamBId!) &&
-                                match.state.halfMinutes === detail.tournament.halfMinutes &&
-                                match.state.raidSeconds === detail.tournament.raidSeconds &&
+                                match.state.teams[0].name.trim().toLowerCase() === teamName(fixture.teamAId!).trim().toLowerCase() &&
+                                match.state.teams[1].name.trim().toLowerCase() === teamName(fixture.teamBId!).trim().toLowerCase() &&
                                 !detail.fixtures.some((other) => other.matchId === match.id),
                             )
                             .map((match) => (
