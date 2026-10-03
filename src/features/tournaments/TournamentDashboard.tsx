@@ -243,6 +243,17 @@ export function TournamentDashboard({
       >
         Refresh tournaments
       </button>}
+      {selected && (!detail || detail.tournament.id !== selected) && (
+        // Loading or failed: never leave the organizer on a blank screen without a way out.
+        <div className="tournament-detail-pending">
+          <button type="button" className="tournament-back" aria-label="Back to tournaments" onClick={() => { setSelected(''); setDetail(null); setMessage(''); }}>←</button>
+          {message ? (
+            <button type="button" className="secondary" disabled={!online} onClick={() => { setMessage(''); setRevision((value) => value + 1); }}>Try again</button>
+          ) : (
+            <p className="muted">{online ? 'Loading tournament…' : 'Reconnect to open this tournament.'}</p>
+          )}
+        </div>
+      )}
       {detail && detail.tournament.id === selected && (
         <div key={selected} className="tournament-detail">
           <header className="tournament-detail-header">

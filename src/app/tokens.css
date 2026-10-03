@@ -233,3 +233,4 @@ html[data-sideline] .scoreboard-compact .scores { gap: 22px; }
 .avatar { display: grid; place-items: center; width: 100%; height: 100%; border-radius: 50%; font-family: Rajdhani, Inter, sans-serif; font-weight: 700; font-size: .95rem; line-height: 1; }
 .avatar-initials { background: linear-gradient(145deg, #ff6d1d, #ff4500); color: #fff; }
 .avatar-guest { background: var(--card-raised); color: var(--text-muted); border: 1px solid var(--line-strong); }
+.tournament-detail-pending { display: flex; align-items: center; gap: var(--space-3); margin: var(--space-2) 0; }
