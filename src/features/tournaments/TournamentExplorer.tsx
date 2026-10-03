@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { Tabs } from '../../ui/Tabs';
+import { TournamentLeaders } from '../scoring/components/SyncedLeaderboards';
 import { api, type AccountSession } from '../identity/data/auth-client';
 import { TournamentDashboard } from './TournamentDashboard';
 import { MatchActions } from '../scorecard/MatchActions';
@@ -35,10 +37,16 @@ export function TournamentExplorer({ account, online, matches, onPrepareFixture,
   const [detail, setDetail] = useState<PublicTournamentDetail | null>(null);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
-  const [detailTab, setDetailTab] = useState<'teams' | 'matches' | 'standings' | 'bracket'>('teams');
+  const [detailTab, setDetailTab] = useState<'teams' | 'matches' | 'standings' | 'bracket' | 'leaders'>('teams');
   useEffect(() => { setMine(false); setDetail(null); }, [account?.accountId]);
   // A tapped notification opens the organizer's own view of that tournament.
-  useEffect(() => { if (focus?.tournamentId && account) { setCreating(false); setMine(true); setDetail(null); } }, [focus?.nonce, focus?.tournamentId, account]);
+  useEffect(() => {
+    if (!focus?.tournamentId) return;
+    if (focus.view === 'public') { setMine(false); void open(focus.tournamentId); return; }
+    if (account) { setCreating(false); setMine(true); setDetail(null); }
+    // open() only reads state setters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focus?.nonce, focus?.tournamentId, account]);
   useEffect(() => {
     let active = true;
     if (!online) { setMessage('Reconnect to browse tournaments.'); return; }
@@ -117,15 +125,21 @@ export function TournamentExplorer({ account, online, matches, onPrepareFixture,
           </>}
         {detail.format && <p className="tournament-format-chip">{FORMAT_LABELS[detail.format.type]}{detail.format.type === 'GROUPS_KNOCKOUT' ? ` · ${detail.format.groupCount} group${detail.format.groupCount === 1 ? '' : 's'}` : ''}</p>}
         {detail.championId && <div className="champion-banner"><span aria-hidden="true">🏆</span><div><small>CHAMPIONS</small><strong>{teamName(detail.championId)}</strong></div></div>}
-        <div className="list-filter-tabs" role="tablist" aria-label="Tournament information">{(['teams', 'matches', 'standings', 'bracket'] as const)
-          .filter((tab) => (tab === 'bracket' ? !!detail.format && detail.format.type !== 'LEAGUE' : tab === 'standings' ? detail.format?.type !== 'KNOCKOUT' : true))
-          .map((tab) => <button key={tab} role="tab" aria-selected={detailTab === tab} className={detailTab === tab ? 'active' : ''} onClick={() => setDetailTab(tab)}>{tab === 'standings' ? 'Table' : tab[0].toUpperCase() + tab.slice(1)}</button>)}</div>
+        <Tabs
+          label="Tournament information"
+          value={detailTab}
+          onChange={setDetailTab}
+          items={(['teams', 'matches', 'standings', 'bracket', 'leaders'] as const)
+            .filter((tab) => (tab === 'bracket' ? !!detail.format && detail.format.type !== 'LEAGUE' : tab === 'standings' ? detail.format?.type !== 'KNOCKOUT' : true))
+            .map((tab) => ({ value: tab, label: tab === 'standings' ? 'Table' : tab[0].toUpperCase() + tab.slice(1) }))}
+        />
         {detailTab === 'teams' && <><h3>Teams</h3><ul className="tournament-team-list">{detail.teams.map((team, index) => <li key={team.id}><span className={`tournament-team-mark side-${index % 2}`} aria-hidden="true">{team.name.slice(0, 2).toUpperCase()}</span><span className="tournament-team-text"><strong>{team.name}</strong><small>{team.players.length ? `${team.players.length} player${team.players.length === 1 ? '' : 's'}` : 'Squad not added yet'}</small></span></li>)}</ul></>}
         {detailTab === 'matches' && <>
         <StagedFixtures fixtures={detail.fixtures} groups={detail.groups ?? []} renderFixture={(fixture) => <article className="upcoming-match-card">{fixture.roundName && <small className="fixture-stage">{fixture.roundName}</small>}<strong>{sideName(fixture, 'A', teamName)} vs {sideName(fixture, 'B', teamName)}</strong><p>{fixture.status ? `${fixture.scoreA ?? 0} : ${fixture.scoreB ?? 0} · ${fixture.status.replaceAll('_', ' ')}` : 'Upcoming'}</p><small>{fixture.scheduledAt ? new Date(fixture.scheduledAt).toLocaleString() : 'Time to be confirmed'}</small>{fixture.matchId && <MatchActions matchId={fixture.matchId} matches={matches} onScore={onScoreMatch} completed={fixture.status === 'COMPLETED'} />}</article>} />
         {!detail.fixtures.length && <p>No fixtures yet.</p>}
         </>}
         {detailTab === 'standings' && <GroupTables standings={detail.standings} groups={detail.groups ?? []} format={detail.format} />}
+        {detailTab === 'leaders' && <TournamentLeaders tournamentId={detail.tournament.id} online={online} />}
         {detailTab === 'bracket' && <BracketView fixtures={detail.fixtures} teamName={teamName} championId={detail.championId} />}
       </>}
       {message && <p role="status">{message}</p>}

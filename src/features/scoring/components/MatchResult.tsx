@@ -8,6 +8,7 @@ const TEAM_COLORS = ['#ff5a1f', '#4c7dff'] as const;
 export function MatchResult({ match, events, watchLink }: { match: LocalMatch; events: MatchEvent[]; watchLink?: string }) {
   const state = match.state;
   const summary = useMemo(() => summarizeMatch(state, events), [state, events]);
+  const margin = Math.abs(summary.teams[0].total - summary.teams[1].total);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState('');
   async function share() {
@@ -42,7 +43,7 @@ export function MatchResult({ match, events, watchLink }: { match: LocalMatch; e
         <p className="result-hero-margin">
           {summary.winner === 'DRAW'
             ? 'Level at full time · 1 table point each in a tournament'
-            : `By ${Math.abs(summary.teams[0].total - summary.teams[1].total) || 'tie-break'}${Math.abs(summary.teams[0].total - summary.teams[1].total) ? ' points' : ''} · 3 table points in a tournament`}
+            : `${margin ? `By ${margin} point${margin === 1 ? '' : 's'}` : 'Won on the tie-break'} · 3 table points in a tournament`}
         </p>
         <button className="result-share" disabled={busy} onClick={() => void share()}>
           {busy ? 'Preparing…' : 'Share result'}
@@ -50,11 +51,11 @@ export function MatchResult({ match, events, watchLink }: { match: LocalMatch; e
         </button>
         {note && <p className="field-note" role="status">{note}</p>}
       </div>
-      <div className="result-standouts">
+      {(summary.playerOfTheMatch || summary.topRaider || summary.topDefender) && <div className="result-standouts">
         <StandoutRow label="Player of the match" icon="★" standout={summary.playerOfTheMatch} value={(s) => plural(s.player.raidPoints + s.player.tacklePoints, 'pt')} featured />
         <StandoutRow label="Top raider" icon="↗" standout={summary.topRaider} value={(s) => plural(s.player.raidPoints, 'raid pt')} />
         <StandoutRow label="Top defender" icon="⛨" standout={summary.topDefender} value={(s) => plural(s.player.tacklePoints, 'tackle pt')} />
-      </div>
+      </div>}
       <div className="result-teams">
         {summary.teams.map((team, side) => (
           <TeamCard key={side} team={team} side={side as Side} winner={summary.winner === side} />
@@ -67,15 +68,16 @@ export function MatchResult({ match, events, watchLink }: { match: LocalMatch; e
 function StandoutRow({ label, icon, standout, value, featured = false }: {
   label: string; icon: string; standout: Standout | null; value: (s: Standout) => string; featured?: boolean;
 }) {
+  if (!standout) return null;
   return (
     <div className={`result-standout ${featured ? 'featured' : ''}`}>
       <span className="result-standout-icon" aria-hidden="true">{icon}</span>
       <span className="result-standout-text">
         <small>{label}</small>
-        <strong>{standout ? standout.player.name : '—'}</strong>
-        {standout && <em className={`result-from-${standout.side}`}>{standout.team}</em>}
+        <strong>{standout.player.name}</strong>
+        <em className={`result-from-${standout.side}`}>{standout.team}</em>
       </span>
-      {standout && <b>{value(standout)}</b>}
+      <b>{value(standout)}</b>
     </div>
   );
 }

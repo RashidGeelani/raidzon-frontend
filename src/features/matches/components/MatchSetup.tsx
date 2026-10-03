@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from 'react';
-import { createMatch, type TeamInput } from '../data/match-repository';
+import { useEffect, useState, type FormEvent } from 'react';
+import { createMatch, recentPlayers, type TeamInput } from '../data/match-repository';
 import type { LocalMatch, Side } from '../../scoring/domain/match-types';
 import type { PreparedFixture } from '../../tournaments/types';
 import { SavedTeamPicker } from '../../teams/SavedTeamPicker';
@@ -40,6 +40,34 @@ export function MatchSetup({
   const [raidSeconds, setRaidSeconds] = useState(preset?.raidSeconds ?? 30);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  // Players scored before on this phone, offered as suggestions so names and numbers are typed once.
+  const [recent, setRecent] = useState<{ name: string; phone: string }[]>([]);
+  useEffect(() => {
+    let active = true;
+    void recentPlayers().then((rows) => active && setRecent(rows)).catch(() => undefined);
+    return () => { active = false; };
+  }, []);
+  const phoneRequired = !!preset;
+  function quickFill() {
+    setTeams((previous) => {
+      const next = structuredClone(previous);
+      next.forEach((team, side) => {
+        if (!team.name.trim()) team.name = side === 0 ? 'Team A' : 'Team B';
+        team.players.forEach((player, index) => {
+          if (!player.name.trim()) player.name = `${side === 0 ? 'A' : 'B'} player ${index + 1}`;
+        });
+      });
+      return next;
+    });
+  }
+  function pickName(side: Side, playerIndex: number, value: string) {
+    update(side, (t) => {
+      const player = t.players[playerIndex];
+      player.name = value;
+      const known = recent.find((item) => item.name.toLowerCase() === value.trim().toLowerCase());
+      if (known && !player.phone.trim()) player.phone = known.phone;
+    });
+  }
   function update(side: Side, change: (team: TeamInput) => void) {
     setTeams((previous) => {
       const next = structuredClone(previous);
@@ -78,7 +106,7 @@ export function MatchSetup({
         <div>
           <p className="eyebrow">SET THE COURT</p>
           <h1>A match starts here.</h1>
-          <p>Seven starters. Your teams. No sign-in needed.</p>
+          <p>Seven starters a side. Phone numbers are optional — add them to keep players’ stats across matches.</p>
           {preset && (
             <p>
               Fixture prepared: {preset.teamA} vs {preset.teamB}. Add the players, then sync the
@@ -90,6 +118,48 @@ export function MatchSetup({
           Back to matches
         </button>
       </div>
+      <section className="panel settings" aria-label="Match settings">
+        <label>
+          First raid
+          <select value={firstTurn} onChange={(e) => setFirstTurn(Number(e.target.value) as Side)}>
+            <option value={0}>{teams[0].name || 'Team A'}</option>
+            <option value={1}>{teams[1].name || 'Team B'}</option>
+          </select>
+        </label>
+        <label>
+          Minutes per half
+          <input
+            required
+            type="number"
+            min={1}
+            max={60}
+            value={halfMinutes}
+            onChange={(e) => setHalfMinutes(Number(e.target.value))}
+          />
+        </label>
+        <label>
+          Seconds per raid
+          <input
+            required
+            type="number"
+            min={5}
+            max={120}
+            value={raidSeconds}
+            onChange={(e) => setRaidSeconds(Number(e.target.value))}
+          />
+        </label>
+      </section>
+      {!preset && (
+        <div className="setup-quick">
+          <button type="button" className="secondary" onClick={quickFill}>Quick match: fill blank names</button>
+          <small>Fills empty team and player names so you can start scoring straight away.</small>
+        </div>
+      )}
+      {recent.length > 0 && (
+        <datalist id="recent-players">
+          {recent.map((player) => <option key={player.phone} value={player.name}>{`•••• ${player.phone.slice(-4)}`}</option>)}
+        </datalist>
+      )}
       <div className="setup-teams">
         {teams.map((team, index) => {
           const side = index as Side;
@@ -131,7 +201,7 @@ export function MatchSetup({
                   }
                 />
               </label>
-              <p className="field-note">Players 1–7 start on court. Phone numbers stay private.</p>
+              <p className="field-note">Players 1–7 start on court.{phoneRequired ? ' Phone numbers stay private.' : ' Phone numbers are optional and stay private.'}</p>
               {team.players.map((player, playerIndex) => (
                 <div className="player-input" key={playerIndex}>
                   <span className="number">{String(playerIndex + 1).padStart(2, '0')}</span>
@@ -143,12 +213,10 @@ export function MatchSetup({
                       required
                       maxLength={70}
                       placeholder={playerIndex < 7 ? 'Starter name' : 'Substitute name'}
+                      list={recent.length ? 'recent-players' : undefined}
+                      autoComplete="off"
                       value={player.name}
-                      onChange={(e) =>
-                        update(side, (t) => {
-                          t.players[playerIndex].name = e.target.value;
-                        })
-                      }
+                      onChange={(e) => pickName(side, playerIndex, e.target.value)}
                     />
                   </label>
                   <label>
@@ -156,9 +224,9 @@ export function MatchSetup({
                       Team {side + 1} player {playerIndex + 1} phone
                     </span>
                     <input
-                      required
+                      required={phoneRequired}
                       type="tel"
-                      placeholder="Mobile number"
+                      placeholder={phoneRequired ? 'Mobile number' : 'Mobile (optional)'}
                       value={player.phone}
                       onChange={(e) =>
                         update(side, (t) => {
@@ -199,39 +267,9 @@ export function MatchSetup({
           );
         })}
       </div>
-      <section className="panel settings">
-        <label>
-          First raid
-          <select value={firstTurn} onChange={(e) => setFirstTurn(Number(e.target.value) as Side)}>
-            <option value={0}>{teams[0].name || 'Team A'}</option>
-            <option value={1}>{teams[1].name || 'Team B'}</option>
-          </select>
-        </label>
-        <label>
-          Minutes per half
-          <input
-            required
-            type="number"
-            min={1}
-            max={60}
-            value={halfMinutes}
-            onChange={(e) => setHalfMinutes(Number(e.target.value))}
-          />
-        </label>
-        <label>
-          Seconds per raid
-          <input
-            required
-            type="number"
-            min={5}
-            max={120}
-            value={raidSeconds}
-            onChange={(e) => setRaidSeconds(Number(e.target.value))}
-          />
-        </label>
-      </section>
       <p className="field-note">
         Indian numbers can omit +91. For other countries, include the country code. No OTP is sent.
+        {!phoneRequired && ' A player without a number is counted for this match only.'}
       </p>
       {error && (
         <p role="alert" className="error">

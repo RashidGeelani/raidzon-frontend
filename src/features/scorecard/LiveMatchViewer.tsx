@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { eventLabel } from '../scoring/domain/event-label';
 import { watchMatch, type LiveConnection, type LiveStateUpdate } from './live-socket';
 import type { ClockState, MatchState, Player } from '../scoring/domain/match-types';
 
@@ -9,12 +10,25 @@ interface LiveView { state: ViewerState; serverTime: number; lastSyncedAt: numbe
 export function clockRemaining(clock: ClockState, now: number) {
   return Math.max(0, clock.remainingMs - (clock.startedAt == null ? 0 : Math.max(0, now - clock.startedAt)));
 }
+type ViewerPlayer = ViewerState['teams'][number]['players'][number];
+/** Best player by a score, ignoring zeros; ties keep the first found. */
+function standout(state: ViewerState, score: (player: ViewerPlayer) => number) {
+  let best: { player: ViewerPlayer; team: string; value: number } | null = null;
+  state.teams.forEach((team) => team.players.forEach((player) => {
+    const value = score(player);
+    if (value > 0 && (!best || value > best.value)) best = { player, team: team.name, value };
+  }));
+  return best as { player: ViewerPlayer; team: string; value: number } | null;
+}
+const pts = (n: number, unit: string) => `${n} ${unit}${n === 1 ? '' : 's'}`;
+
 export function LiveMatchViewer({ matchId, onBack }: { matchId: string; onBack?: () => void }) {
   const [view, setView] = useState<LiveView | null>(null);
   const [message, setMessage] = useState('Connecting to the match…');
   const [anchor, setAnchor] = useState({ server: 0, local: performance.now() });
   const [tick, setTick] = useState(performance.now());
   const [connection, setConnection] = useState<LiveConnection>('connecting');
+  const [shareNote, setShareNote] = useState('');
   useEffect(() => {
     setView(null);
     let latest = -1;
@@ -63,12 +77,25 @@ export function LiveMatchViewer({ matchId, onBack }: { matchId: string; onBack?:
   const raider = state?.teams[state.turn].players.find((player) => player.id === state.currentRaiderId);
   const raidSeconds = state ? Math.ceil(clockRemaining(state.raidClock, now) / 1000) : 0;
   const halfSeconds = state ? Math.ceil(clockRemaining(state.clock, now) / 1000) : 0;
+  const completed = state?.status === 'COMPLETED';
+  const finalScores = state ? (state.phase === 'REGULATION' ? state.scores : state.tieScores) : [0, 0];
+  async function shareLink() {
+    const title = state ? `${state.teams[0].name} vs ${state.teams[1].name}` : 'Kabaddi match';
+    const url = window.location.href;
+    try {
+      if (navigator.share) await navigator.share({ title, text: `Follow ${title} live on raidzOn`, url });
+      else { await navigator.clipboard.writeText(url); setShareNote('Link copied'); setTimeout(() => setShareNote(''), 2500); }
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === 'AbortError')) setShareNote('Copy the address from your browser to share');
+    }
+  }
   return <section className="live-match-view" aria-label="Live match viewer">
     <header className="live-view-header">
       {onBack ? <button className="tournament-back" onClick={onBack} aria-label="Back to matches">←</button> : <a href="/">← Matches</a>}
       <span className="live-status">{state?.status.replaceAll('_', ' ') ?? 'MATCH'}</span>
       {connection === 'live' && state?.status !== 'COMPLETED' && <span className="live-push-dot" title="Updates instantly">● Real-time</span>}
-      <small>{state ? `Half ${state.half} · ${Math.floor(halfSeconds / 60)}:${String(halfSeconds % 60).padStart(2, '0')}` : ''}</small>
+      <button type="button" className="viewer-share" onClick={() => void shareLink()} aria-label="Share this match">{shareNote || 'Share'}</button>
+      <small>{completed ? 'Full time' : state ? `Half ${state.half} · ${Math.floor(halfSeconds / 60)}:${String(halfSeconds % 60).padStart(2, '0')}` : ''}</small>
     </header>
     {message && <p role="status">{message}</p>}
     {state && <>
@@ -77,16 +104,40 @@ export function LiveMatchViewer({ matchId, onBack }: { matchId: string; onBack?:
         <span className="live-raid-label">R{state.raidNumber}</span>
       </div>
       {state.phase !== 'REGULATION' && <p>{state.phase.replaceAll('_', ' ')} · Regulation {state.scores.join(' : ')}</p>}
+      {completed ? <FullTime state={state} scores={finalScores} /> : <>
       <h3 className="live-section-title">Current raid</h3>
       <div className="live-current-raider"><div><strong>{raider?.name ?? (state.status === 'COMPLETED' ? 'Match complete' : 'Waiting for the next raider')}</strong><small>{state.teams[state.turn].name} · Raid #{state.raidNumber}</small></div><span className={`live-countdown ${raidSeconds === 0 ? 'expired' : raider && raidSeconds <= 10 ? 'warning' : ''}`} aria-label="Raid time remaining">{raider ? raidSeconds : '—'}<small>seconds</small></span></div>
       {raider && raidSeconds === 0 && <p className="field-note">Time elapsed — waiting for the scorer’s decision.</p>}
       <h3 className="live-section-title">On court</h3>
-      {state.teams.map((team, side) => <div className="live-court-team" key={side}><strong>{team.name}</strong><div className="live-player-chips">{team.players.map((player, index) => player.status === 'ACTIVE' && <span className={player.id === state.currentRaiderId ? 'current' : ''} key={player.id}><b title="Roster position">{index + 1}</b><small>{player.name}</small></span>)}</div></div>)}
+      {state.teams.map((team, side) => <div className="live-court-team" key={side}><strong>{team.name}</strong><div className="live-player-chips">{team.players.map((player) => player.status === 'ACTIVE' && <span className={player.id === state.currentRaiderId ? 'current' : ''} key={player.id}><i className="court-dot" aria-hidden="true" /><small>{player.name}</small></span>)}</div></div>)}
       <h3 className="live-section-title">Substitutes</h3>
       {state.teams.map((team, side) => <div className="live-court-team" key={side}><strong>{team.name}</strong><p>{team.players.filter((player) => player.status === 'BENCH').map((player) => player.name).join(', ') || 'No substitutes'}</p></div>)}
+      </>}
       <h3 className="live-section-title">Match events</h3>
-      <ol className="live-event-list">{view?.events.map((event) => <li key={event.id}><span>{event.summary}</span><small>R{event.raidNumber}</small></li>)}</ol>
+      <ol className="live-event-list">{view?.events.map((event) => <li key={event.id}><span>{eventLabel(event.summary)}</span><small>R{event.raidNumber}</small></li>)}</ol>
       <p className="viewer-footnote">Viewer mode · Read only · Updates follow the scorer’s connection.<br />Last synced {new Date(view!.lastSyncedAt).toLocaleTimeString()}</p>
     </>}
+  </section>;
+}
+
+function FullTime({ state, scores }: { state: ViewerState; scores: [number, number] | number[] }) {
+  const headline = state.winner === 'DRAW' || state.winner == null ? 'Match drawn' : `${state.teams[state.winner].name} win`;
+  const margin = Math.abs(scores[0] - scores[1]);
+  const rows = [
+    { label: 'Player of the match', icon: '★', best: standout(state, (p) => p.raidPoints + p.tacklePoints), unit: 'pt' },
+    { label: 'Top raider', icon: '↗', best: standout(state, (p) => p.raidPoints), unit: 'raid pt' },
+    { label: 'Top defender', icon: '⛨', best: standout(state, (p) => p.tacklePoints), unit: 'tackle pt' },
+  ].filter((row) => row.best);
+  return <section className="viewer-fulltime" aria-label="Full time">
+    <p className="eyebrow">FULL TIME</p>
+    <h3>{headline}</h3>
+    <p className="viewer-fulltime-margin">{state.winner === 'DRAW' || state.winner == null ? `Level at ${scores[0]} – ${scores[1]}` : margin ? `By ${pts(margin, 'point')}` : 'Won on the tie-break'}</p>
+    {rows.length > 0 && <div className="result-standouts">
+      {rows.map((row, index) => <div key={row.label} className={`result-standout ${index === 0 ? 'featured' : ''}`}>
+        <span className="result-standout-icon" aria-hidden="true">{row.icon}</span>
+        <span className="result-standout-text"><small>{row.label}</small><strong>{row.best!.player.name}</strong><em>{row.best!.team}</em></span>
+        <b>{pts(row.best!.value, row.unit)}</b>
+      </div>)}
+    </div>}
   </section>;
 }

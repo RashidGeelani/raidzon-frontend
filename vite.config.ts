@@ -5,23 +5,25 @@ export default defineConfig({
   plugins: [
     VitePWA({
       registerType: 'prompt',
-      includeAssets: ['brand/raidzon-logo.png'],
+      includeAssets: ['brand/raidzon-logo-256.webp', 'brand/raidzon-logo-192.png'],
       manifest: {
         name: 'raidzOn',
         short_name: 'raidzOn',
         description: 'Courtside kabaddi scoring. Ready offline.',
-        theme_color: '#14281f',
-        background_color: '#f5f4ee',
+        theme_color: '#0e0e1c',
+        background_color: '#0e0e1c',
         display: 'standalone',
         start_url: '/',
         icons: [
-          { src: '/brand/raidzon-logo.png', sizes: '3919x3919', type: 'image/png', purpose: 'any' },
+          { src: '/brand/raidzon-logo-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/brand/raidzon-logo-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
         ],
       },
       workbox: {
-        // Keep the supplied full-resolution logo available offline.
-        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
-        globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
+        // The full-resolution source logo is not needed in the app; small copies are precached instead.
+        maximumFileSizeToCacheInBytes: 2 * 1024 * 1024,
+        globPatterns: ['**/*.{js,css,html,svg,png,webp,ico}'],
+        globIgnores: ['brand/raidzon-logo.png'],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
       },

@@ -15,6 +15,8 @@ import { scoreRaid, type RaidOutcome } from '../domain/score-raid';
 import { undoTarget } from '../../matches/data/match-repository';
 import { CourtDrawers } from './CourtDrawers';
 import { MatchResult } from './MatchResult';
+import { SidelineToggle } from '../../../app/DisplaySettingsCard';
+import { eventLabel, plural } from '../domain/event-label';
 import { raidWarning, unlockRaidAudio, useRaidWarning } from '../raid-warning';
 
 const clockText = (ms: number) =>
@@ -39,8 +41,8 @@ export function LiveMatch({
 }) {
   const state = match.state;
   const [now, setNow] = useState(Date.now());
-  const [raiderId, setRaiderId] = useState('');
-  const [outcome, setOutcome] = useState<RaidOutcome>('EMPTY');
+  // No outcome is pre-selected, so a rushed Confirm cannot record an empty raid by accident.
+  const [outcome, setOutcome] = useState<RaidOutcome | null>(null);
   const [defenders, setDefenders] = useState<string[]>([]);
   const [tacklerId, setTacklerId] = useState('');
   const [bonus, setBonus] = useState(false);
@@ -62,7 +64,7 @@ export function LiveMatch({
     setDefenders([]);
     setTacklerId('');
     setBonus(false);
-    setOutcome('EMPTY');
+    setOutcome(null);
     setSelfOutId('');
     setRaidSelfOuts([]);
     setOutOrder([]);
@@ -120,8 +122,8 @@ export function LiveMatch({
       previous.includes(id) ? previous.filter((item) => item !== id) : [...previous, id],
     );
   }
-  let raidPreview = 'Select the raid outcome and players.';
-  try {
+  let raidPreview = 'Choose what happened in the raid.';
+  if (outcome) try {
     const effectiveOutcome =
       state.phase !== 'REGULATION' && outcome === 'EMPTY' && !bonus ? 'SELF_OUT' : outcome;
     const result = scoreRaid({
@@ -131,10 +133,20 @@ export function LiveMatch({
       defenderSelfOuts: raidSelfOuts.length,
       bonus,
     });
-    raidPreview = `${attack.name} +${result.attackingPoints} · ${defend.name} +${result.defendingPoints}`;
-    if (effectiveOutcome !== outcome)
-      raidPreview += ' · No scoring point: raider OUT, opponent gets one point and one revival';
-    else if (result.superTackleExtra) raidPreview += ' · Super Tackle';
+    const parts: string[] = [];
+    if (result.attackingPoints) parts.push(`+${result.attackingPoints} ${attack.name}`);
+    if (result.defendingPoints) parts.push(`+${result.defendingPoints} ${defend.name}`);
+    if (!parts.length) parts.push('No points');
+    const outs = defenders.length + raidSelfOuts.length;
+    if (outs) parts.push(`${outs} defender${outs === 1 ? '' : 's'} out`);
+    if (effectiveOutcome === 'TACKLE' || effectiveOutcome === 'SELF_OUT') parts.push('raider out');
+    // Revivals only happen when someone is waiting to come back.
+    const revived = Math.min(result.attackingRevivals, attack.queue.length);
+    if (revived) parts.push(`${revived} revived`);
+    if (result.allOutPoints) parts.push('All-out');
+    if (effectiveOutcome !== outcome) parts.push('no touch in a tie-break: raider out');
+    else if (result.superTackleExtra) parts.push('Super Tackle');
+    raidPreview = parts.join(' · ');
   } catch {
     /* Incomplete selections are validated on confirmation. */
   }
@@ -150,13 +162,13 @@ export function LiveMatch({
 
   return (
     <div className="scoring-screen" onPointerDown={unlockRaidAudio}>
-      <header className="live-view-header"><button className="tournament-back" onClick={onBack} aria-label="Back to matches">←</button><span className="live-status">{state.status.replaceAll('_', ' ')}</span><small>{state.status === 'COMPLETED' ? 'Match result' : 'Scorer mode'}</small>{onShare && <button className="share-live-button secondary" onClick={onShare}>Share live link</button>}</header>
+      <header className="live-view-header"><button className="tournament-back" onClick={onBack} aria-label="Back to matches">←</button><span className="live-status">{state.status.replaceAll('_', ' ')}</span><small>{state.status === 'COMPLETED' ? 'Match result' : 'Scorer mode'}</small><SidelineToggle />{onShare && <button className="share-live-button secondary" onClick={onShare}>Share live link</button>}</header>
       {!isScorable(match.rulesetVersion) && (
         <p role="status" className="field-note">
           Previous ruleset: history is preserved. Start a new match to use the updated rules.
         </p>
       )}
-      <section className="scoreboard" aria-label="Scoreboard">
+      <section className={`scoreboard ${state.status !== 'COMPLETED' ? 'scoreboard-compact' : ''}`} aria-label="Scoreboard">
         <div className="score-meta">
           <span>
             <i className={`dot ${live ? 'live' : ''}`} />
@@ -211,7 +223,7 @@ export function LiveMatch({
           ) : (
             <>
               <span>Raid #{state.raidNumber}</span>
-              <span>{match.serverVersion === match.version ? 'Synced' : 'Saved on device'}</span>
+              <span>{match.serverVersion === match.version ? 'Backed up' : 'On this phone'}</span>
             </>
           )}
         </div>
@@ -335,6 +347,16 @@ export function LiveMatch({
                   {clockText(raidRemaining)}
                 </div>
               </div>
+              {currentRaider && target?.intent.type === 'START_RAID' && state.status === 'LIVE' && (
+                <button
+                  type="button"
+                  className="quiet wrong-raider"
+                  disabled={saving}
+                  onClick={() => onRecord({ type: 'UNDO', targetEventId: target.id })}
+                >
+                  ↶ Wrong raider? Pick again
+                </button>
+              )}
               {state.status === 'PAUSED' ? (
                 <button
                   className="primary"
@@ -348,28 +370,21 @@ export function LiveMatch({
                   {!currentRaider ? (
                     <>
                       <p className="field-note">
-                        Select a player. Starting the raid begins the raid clock.
+                        Tap the raider to start the raid and its clock.
                       </p>
                       <div className="player-grid">
                         {eligibleRaiders.map((p) => (
                           <button
                             key={p.id}
-                            className={`player-chip ${raiderId === p.id ? 'selected' : ''}`}
-                            aria-pressed={raiderId === p.id}
-                            onClick={() => setRaiderId(p.id)}
+                            className="player-chip"
+                            disabled={saving}
+                            onClick={() => onRecord({ type: 'START_RAID', raiderId: p.id })}
                           >
                             {p.name}
                             <small>{p.raidPoints} raid pts</small>
                           </button>
                         ))}
                       </div>
-                      <button
-                        className="primary"
-                        disabled={saving || !eligibleRaiders.some((p) => p.id === raiderId)}
-                        onClick={() => onRecord({ type: 'START_RAID', raiderId })}
-                      >
-                        Start raid →
-                      </button>
                     </>
                   ) : expiryPending ? (
                     <div className="expiry">
@@ -448,7 +463,7 @@ export function LiveMatch({
                           </small>
                         </span>
                       </label>
-                      {outcome !== 'EMPTY' && outcome !== 'TACKLE' && (
+                      {outcome && outcome !== 'EMPTY' && outcome !== 'TACKLE' && (
                         <>
                           <p className="field-note">Select defenders OUT, in OUT order.</p>
                           <div className="player-grid">
@@ -545,11 +560,13 @@ export function LiveMatch({
                           </div>
                         </>
                       )}
+                      <div className="raid-confirm-bar">
                       <div className="outcome-preview">{raidPreview}</div>
                       <button
                         className="primary full"
                         disabled={
                           saving ||
+                          !outcome ||
                           (outcome === 'TOUCH' && !defenders.length) ||
                           (outcome === 'TACKLE' && !tacklerId)
                         }
@@ -557,7 +574,7 @@ export function LiveMatch({
                           onRecord({
                             type: 'RAID',
                             raiderId: currentRaider.id,
-                            outcome,
+                            outcome: outcome!,
                             defenderIds: defenders,
                             defenderOutOrder: outOrder,
                             selfOutDefenderIds: raidSelfOuts,
@@ -568,6 +585,7 @@ export function LiveMatch({
                       >
                         {saving ? 'Saving…' : 'Confirm raid →'}
                       </button>
+                      </div>
                     </>
                   )}
                 </>
@@ -582,7 +600,7 @@ export function LiveMatch({
                 target &&
                 confirmAction(
                   { type: 'UNDO', targetEventId: target.id },
-                  `Undo “${target.summary}” and restore its prior state?`,
+                  `Undo “${eventLabel(target.summary)}”?`,
                 )
               }
             >
@@ -715,7 +733,7 @@ export function LiveMatch({
           <section className="panel">
             <div className="panel-title">
               <h2>Match timeline</h2>
-              <span className="tag">{events.length} events</span>
+              <span className="tag">{plural(events.length, 'event')}</span>
             </div>
             {events.length === 0 ? (
               <p className="muted">A clear court. Start the first raid to begin the story.</p>
@@ -725,14 +743,14 @@ export function LiveMatch({
                   <li key={event.id} className={reversed.has(event.id) ? 'reversed' : ''}>
                     <span className="event-number">{String(event.sequence).padStart(2, '0')}</span>
                     <div>
-                      <strong>{event.summary}</strong>
+                      <strong>{eventLabel(event.summary)}</strong>
                       <small>
                         {event.components
                           .map(
                             (c) =>
                               `${state.teams[c.side].name} +${c.points} ${c.kind.toLowerCase().replaceAll('_', ' ')}`,
                           )
-                          .join(' · ') || 'Match state updated'}
+                          .join(' · ')}
                         {reversed.has(event.id) ? ' · UNDONE' : ''}
                       </small>
                     </div>

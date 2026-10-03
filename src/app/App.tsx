@@ -1,4 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Tabs } from '../ui/Tabs';
+import { Chip } from '../ui/Chip';
+import { DisplaySettingsCard } from './DisplaySettingsCard';
+import { ProfileAvatar } from './ProfileAvatar';
 import { restoreSession } from '../features/identity/data/session-store';
 import { liveQuery } from 'dexie';
 import { useRegisterSW } from 'virtual:pwa-register/react';
@@ -7,7 +11,8 @@ import { MatchSetup } from '../features/matches/components/MatchSetup';
 import { LiveMatch } from '../features/scoring/components/LiveMatch';
 import { LiveMatchViewer } from '../features/scorecard/LiveMatchViewer';
 import { AccountSync } from '../features/identity/components/AccountSync';
-import { SyncedLeaderboards } from '../features/scoring/components/SyncedLeaderboards';
+import { LocalLeaderboards } from '../features/scoring/components/LocalLeaderboards';
+import { HomeFeed } from './HomeFeed';
 import type { PreparedFixture } from '../features/tournaments/types';
 import { UpcomingMatches } from '../features/tournaments/UpcomingMatches';
 import { JoinedTournamentMatches } from '../features/tournaments/JoinedTournamentMatches';
@@ -19,19 +24,46 @@ import { LiveSyncBadge } from '../features/sync/LiveSyncBadge';
 import { ShareMatchPopup } from '../features/scorecard/ShareMatchPopup';
 import type { Focus } from '../features/notifications/notification-client';
 
+function readFlag(key: string) {
+  try {
+    return localStorage.getItem(key) === '1';
+  } catch {
+    return false;
+  }
+}
+function writeFlag(key: string) {
+  try {
+    localStorage.setItem(key, '1');
+  } catch {
+    /* private mode: the splash simply plays again */
+  }
+}
+
 export function App() {
   const [startup, setStartup] = useState<'splash' | 'signin' | 'ready'>('splash');
-  const finishSignIn = useCallback(() => setStartup((current) => current === 'signin' ? 'ready' : current), []);
+  const finishSignIn = useCallback(
+    () => setStartup((current) => (current === 'signin' ? 'ready' : current)),
+    [],
+  );
   useEffect(() => {
     let active = true;
     let timer: ReturnType<typeof setTimeout>;
-    const minimumSplash = new Promise<void>((resolve) => { timer = setTimeout(resolve, 1200); });
-    void Promise.all([restoreSession().catch(() => null), minimumSplash]).then(([account]) => {
-      if (active) setStartup(account ? 'ready' : 'signin');
+    // The full splash plays on the first launch only; afterwards the app opens almost at once.
+    const seen = readFlag('raidzon.launched');
+    const minimumSplash = new Promise<void>((resolve) => {
+      timer = setTimeout(resolve, seen ? 250 : 1200);
     });
-    return () => { active = false; clearTimeout(timer); };
+    void Promise.all([restoreSession().catch(() => null), minimumSplash]).then(([account]) => {
+      writeFlag('raidzon.launched');
+      // A guest who chose "Continue offline" before goes straight to the app.
+      if (active) setStartup(account || readFlag('raidzon.guest') ? 'ready' : 'signin');
+    });
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
   }, []);
-  const [tab, setTab] = useState<'home' | 'tournaments' | 'teams' | 'matches' | 'leaderboards' | 'profile'>('home');
+  const [tab, setTab] = useState<'home' | 'tournaments' | 'teams' | 'matches' | 'profile'>('home');
   const [matchFilter, setMatchFilter] = useState<'UPCOMING' | 'LIVE' | 'COMPLETED'>('LIVE');
   const [matches, setMatches] = useState<LocalMatch[]>([]);
   const [events, setEvents] = useState<MatchEvent[]>([]);
@@ -49,7 +81,6 @@ export function App() {
   const closeShare = useCallback(() => setShareId(null), []);
   const busy = useRef(false);
   const {
-    offlineReady: [offlineReady],
     needRefresh: [needRefresh],
     updateServiceWorker,
   } = useRegisterSW();
@@ -106,8 +137,21 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [match?.id, match?.version, match?.serverVersion, online, unsent]);
   const matchOwner = match?.serverAccountId ?? match?.localAccountId;
-  const canScore = match && !match.scoringDelegated && match.ownerSessionId === session && (!matchOwner || matchOwner === scoringAccount);
-  const liveCount = matches.filter((m) => m.state.status !== 'COMPLETED').length;
+  const canScore =
+    match &&
+    !match.scoringDelegated &&
+    match.ownerSessionId === session &&
+    (!matchOwner || matchOwner === scoringAccount);
+  const canScoreMatch = (item: LocalMatch) => {
+    const owner = item.serverAccountId ?? item.localAccountId;
+    return (
+      !item.scoringDelegated &&
+      item.ownerSessionId === session &&
+      (!owner || owner === scoringAccount)
+    );
+  };
+  // Scoring and match setup are task screens: no app header, footer or tab bar.
+  const taskScreen = startup === 'ready' && (setup || !!match);
   async function record(intent: MatchIntent) {
     if (!match || busy.current) return;
     busy.current = true;
@@ -146,6 +190,13 @@ export function App() {
     setSelectedId(null);
     setError('');
   }
+  function openTournament(id: string) {
+    setSetup(false);
+    setSelectedId(null);
+    setError('');
+    setTab('tournaments');
+    setFocus({ tournamentId: id, view: 'public', nonce: Date.now() });
+  }
   function openNotification(next: Focus) {
     setSetup(false);
     setSelectedId(null);
@@ -160,7 +211,16 @@ export function App() {
   }
   return (
     <div className={`app-shell ${startup !== 'ready' ? 'startup-shell' : ''}`}>
-      {startup === 'splash' && <div className="launch-splash" role="status" aria-label="Starting raidzOn"><img src="/brand/raidzon-logo.png" alt="" /><h1>raidz<span>On</span></h1><p>EVERY RAID. EVERY POINT.</p><span className="launch-progress" /></div>}
+      {startup === 'splash' && (
+        <div className="launch-splash" role="status" aria-label="Starting raidzOn">
+          <img src="/brand/raidzon-logo-256.webp" alt="" />
+          <h1>
+            raidz<span>On</span>
+          </h1>
+          <p>EVERY RAID. EVERY POINT.</p>
+          <span className="launch-progress" />
+        </div>
+      )}
       <aside className="sidebar">
         <a
           className="brand"
@@ -170,7 +230,7 @@ export function App() {
             home();
           }}
         >
-          <img src="/brand/raidzon-logo.png" alt="raidzOn — Every raid, every point" />
+          <img src="/brand/raidzon-logo-256.webp" alt="raidzOn — Every raid, every point" />
         </a>
         <p className="sidebar-caption">THE GAME. IN YOUR HANDS.</p>
         <nav>
@@ -189,35 +249,89 @@ export function App() {
           </div>
         </div>
       </aside>
-      <div className={`workspace ${setup ? 'workspace-wide' : ''}`}>
+      <div
+        className={`workspace ${setup ? 'workspace-wide' : ''} ${taskScreen ? 'task-screen' : ''}`}
+      >
         <header className="topbar">
-          <span className="topbar-brand"><img src="/brand/raidzon-logo.png" alt="raidzOn" /><span>YOUR COURTSIDE COMPANION</span></span>
+          <span className="topbar-brand">
+            <img src="/brand/raidzon-logo-256.webp" alt="raidzOn" />
+            <span>YOUR COURTSIDE COMPANION</span>
+          </span>
           <div>
             {startup === 'ready' && <NotificationBell online={online} onOpen={openNotification} />}
-            <span className="network">
+            {startup === 'ready' && (
+              <button
+                type="button"
+                className={`topbar-profile ${tab === 'profile' ? 'active' : ''}`}
+                aria-label="Profile"
+                aria-current={tab === 'profile' ? 'page' : undefined}
+                onClick={() => navigate('profile')}
+              >
+                <ProfileAvatar online={online} refreshKey={`${tab}:${startup}`} />
+              </button>
+            )}
+            <span
+              className={`network ${online ? '' : 'network-offline'}`}
+              title={online ? 'Online' : 'Offline: scores are saved on this phone'}
+            >
               <i className={`dot ${online ? 'live' : ''}`} />
               {online ? 'Online' : 'Offline'}
-            </span>
-            <span className="tag">
-              {offlineReady || navigator.serviceWorker?.controller
-                ? 'Ready offline'
-                : 'Local-first scoring'}
             </span>
           </div>
         </header>
         <main>
-          <div className={startup === 'signin' ? 'account-entry signin-screen' : 'account-entry'} hidden={startup === 'splash' || (startup === 'ready' && (!!setup || !!match || (tab !== 'tournaments' && tab !== 'teams' && tab !== 'profile')))}>
-            {startup === 'signin' && <header className="signin-brand"><img src="/brand/raidzon-logo.png" alt="" /><p className="signin-wordmark">raidz<span>On</span></p><h1>Welcome to the court</h1><p>Sign in to keep your matches with you.</p></header>}
+          <div
+            className={startup === 'signin' ? 'account-entry signin-screen' : 'account-entry'}
+            hidden={
+              startup === 'splash' ||
+              (startup === 'ready' &&
+                (!!setup ||
+                  !!match ||
+                  (tab !== 'tournaments' && tab !== 'teams' && tab !== 'profile')))
+            }
+          >
+            {startup === 'signin' && (
+              <header className="signin-brand">
+                <img src="/brand/raidzon-logo-256.webp" alt="" />
+                <p className="signin-wordmark">
+                  raidz<span>On</span>
+                </p>
+                <h1>Welcome to the court</h1>
+                <p>Sign in to keep your matches with you.</p>
+              </header>
+            )}
             <AccountSync
               onSignedIn={finishSignIn}
-              section={tab === 'tournaments' ? 'tournaments' : tab === 'teams' ? 'teams' : tab === 'profile' ? 'profile' : 'all'}
+              section={
+                tab === 'tournaments'
+                  ? 'tournaments'
+                  : tab === 'teams'
+                    ? 'teams'
+                    : tab === 'profile'
+                      ? 'profile'
+                      : 'all'
+              }
               online={online}
               matches={matches}
               onPrepareFixture={prepareFixture}
               onScoreMatch={setSelectedId}
               focus={focus}
             />
-            {startup === 'signin' && <div className="signin-guest"><span>or get straight to the game</span><button className="secondary" onClick={() => setStartup('ready')}>Continue offline</button><p>No account needed to score. Sign in later from Profile.</p></div>}
+            {startup === 'signin' && (
+              <div className="signin-guest">
+                <span>or get straight to the game</span>
+                <button
+                  className="secondary"
+                  onClick={() => {
+                    writeFlag('raidzon.guest');
+                    setStartup('ready');
+                  }}
+                >
+                  Continue offline
+                </button>
+                <p>No account needed to score. Sign in later from Profile.</p>
+              </div>
+            )}
           </div>
           {error && (
             <div className="error" role="alert">
@@ -239,110 +353,77 @@ export function App() {
                 // Create the match on the server immediately so it can be watched from the first raid.
                 void pushNow(created.id);
                 // Signed-in scorers get a live link straight away; it goes public once the upload lands.
-                void restoreSession().catch(() => null).then((account) => { if (account) setShareId(created.id); });
+                void restoreSession()
+                  .catch(() => null)
+                  .then((account) => {
+                    if (account) setShareId(created.id);
+                  });
               }}
             />
-            ) : match && !canScore ? (
-              <LiveMatchViewer matchId={match.id} onBack={home} />
-            ) : match ? (
+          ) : match && !canScore ? (
+            <LiveMatchViewer matchId={match.id} onBack={home} />
+          ) : match ? (
             <>
-            <LiveSyncBadge matchId={match.id} online={online} pending={unsent} syncError={match.syncError} />
-            <LiveMatch
-              match={match}
-              events={events}
-              onRecord={record}
-              onBack={home}
-              onShare={() => setShareId(match.id)}
-              saving={saving}
-            />
-            {shareId === match.id && <ShareMatchPopup matchId={match.id} online={online} onClose={closeShare} />}
+              <LiveSyncBadge
+                matchId={match.id}
+                online={online}
+                pending={unsent}
+                syncError={match.syncError}
+              />
+              <LiveMatch
+                match={match}
+                events={events}
+                onRecord={record}
+                onBack={home}
+                onShare={() => setShareId(match.id)}
+                saving={saving}
+              />
+              {shareId === match.id && (
+                <ShareMatchPopup matchId={match.id} online={online} onClose={closeShare} />
+              )}
             </>
-          ) : tab === 'leaderboards' ? (
-            <SyncedLeaderboards matches={matches} online={online} />
-          ) : tab === 'tournaments' || tab === 'teams' || tab === 'profile' ? null : (
+          ) : tab === 'home' ? (
+            <HomeFeed
+              matches={matches}
+              canResume={canScoreMatch}
+              online={online}
+              loaded={loaded}
+              session={session}
+              onOpenMatch={(id) => {
+                setSelectedId(id);
+                setError('');
+              }}
+              onStartMatch={startSetup}
+              onPrepare={prepareFixture}
+              onOpenTournament={openTournament}
+              onBrowseTournaments={() => navigate('tournaments')}
+            />
+          ) : tab === 'profile' ? (
+            <DisplaySettingsCard />
+          ) : tab === 'tournaments' || tab === 'teams' ? null : (
             <>
-              {tab === 'matches' ? <header className="list-screen-heading"><h2>Matches</h2><p>Your saved and scheduled games</p></header> : <div className="section-heading">
-                <div>
-                  <p className="eyebrow">{tab === 'home' ? 'WELCOME TO THE COURT' : 'MATCH CENTER'}</p>
-                  <h1>{tab === 'home' ? 'Ready for the next raid?' : 'Your matches'}</h1>
-                  <p>Keep your focus on the game. We’ll keep the score.</p>
-                </div>
-                <span className="date-label">
-                  {new Intl.DateTimeFormat('en', {
-                    day: 'numeric',
-                    month: 'short',
-                    year: 'numeric',
-                  }).format(new Date())}
-                </span>
-              </div>}
-              {tab === 'matches' && <div className="list-filter-tabs" role="tablist" aria-label="Match status">
-                {(['UPCOMING', 'LIVE', 'COMPLETED'] as const).map((status) => <button type="button" role="tab" aria-selected={matchFilter === status} className={matchFilter === status ? 'active' : ''} key={status} onClick={() => setMatchFilter(status)}>{status[0] + status.slice(1).toLowerCase()}</button>)}
-              </div>}
-              {tab === 'home' && <section className="hero">
-                <div className="hero-copy">
-                  <span className="hero-tag">BUILT FOR THE SIDELINES</span>
-                  <h2>
-                    Big moments.
-                    <br />
-                    Every point recorded.
-                  </h2>
-                  <p>
-                    From the opening raid to the final whistle.
-                    <br />
-                    Start a match, even without a connection.
-                  </p>
-                  <button className="lime" disabled={!session} onClick={startSetup}>
-                    ＋ Start a match <span>↗</span>
-                  </button>
-                  <small>No sign-in. No interruption.</small>
-                </div>
-                <div className="court-art" aria-hidden="true">
-                  <div className="court-lines">
-                    <div className="court-half" />
-                    <div className="court-half" />
-                    <i className="court-player p1" />
-                    <i className="court-player p2" />
-                    <i className="court-player p3" />
-                    <i className="court-player p4" />
-                    <i className="court-player p5" />
-                    <i className="court-player p6" />
-                    <i className="court-player p7" />
-                    <div className="raid-trail" />
-                  </div>
-                  <span>OWN THE COURT.</span>
-                </div>
-              </section>}
-              {tab === 'home' && <div className="home-stats">
-                <div>
-                  <span className="stat-icon">↗</span>
-                  <p>
-                    <strong>{liveCount}</strong>
-                    <small>Matches in progress</small>
-                  </p>
-                </div>
-                <div>
-                  <span className="stat-icon">✓</span>
-                  <p>
-                    <strong>{matches.length - liveCount}</strong>
-                    <small>Completed matches</small>
-                  </p>
-                </div>
-                <div>
-                  <span className="stat-icon">◉</span>
-                  <p>
-                    <strong>On your device</strong>
-                    <small>Every event saved locally</small>
-                  </p>
-                </div>
-              </div>}
-              <section className={`matches-section ${tab === 'matches' ? 'matches-screen' : ''}`}>
+              <header className="list-screen-heading">
+                <h2>Matches</h2>
+                <p>Live, upcoming and finished games</p>
+              </header>
+              <Tabs
+                label="Match status"
+                value={matchFilter}
+                onChange={setMatchFilter}
+                items={[
+                  { value: 'UPCOMING', label: 'Upcoming' },
+                  { value: 'LIVE', label: 'Live' },
+                  { value: 'COMPLETED', label: 'Completed' },
+                ]}
+              />
+              <section className="matches-section matches-screen">
                 <div className="panel-title">
                   <h2>
                     Your matches <span className="count">{matches.length}</span>
                   </h2>
                   <span className="muted">Most recently played</span>
                 </div>
-                {tab === 'matches' && matchFilter === 'UPCOMING' ? (
+                {matchFilter === 'UPCOMING' ? (
                   <UpcomingMatches matches={matches} online={online} onPrepare={prepareFixture} />
                 ) : !loaded ? (
                   <p>Loading your saved matches…</p>
@@ -357,67 +438,116 @@ export function App() {
                   </div>
                 ) : (
                   <div className="match-cards">
-                    {matches.filter((item) => tab !== 'matches' || (matchFilter === 'LIVE' && item.state.status !== 'COMPLETED') || (matchFilter === 'COMPLETED' && item.state.status === 'COMPLETED')).map((item) => (
-                      <button
-                        className={`match-card ${tab === 'matches' ? 'match-list-card' : ''}`}
-                        key={item.id}
-                        onClick={() => {
-                          setSelectedId(item.id);
-                          setError('');
-                        }}
-                      >
-                        <div>
-                          <span className="tag">{item.state.status.replaceAll('_', ' ')}</span>
-                          <small>
-                            {item.serverAccountId &&
-                            item.serverVersion === item.version &&
-                            !item.syncError
-                              ? 'Synced to account'
-                              : 'Saved on device'}
-                          </small>
-                        </div>
-                        {tab === 'matches' && <small className="match-card-context">{item.name} · Raid #{item.state.raidNumber}</small>}
-                        {tab === 'matches' && <div className="match-card-score"><span><b>{item.state.teams[0].name.slice(0, 3).toUpperCase()}</b><small>{item.state.teams[0].name}</small></span><strong>{item.state.scores[0]} : {item.state.scores[1]}</strong><span><b>{item.state.teams[1].name.slice(0, 3).toUpperCase()}</b><small>{item.state.teams[1].name}</small></span></div>}
-                        {tab !== 'matches' && <>
-                        <h3>
-                          {item.state.teams[0].name}
-                          <strong>{item.state.scores[0]}</strong>
-                        </h3>
-                        <h3>
-                          {item.state.teams[1].name}
-                          <strong>{item.state.scores[1]}</strong>
-                        </h3>
-                        </>}
-                        <p>
-                          {item.state.status === 'COMPLETED' ? 'View result' : 'Resume match'}{' '}
-                          <span>→</span>
-                        </p>
-                      </button>
-                    ))}
-                    {tab === 'matches' && matchFilter !== 'UPCOMING' && !matches.some((item) => matchFilter === 'LIVE' ? item.state.status !== 'COMPLETED' : item.state.status === 'COMPLETED') && <div className="list-empty">No {matchFilter.toLowerCase()} matches yet.</div>}
+                    {matches
+                      .filter(
+                        (item) =>
+                          (matchFilter === 'LIVE' && item.state.status !== 'COMPLETED') ||
+                          (matchFilter === 'COMPLETED' && item.state.status === 'COMPLETED'),
+                      )
+                      .map((item) => (
+                        <button
+                          className="match-card match-list-card"
+                          key={item.id}
+                          onClick={() => {
+                            setSelectedId(item.id);
+                            setError('');
+                          }}
+                        >
+                          <div>
+                            <Chip tone={item.state.status === 'COMPLETED' ? 'success' : 'live'}>
+                              {item.state.status === 'COMPLETED'
+                                ? 'Full time'
+                                : item.state.status === 'LIVE'
+                                  ? '● Live'
+                                  : item.state.status.replaceAll('_', ' ').toLowerCase()}
+                            </Chip>
+                            <small>
+                              {item.serverAccountId &&
+                              item.serverVersion === item.version &&
+                              !item.syncError
+                                ? 'Backed up'
+                                : 'On this phone'}
+                            </small>
+                          </div>
+                          {
+                            <small className="match-card-context">
+                              {item.name} · Raid #{item.state.raidNumber}
+                            </small>
+                          }
+                          {
+                            <div className="match-card-score">
+                              <span>
+                                <b>{item.state.teams[0].name.slice(0, 3).toUpperCase()}</b>
+                                <small>{item.state.teams[0].name}</small>
+                              </span>
+                              <strong>
+                                {item.state.scores[0]} : {item.state.scores[1]}
+                              </strong>
+                              <span>
+                                <b>{item.state.teams[1].name.slice(0, 3).toUpperCase()}</b>
+                                <small>{item.state.teams[1].name}</small>
+                              </span>
+                            </div>
+                          }
+                          <p>
+                            {item.state.status === 'COMPLETED' ? 'View result' : 'Resume match'}{' '}
+                            <span>→</span>
+                          </p>
+                        </button>
+                      ))}
+                    {!matches.some((item) =>
+                      matchFilter === 'LIVE'
+                        ? item.state.status !== 'COMPLETED'
+                        : item.state.status === 'COMPLETED',
+                    ) && (
+                      <div className="list-empty">No {matchFilter.toLowerCase()} matches yet.</div>
+                    )}
                   </div>
                 )}
-                {tab === 'matches' && <JoinedTournamentMatches filter={matchFilter} online={online} matches={matches} onScoreMatch={setSelectedId} />}
-                {tab === 'matches' && <button className="match-create-action" disabled={!session} onClick={startSetup}>+ New standalone match</button>}
+                {
+                  <JoinedTournamentMatches
+                    filter={matchFilter}
+                    online={online}
+                    matches={matches}
+                    onScoreMatch={setSelectedId}
+                  />
+                }
               </section>
-              {tab === 'home' && <div className="local-note">
-                <span>◈</span>
-                <p>
-                  <strong>Built to keep going.</strong> Matches stay on this browser. Sign in and
-                  sync to save a copy to your account when connected.
-                </p>
-              </div>}
+              <details className="panel local-stats">
+                <summary>Player stats from matches on this phone</summary>
+                <LocalLeaderboards matches={matches} />
+              </details>
             </>
           )}
         </main>
-        {!setup && !match && (
+        {!taskScreen && (
           <nav className="bottom-nav" aria-label="Main navigation">
-            {(['home', 'tournaments', 'teams', 'matches', 'leaderboards', 'profile'] as const).map((item) => (
-              <button key={item} className={tab === item ? 'active' : ''} onClick={() => navigate(item)} aria-current={tab === item ? 'page' : undefined}>
-                <span aria-hidden="true">{{ home: '⌂', tournaments: '▦', teams: '⚑', matches: '◉', leaderboards: '▥', profile: '●' }[item]}</span>
-                {item[0].toUpperCase() + item.slice(1)}
-              </button>
-            ))}
+            {(['home', 'matches', 'score', 'tournaments', 'teams'] as const).map((item) =>
+              item === 'score' ? (
+                <button
+                  key={item}
+                  className="nav-score"
+                  disabled={!session}
+                  onClick={startSetup}
+                  aria-label="Score a new match"
+                >
+                  <span aria-hidden="true">＋</span>
+                  Score
+                </button>
+              ) : (
+                <button
+                  key={item}
+                  className={tab === item ? 'active' : ''}
+                  onClick={() => navigate(item)}
+                  aria-current={tab === item ? 'page' : undefined}
+                >
+                  <span aria-hidden="true">
+                    {{ home: '⌂', tournaments: '▦', teams: '⚑', matches: '◉' }[item]}
+                  </span>
+                  {item[0].toUpperCase() + item.slice(1)}
+                </button>
+              ),
+            )}
           </nav>
         )}
         <footer>

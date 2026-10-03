@@ -18,6 +18,8 @@ export interface Inbox {
 /** Where a tapped notification should take the user. nonce makes repeated taps re-trigger. */
 export interface Focus {
   tournamentId?: string;
+  /** 'public' opens the read-only tournament page instead of the organizer dashboard. */
+  view?: 'public';
   teamId?: string;
   nonce: number;
 }

@@ -2223,3 +2223,127 @@ footer { border-color: #30304a; color: #7878a0; }
 .format-setup .format-settings label { margin: 0; }
 .bracket-live { position: static; display: block; padding: 5px 11px 0; }
 .bracket-live::before { content: '● '; }
+
+/* Compact fixture rows (organizer) */
+.fixture-row { display: grid; gap: 8px; padding: 12px 13px; border-radius: 15px; border: 1px solid #25253d; background: #12121f; }
+.fixture-row.live { border-color: #ff285766; box-shadow: inset 3px 0 0 #ff2857; }
+.fixture-row.knockout { border-color: #4a2c22; }
+.fixture-row-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: .7rem; color: #9a9abd; }
+.fixture-row-meta .fixture-stage { margin: 0; }
+.fixture-status { margin-left: auto; font-weight: 700; font-size: .66rem; letter-spacing: .04em; }
+.fixture-status.live { color: #ff2857; }
+.fixture-status.done { color: #8f8fb5; }
+.fixture-row-teams { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; }
+.fixture-row-teams span { font-size: .88rem; font-weight: 600; color: #ececff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fixture-row-teams span:last-child { text-align: right; }
+.fixture-row-teams span.won { color: #22d39b; }
+.fixture-row-teams b { min-width: 54px; text-align: center; font-size: .95rem; color: #fff; }
+.fixture-row-note { margin: 0; font-size: .72rem; color: #a3a3c6; }
+.fixture-row-actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; }
+.fixture-row-actions > .primary { padding: 9px 14px; font-size: .8rem; }
+.fixture-more { flex: 1 1 100%; }
+.fixture-more > summary { cursor: pointer; font-size: .74rem; color: #ff8a4c; list-style: none; }
+.fixture-more > summary::-webkit-details-marker { display: none; }
+.fixture-more > summary::after { content: ' ▾'; }
+.fixture-more[open] > summary::after { content: ' ▴'; }
+.fixture-more form { margin-top: 10px; display: grid; gap: 8px; }
+
+/* Review item 2/4: offline status and a Confirm bar that stays in reach */
+.network-offline { color: #ff8a80; font-weight: 600; }
+.raid-confirm-bar { position: sticky; bottom: 0; z-index: 5; display: grid; gap: 8px; padding: 10px 0 calc(10px + env(safe-area-inset-bottom)); margin-top: 12px; background: linear-gradient(to bottom, rgba(20,20,42,0), #14142a 18px); }
+.raid-confirm-bar .outcome-preview { margin: 0; }
+.raid-confirm-bar button:disabled { opacity: .55; }
+
+/* Review item 5: on-court tabs never cover the scoring controls */
+.court-drawer-tab { width: 26px; padding: 10px 2px; gap: 6px; }
+.court-drawer-code { font-size: .55rem; padding: 3px 2px; }
+.court-drawer-count { width: 18px; height: 18px; font-size: .62rem; }
+@media (max-width: 1099px) {
+  .scoring-screen { padding-inline: 22px; }
+}
+@media (min-width: 1100px) {
+  .court-drawer { top: 96px; transform: none; max-height: calc(100vh - 120px); }
+  .court-drawer-left { left: auto; right: calc(50% + 276px); }
+  .court-drawer-right { right: auto; left: calc(50% + 276px); }
+  .court-drawer-panel { width: 210px; border-radius: 16px !important; border: 1px solid #2c2c48 !important; animation: none; }
+  .court-drawer.open .court-drawer-tab { display: none; }
+  .court-drawer-tab { border-radius: 14px !important; border: 1px solid #2c2c48 !important; }
+}
+
+/* Review item 6: full names on the result page */
+.result-standout-text strong, .result-team header strong { white-space: normal; overflow-wrap: anywhere; text-overflow: clip; line-height: 1.2; }
+
+/* Review item 6: viewer */
+.viewer-share { margin-left: auto; padding: 6px 12px; border-radius: 999px; border: 1px solid #3a3a5c; background: #1a1a32; color: #f0f0ff; font-size: .72rem; font-weight: 700; cursor: pointer; }
+.viewer-share + small { margin-left: 0 !important; }
+.live-player-chips > span { display: inline-flex; align-items: center; gap: 7px; width: auto; max-width: 100%; padding: 6px 10px; border-radius: 999px; background: #1b1b31; justify-items: initial; }
+.live-player-chips > span.current { background: #23306b; box-shadow: inset 0 0 0 1px #4169e1; }
+.live-player-chips small { max-width: 140px; font-size: .72rem; color: #e4e4fa; }
+.viewer-fulltime { display: grid; gap: 10px; margin: 14px 0; padding: 18px 16px; border-radius: 20px; border: 1px solid #3a2a2a; background: radial-gradient(120% 140% at 100% 0%, #ff5a1f33 0%, transparent 55%), linear-gradient(160deg, #191930, #121222); }
+.viewer-fulltime .eyebrow { margin: 0; color: #ff8a4c; }
+.viewer-fulltime h3 { margin: 0; font-size: 1.5rem; color: #fff; }
+.viewer-fulltime-margin { margin: 0; color: #a9a9cc; font-size: .78rem; }
+.live-view-header { flex-wrap: wrap; }
+
+/* Review item 7: teams */
+.list-screen-heading .team-new-button { margin-top: 10px; width: auto; padding-inline: 18px; }
+.masked-phone { all: unset; cursor: pointer; color: inherit; text-decoration: underline dotted; text-underline-offset: 3px; }
+.masked-phone:focus-visible { outline: 2px solid #ff5a1f; outline-offset: 2px; border-radius: 4px; }
+
+/* Review item 10: compact sticky scoreboard while scoring */
+.scoring-screen .scoreboard-compact { position: sticky; top: 0; z-index: 15; padding: 10px 12px 8px; margin-bottom: 10px; box-shadow: 0 10px 24px rgba(0,0,0,.45); }
+.scoreboard-compact .scores { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.scoreboard-compact .scores:after { top: 50%; transform: translateY(-58%); font-size: 26px; }
+.scoreboard-compact .score-team { width: auto; display: grid; align-items: center; column-gap: 10px; row-gap: 2px; padding: 8px 0 4px; }
+.scoreboard-compact .score-team:nth-child(1) { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'name score' 'state score'; text-align: right; }
+.scoreboard-compact .score-team:nth-child(2) { grid-template-columns: auto minmax(0, 1fr); grid-template-areas: 'score name' 'score state'; text-align: left; }
+.scoreboard-compact .score-team .team-mark { display: none; }
+.scoreboard-compact .score-team h2 { grid-area: name; margin: 0; font-size: .86rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scoreboard-compact .score-team strong { grid-area: score; font-size: 2.6rem; letter-spacing: -1px; line-height: 1; }
+.scoreboard-compact .score-team > span:last-child { grid-area: state; margin: 0; font-size: .58rem; }
+.scoreboard-compact .score-footer { margin-top: 4px; padding-top: 6px; font-size: .62rem; }
+.wrong-raider { justify-self: start; margin: -4px 0 10px; padding: 6px 0; font-size: .78rem; color: #ffb38f; }
+
+/* Review item 10/12: task screens drop the app chrome */
+.task-screen > .topbar, .task-screen > footer { display: none; }
+.task-screen main { padding-top: 12px; }
+
+/* Review item 12: four tabs and a central Score button */
+.bottom-nav { grid-template-columns: repeat(5, 1fr); align-items: end; }
+.bottom-nav .nav-score { color: #fff; border-top-color: transparent !important; }
+.bottom-nav .nav-score span { display: grid; place-items: center; width: 50px; height: 50px; margin-top: -22px; border-radius: 50%; background: linear-gradient(135deg, #ff4500, #ff7a2e); box-shadow: 0 8px 22px #ff450066, 0 0 0 4px #0e0e1c; font-size: 1.6rem; }
+.bottom-nav .nav-score:hover { background: transparent; }
+.bottom-nav .nav-score:disabled { opacity: .5; }
+.topbar-profile { display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border-radius: 50%; border: 1px solid #3a3a5c; background: #1a1a32; color: #aaaac5; font-size: .9rem; cursor: pointer; }
+.topbar-profile.active { border-color: #ff6a36; color: #ff6a36; }
+
+/* Review item 11: Home feed */
+.home-feed { display: grid; gap: 18px; }
+.home-heading { margin-bottom: 0; }
+.home-block { display: grid; gap: 10px; }
+.home-block > h2 { display: flex; align-items: center; gap: 6px; margin: 0; font-size: .78rem; letter-spacing: .14em; text-transform: uppercase; color: #9a9abf; }
+.home-match { display: grid; gap: 8px; width: 100%; padding: 14px; border-radius: 16px; border: 1px solid #30304a; background: #14142a; color: #f0f0ff; text-align: left; font: inherit; cursor: pointer; }
+article.home-match { cursor: default; }
+.home-match:hover { border-color: #4a4a6e; }
+.home-resume { border-color: #ff5a1f88; background: linear-gradient(90deg, #ff5a1f1f, #14142a 70%); }
+.home-match-meta { font-size: .7rem; color: #9a9abf; }
+.home-match-teams { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 10px; }
+.home-match-teams strong { font-size: .92rem; overflow-wrap: anywhere; }
+.home-match-teams strong:last-child { text-align: right; }
+.home-match-teams b { font-family: Rajdhani, Inter, sans-serif; font-size: 1.5rem; color: #fff; }
+.home-match-cta { font-size: .78rem; font-weight: 700; color: #ff8a4c; }
+.home-start { display: grid; gap: 8px; }
+.home-start h2 { margin: 0; font-size: 1.15rem; }
+.home-start p { margin: 0; color: #a0a0bc; font-size: .82rem; }
+.home-next:empty { display: none; }
+.home-tournaments { display: grid; gap: 8px; }
+.home-tournament { display: grid; gap: 3px; padding: 12px 14px; border-radius: 14px; border: 1px solid #30304a; background: #14142a; color: #f0f0ff; text-align: left; font: inherit; cursor: pointer; }
+.home-tournament small, .home-tournament span { font-size: .72rem; color: #9a9abf; }
+.home-tournament em { font-style: normal; color: #ff5a7a; margin-right: 8px; }
+.link-button { all: unset; cursor: pointer; color: #ff8a4c; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.local-stats { margin-top: 16px; }
+.local-stats summary { cursor: pointer; font-weight: 600; }
+.topbar .topbar-profile { flex: none; width: 34px; height: 34px; min-width: 0; min-height: 0; padding: 0; border-radius: 50%; }
+.setup-quick { display: grid; gap: 6px; margin: 4px 0 16px; }
+.setup-quick button { justify-self: start; }
+.setup-quick small { color: #9a9abf; font-size: .74rem; }

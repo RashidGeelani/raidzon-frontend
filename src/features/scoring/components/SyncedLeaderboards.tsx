@@ -1,39 +1,43 @@
 import { useEffect, useState } from 'react';
+import { Tabs } from '../../../ui/Tabs';
 import { api } from '../../identity/data/auth-client';
-import { LocalLeaderboards } from './LocalLeaderboards';
-import type { LocalMatch } from '../domain/match-types';
+import { sharedRanks } from '../domain/rank';
 
-interface Ranking { playerId: string; name: string; matches: number; raidPoints: number; tacklePoints: number }
-export function SyncedLeaderboards({ matches, online }: { matches: LocalMatch[]; online: boolean }) {
-  const [local, setLocal] = useState(false);
-  const [category, setCategory] = useState<'raid' | 'tackle' | 'total'>('raid');
+interface Ranking { playerId: string; name: string; matches: number; raidPoints: number; tacklePoints: number; teamName?: string | null }
+type Category = 'raid' | 'tackle' | 'total';
+const LABEL: Record<Category, string> = { raid: 'Raiders', tackle: 'Defenders', total: 'Total points' };
+
+/**
+ * Player rankings for one tournament from synced, completed matches. Players on zero are left
+ * out and equal scores share a rank. Refreshes every 15 s while open and online.
+ */
+export function TournamentLeaders({ tournamentId, online }: { tournamentId: string; online: boolean }) {
+  const [category, setCategory] = useState<Category>('raid');
   const [rows, setRows] = useState<Ranking[]>([]);
   const [message, setMessage] = useState('Loading rankings…');
-  const revision = matches.map((match) => `${match.id}:${match.serverVersion}`).join('|');
   useEffect(() => {
     let active = true, busy = false;
     async function refresh() {
-      if (busy || local) return;
-      if (!online) { setMessage('Offline — showing the last loaded synced rankings.'); return; }
+      if (busy) return;
+      if (!online) { setMessage('Offline — showing the last loaded rankings.'); return; }
       busy = true;
       try {
-        const result = await api<Ranking[]>(`/public/leaderboards?category=${category}`);
-        if (active) { setRows(result); setMessage(''); }
-      } catch { if (active) setMessage('Rankings could not refresh. Local results are available under On this device.'); }
+        const result = await api<Ranking[]>(`/public/leaderboards?tournamentId=${encodeURIComponent(tournamentId)}&category=${category}`);
+        if (active) { setRows(Array.isArray(result) ? result : []); setMessage(''); }
+      } catch { if (active) setMessage('Rankings could not refresh. Try again in a moment.'); }
       finally { busy = false; }
     }
     void refresh();
     const timer = setInterval(() => void refresh(), 15000);
     return () => { active = false; clearInterval(timer); };
-  }, [online, category, local, revision]);
-  return <section>
-    <div className="list-filter-tabs"><button className={!local ? 'active' : ''} onClick={() => setLocal(false)}>Synced results</button><button className={local ? 'active' : ''} onClick={() => setLocal(true)}>On this device</button></div>
-    {local ? <LocalLeaderboards matches={matches} /> : <>
-      <header className="list-screen-heading"><h2>Leaderboards</h2><p>Completed tournament matches · updates automatically after sync</p></header>
-      <div className="list-filter-tabs" aria-label="Synced leaderboard category">{(['raid', 'tackle', 'total'] as const).map((item) => <button key={item} className={category === item ? 'active' : ''} onClick={() => setCategory(item)}>{item === 'raid' ? 'Raiders' : item === 'tackle' ? 'Defenders' : 'Total points'}</button>)}</div>
-      {message && <p role="status">{message}</p>}
-      {rows.map((player, index) => <div className="leaderboard-row" key={player.playerId}><span className="rank">{index + 1}</span><span className="player-avatar">{player.name.slice(0, 1)}</span><span className="leaderboard-person"><strong>{player.name}</strong><small>{player.matches} matches</small></span><span className="leaderboard-points"><strong>{category === 'raid' ? player.raidPoints : category === 'tackle' ? player.tacklePoints : player.raidPoints + player.tacklePoints}</strong><small>points</small></span></div>)}
-      {!message && !rows.length && <p className="list-empty">Rankings appear when a completed tournament match syncs.</p>}
-    </>}
+  }, [online, category, tournamentId]);
+  const pointsOf = (player: Ranking) => (category === 'raid' ? player.raidPoints : category === 'tackle' ? player.tacklePoints : player.raidPoints + player.tacklePoints);
+  const shown = rows.filter((player) => pointsOf(player) > 0);
+  const ranks = sharedRanks(shown, pointsOf);
+  return <section className="tournament-leaders" aria-label="Tournament leaders">
+    <Tabs label="Leaderboard category" value={category} onChange={setCategory} items={(['raid', 'tackle', 'total'] as const).map((item) => ({ value: item, label: LABEL[item] }))} />
+    {message && <p role="status">{message}</p>}
+    {shown.map((player, index) => <div className="leaderboard-row" key={player.playerId}><span className="rank">{ranks[index]}</span><span className="player-avatar">{player.name.slice(0, 1)}</span><span className="leaderboard-person"><strong>{player.name}</strong><small>{[player.teamName, `${player.matches} ${player.matches === 1 ? 'match' : 'matches'}`].filter(Boolean).join(' · ')}</small></span><span className="leaderboard-points"><strong>{pointsOf(player)}</strong><small>{pointsOf(player) === 1 ? 'point' : 'points'}</small></span></div>)}
+    {!message && !shown.length && <p className="list-empty">Leaders appear after the first completed match is synced.</p>}
   </section>;
 }

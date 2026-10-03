@@ -145,6 +145,8 @@ export function AccountSync({
           (match.localAccountId === account.accountId || match.serverAccountId === account.accountId)),
       ).length
     : 0;
+  // Sync status, sign-out and upload errors belong to Profile, not to Tournaments or Teams.
+  const accountArea = section === 'profile' || section === 'all';
   return (
     <section className={`account-sync ${section === 'profile' ? 'account-sync-profile' : section === 'tournaments' ? 'account-sync-tournaments' : section === 'teams' ? 'account-sync-teams' : ''}`}>
       <h2>{section === 'tournaments' ? 'My tournaments' : section === 'teams' ? 'My teams' : account ? 'Your account' : 'Sign in'}</h2>
@@ -164,7 +166,7 @@ export function AccountSync({
         </div>
       )}
       {!account && section === 'all' && <p>Score offline at any time. Sign in to back up matches from this device automatically when connected.</p>}
-      {account && <p role="status">{pending ? `${pending} match${pending === 1 ? '' : 'es'} waiting to sync` : 'Matches are up to date'} · {online ? 'Online' : 'Offline'}</p>}
+      {account && accountArea && <p role="status" className="account-sync-status">{pending ? `${pending} match${pending === 1 ? '' : 'es'} waiting to sync` : 'Matches are up to date'} · {online ? 'Online' : 'Offline'}</p>}
       {!online && <p>You’re offline. Continue scoring; reconnect to sign in or sync.</p>}
       {account && section === 'profile' && (
         <AccountDashboard
@@ -186,7 +188,7 @@ export function AccountSync({
           focus={focus?.tournamentId ? focus : null}
         />
       ) : null}
-      {account ? (
+      {account ? accountArea && (
         <div className="sync-controls">
           {busy && <span>Syncing saved matches…</span>}
           <button
@@ -336,8 +338,8 @@ export function AccountSync({
           <p className="signin-card-legal">Your number is never shown on public scorecards. <a href="/privacy">Privacy policy</a></p>
         </div>
       )}
-      {message && <p role="status">{message}</p>}
-      {matches
+      {message && (!account || accountArea) && <p role="status">{message}</p>}
+      {accountArea && matches
         .filter((match) => match.syncError)
         .map((match) => (
           <p className="error" key={match.id}>

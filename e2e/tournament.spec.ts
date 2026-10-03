@@ -111,7 +111,7 @@ test('organizer creates tournament, registers teams and schedules a fixture', as
     .getByRole('combobox', { name: 'Team B', exact: true })
     .selectOption({ label: 'Defenders' });
   await panel.getByRole('button', { name: 'Add fixture' }).click();
-  await expect(panel.getByText('Raiders vs Defenders', { exact: true })).toBeVisible();
+  await expect(panel.locator('.fixture-row-teams').first()).toHaveText(/Raiders.*vs.*Defenders/);
   expect(tournament.halfMinutes).toBe(20);
   expect(tournament.raidSeconds).toBe(30);
   await page.reload();
@@ -120,9 +120,9 @@ test('organizer creates tournament, registers teams and schedules a fixture', as
   await panel.getByRole('tab', { name: 'Upcoming' }).click();
   await panel.getByRole('button', { name: /District Cup/ }).click();
   await panel.getByRole('tab', { name: 'Matches' }).click();
-  await expect(panel.getByText('Raiders vs Defenders', { exact: true })).toBeVisible();
+  await expect(panel.locator('.fixture-row-teams').first()).toHaveText(/Raiders.*vs.*Defenders/);
   await panel.getByText('+ Schedule Match').click();
-  await panel.getByText('Edit schedule', { exact: true }).click();
+  await panel.getByText('More', { exact: true }).click();
   await panel.getByLabel('Fixture time (local)').fill('2026-10-11T10:00');
   await panel.getByRole('button', { name: 'Save fixture time' }).click();
   await expect(panel.getByRole('status')).toHaveText('Saved.');
@@ -131,7 +131,7 @@ test('organizer creates tournament, registers teams and schedules a fixture', as
   await context.setOffline(true);
   await expect(panel.getByRole('button', { name: 'Add fixture' })).toBeDisabled();
   await expect(panel.getByRole('button', { name: 'Save fixture time' })).toBeDisabled();
-  await panel.getByRole('button', { name: 'Prepare match' }).click();
+  await panel.getByRole('button', { name: 'Score this match' }).click();
   await expect(page.getByRole('heading', { name: 'A match starts here.' })).toBeVisible();
   await expect(page.locator('.setup-teams').getByLabel('Team name').first()).toHaveValue('Raiders');
   await expect(page.locator('.setup-teams').getByLabel('Team name').last()).toHaveValue(

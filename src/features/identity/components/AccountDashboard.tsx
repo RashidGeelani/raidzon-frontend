@@ -96,11 +96,9 @@ export function AccountDashboard({
             {profile ? <EditPlayerProfile account={account} phone={data.phone} name={profile.name} online={online} onSaved={() => setRefresh((value) => value + 1)} /> : <span className="profile-later">Link a player first</span>}
           </div>
           <button type="button" className="profile-menu-row profile-menu-link" onClick={() => window.dispatchEvent(new Event(OPEN_NOTIFICATIONS))}><span className="profile-menu-icon" aria-hidden="true">♢</span><div><strong>Notifications</strong><small>Join requests, approvals and team updates</small></div><span className="profile-menu-chevron" aria-hidden="true">›</span></button>
-          <div className="profile-menu-row profile-menu-planned"><span className="profile-menu-icon" aria-hidden="true">⚙</span><div><strong>Settings</strong><small>App preferences · later</small></div></div>
           <a className="profile-menu-row profile-menu-link" href="/help"><span className="profile-menu-icon" aria-hidden="true">?</span><div><strong>Help & Support</strong><small>How scoring works, FAQs and contact</small></div><span className="profile-menu-chevron" aria-hidden="true">›</span></a>
           <a className="profile-menu-row profile-menu-link" href="/privacy"><span className="profile-menu-icon" aria-hidden="true">⛉</span><div><strong>Privacy policy</strong><small>What we collect and how it is used</small></div><span className="profile-menu-chevron" aria-hidden="true">›</span></a>
         </div>
-        <div className="profile-brand"><strong>RaidzOn</strong><span>Live Kabaddi. Every Raid.</span></div>
         <details className="profile-matches">
           <summary>My synced matches · {data.ownedMatchCount}</summary>
           {data.recentMatches.length ? <ul>{data.recentMatches.map((match) => <li key={match.id}>
@@ -118,14 +116,7 @@ export function AccountDashboard({
         </p>
       )}
       {online && !data && !error && <p>Loading account…</p>}
-      {error && <p>{error}</p>}
-      <button
-        className="secondary"
-        disabled={!online}
-        onClick={() => setRefresh((value) => value + 1)}
-      >
-        Refresh account
-      </button>
+      {error && <p>{error} <button className="quiet" disabled={!online} onClick={() => setRefresh((value) => value + 1)}>Try again</button></p>}
     </section>
   );
 }

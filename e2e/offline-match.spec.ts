@@ -36,23 +36,28 @@ test('guest creates, scores, reloads, undoes and completes a match entirely offl
   await page.screenshot({ path: '../.local/home-desktop.png', fullPage: true });
   await context.setOffline(true);
   await fillMatch(page);
+  // One tap starts the raid; a wrong pick is undone without a dialog.
+  await page.getByRole('button', { name: 'Raider 2 0 raid pts', exact: true }).click();
+  await page.getByRole('button', { name: /Wrong raider/ }).click();
+  await expect(page.getByRole('heading', { name: 'Who’s taking the raid?' })).toBeVisible();
   await page.getByRole('button', { name: 'Raider 1 0 raid pts', exact: true }).click();
-  await page.getByRole('button', { name: 'Start raid →', exact: true }).click();
   await page.getByRole('button', { name: 'Successful', exact: true }).click();
   await page.getByRole('button', { name: 'Warrior 1 On court', exact: true }).click();
   await page.getByRole('button', { name: 'Confirm raid →', exact: true }).click();
-  await expect(page.getByText('Raider 1: touch', { exact: true })).toBeVisible();
+  await expect(page.getByText('Raider 1 · successful raid', { exact: true })).toBeVisible();
   await page.reload();
-  await page.getByRole('button', { name: 'Continue offline', exact: true }).click();
+  // The guest choice is remembered, so reloads go straight home.
   await expect(page.getByRole('heading', { name: 'Ready for the next raid?' })).toBeVisible();
   await page.getByRole('button', { name: /Resume match/ }).click();
-  await expect(page.getByText('Raider 1: touch', { exact: true })).toBeVisible();
+  await expect(page.getByText('Raider 1 · successful raid', { exact: true })).toBeVisible();
   await expect(page.locator('.score-team strong').nth(0)).toHaveText('1');
   await page.screenshot({ path: '../.local/live-desktop.png', fullPage: true });
   page.on('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'Undo last event' }).click();
   await expect(page.locator('.score-team strong').nth(0)).toHaveText('0');
   await expect(page.getByRole('heading', { name: 'Raider 1 is raiding' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Confirm raid →', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Empty / bonus only', exact: true }).click();
   await page.getByRole('button', { name: 'Confirm raid →', exact: true }).click();
   await page.getByRole('button', { name: 'End first half', exact: true }).click();
   await page.getByRole('button', { name: 'Start second half →', exact: true }).click();
@@ -60,7 +65,6 @@ test('guest creates, scores, reloads, undoes and completes a match entirely offl
   await page.getByRole('button', { name: 'Accept draw', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Match drawn', exact: true })).toBeVisible();
   await page.reload();
-  await page.getByRole('button', { name: 'Continue offline', exact: true }).click();
   await page.getByRole('button', { name: /View result/ }).click();
   await expect(page.getByRole('heading', { name: 'Match drawn', exact: true })).toBeVisible();
   expect(errors).toEqual([]);
@@ -102,12 +106,12 @@ test('mobile tie-break selects five ordered raiders and awards empty-raid OUT', 
     0,
   );
   await page.getByRole('button', { name: 'Raider 1 0 raid pts', exact: true }).click();
-  await page.getByRole('button', { name: 'Start raid →', exact: true }).click();
-  await expect(page.getByText(/No scoring point: raider OUT/)).toBeVisible();
+  await page.getByRole('button', { name: 'No touch / bonus only', exact: true }).click();
+  await expect(page.getByText(/no touch in a tie-break: raider out/i)).toBeVisible();
   await page.getByRole('button', { name: 'Confirm raid →', exact: true }).click();
   await expect(page.locator('.score-team strong').nth(1)).toHaveText('1');
   await page.getByRole('button', { name: 'Warrior 1 0 raid pts', exact: true }).click();
-  await page.getByRole('button', { name: 'Start raid →', exact: true }).click();
+  await page.getByRole('button', { name: 'No touch / bonus only', exact: true }).click();
   await expect(page.getByRole('checkbox', { name: /Bonus/ })).toBeEnabled();
   await page.getByRole('checkbox', { name: /Bonus/ }).check();
   await page.getByRole('button', { name: 'Confirm raid →', exact: true }).click();

@@ -66,6 +66,16 @@ export function normalizePhone(value: string) {
   return phone.number;
 }
 
+/** Players already saved on this phone (name + canonical number), for setup suggestions. */
+export async function recentPlayers(database = db): Promise<{ name: string; phone: string }[]> {
+  const rows = await database.players.toArray();
+  return rows
+    .filter((player) => player.phone && player.name)
+    .map(({ name, phone }) => ({ name, phone }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .slice(0, 300);
+}
+
 export async function sessionId(database = db) {
   return database.transaction('rw', database.metadata, () =>
     database.metadata.get('scorer-session').then((existing) => {
@@ -101,9 +111,13 @@ export async function createMatch(
     throw new Error('Use 1–60 minutes per half and 5–120 seconds per raid.');
   const normalized = input.teams.map((t) => ({
     ...t,
-    players: t.players.map((p) => ({ name: p.name.trim(), phone: normalizePhone(p.phone) })),
+    // Phones are optional for a quick match; tournament fixtures need them to check the roster.
+    players: t.players.map((p) => ({
+      name: p.name.trim(),
+      phone: !p.phone.trim() && !input.fixtureRef ? '' : normalizePhone(p.phone),
+    })),
   }));
-  const phones = normalized.flatMap((t) => t.players.map((p) => p.phone));
+  const phones = normalized.flatMap((t) => t.players.map((p) => p.phone)).filter(Boolean);
   if (new Set(phones).size !== phones.length)
     throw new Error('Each player must have a unique phone number across both teams.');
   if (normalized.some((t) => t.players.some((p) => !p.name)))
@@ -121,6 +135,9 @@ export async function createMatch(
       queue: [],
       activeSubstitutions: 0,
       players: team.players.map((candidate, index) => {
+        // Without a phone a player is known only in this match.
+        if (!candidate.phone)
+          return { ...candidate, id: crypto.randomUUID(), status: index < 7 ? 'ACTIVE' : 'BENCH', raidPoints: 0, tacklePoints: 0 } as Player;
         let identity = byPhone.get(candidate.phone);
         if (!identity) {
           identity = { ...candidate, id: crypto.randomUUID() };

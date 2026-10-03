@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { Tabs } from '../../../ui/Tabs';
 import type { LocalMatch } from '../domain/match-types';
+import { sharedRanks } from '../domain/rank';
 
 type Category = 'Raiders' | 'Defenders' | 'Total';
 
@@ -9,7 +11,9 @@ export function LocalLeaderboards({ matches }: { matches: LocalMatch[] }) {
   for (const match of matches) {
     for (const team of match.state.teams) {
       for (const player of team.players) {
-        const current = players.get(player.phone) ?? {
+        // Players without a phone are told apart by team and name.
+        const key = player.phone || `${team.name.toLowerCase()}:${player.name.trim().toLowerCase()}`;
+        const current = players.get(key) ?? {
           name: player.name,
           team: team.name,
           raid: 0,
@@ -17,39 +21,27 @@ export function LocalLeaderboards({ matches }: { matches: LocalMatch[] }) {
         };
         current.raid += player.raidPoints;
         current.tackle += player.tacklePoints;
-        players.set(player.phone, current);
+        players.set(key, current);
       }
     }
   }
   const points = (player: { raid: number; tackle: number }) =>
     category === 'Raiders' ? player.raid : category === 'Defenders' ? player.tackle : player.raid + player.tackle;
-  const ranked = [...players.values()].sort((a, b) => points(b) - points(a) || a.name.localeCompare(b.name));
+  const ranked = [...players.values()].filter((player) => points(player) > 0).sort((a, b) => points(b) - points(a) || a.name.localeCompare(b.name));
+  const ranks = sharedRanks(ranked, points);
   return (
     <section className="leaderboard-screen" aria-label="Local leaderboards">
-      <div className="section-heading">
-        <div>
-          <h1>Leaderboards</h1>
-          <p>Player rankings from matches saved on this device</p>
-        </div>
-      </div>
-      <div className="tab-strip" role="tablist" aria-label="Leaderboard category">
-        {(['Raiders', 'Defenders', 'Total'] as const).map((item) => (
-          <button
-            key={item}
-            role="tab"
-            aria-selected={category === item}
-            className={category === item ? 'active' : ''}
-            onClick={() => setCategory(item)}
-          >
-            {item === 'Total' ? 'MVP' : item}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        label="Leaderboard category"
+        value={category}
+        onChange={setCategory}
+        items={(['Raiders', 'Defenders', 'Total'] as const).map((item) => ({ value: item, label: item === 'Total' ? 'Top players' : item }))}
+      />
       {ranked.length ? (
         <div className="leaderboard-list">
           {ranked.map((player, index) => (
             <div className="leaderboard-row" key={`${player.team}:${player.name}:${index}`}>
-              <span className="rank">{String(index + 1).padStart(2, '0')}</span>
+              <span className="rank">{ranks[index]}</span>
               <span className="player-avatar">{player.name.slice(0, 1).toUpperCase()}</span>
               <span className="leaderboard-person"><strong>{player.name}</strong><small>{player.team}</small></span>
               <span className="leaderboard-points"><strong>{points(player)}</strong><small>{category === 'Total' ? 'Total' : category === 'Raiders' ? 'Raid' : 'Tackle'} pts</small></span>

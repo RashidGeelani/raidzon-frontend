@@ -5,7 +5,8 @@ import type { PublicTournamentDetail } from './TournamentExplorer';
 import { MatchActions } from '../scorecard/MatchActions';
 import type { LocalMatch } from '../scoring/domain/match-types';
 
-export function JoinedTournamentMatches({ filter, online, matches, onScoreMatch }: { filter: 'UPCOMING' | 'LIVE' | 'COMPLETED'; online: boolean; matches: LocalMatch[]; onScoreMatch: (id: string) => void }) {
+/** Public details of every tournament the signed-in account joined (follows); refreshed every 30 s. */
+export function useJoinedTournaments(online: boolean) {
   const [details, setDetails] = useState<PublicTournamentDetail[]>([]);
   const [error, setError] = useState('');
   useEffect(() => {
@@ -24,6 +25,11 @@ export function JoinedTournamentMatches({ filter, online, matches, onScoreMatch 
     const interval = setInterval(() => void refresh(), 30000);
     return () => { active = false; clearInterval(interval); };
   }, [online]);
+  return { details, error };
+}
+
+export function JoinedTournamentMatches({ filter, online, matches, onScoreMatch }: { filter: 'UPCOMING' | 'LIVE' | 'COMPLETED'; online: boolean; matches: LocalMatch[]; onScoreMatch: (id: string) => void }) {
+  const { details, error } = useJoinedTournaments(online);
   const fixtures = details.flatMap((detail) => detail.fixtures.filter((fixture) =>
     filter === 'UPCOMING' ? !fixture.matchId : filter === 'COMPLETED' ? fixture.status === 'COMPLETED' : !!fixture.matchId && fixture.status !== 'COMPLETED'
   ).map((fixture) => ({ ...fixture, tournament: detail.tournament.name, teams: detail.teams })));

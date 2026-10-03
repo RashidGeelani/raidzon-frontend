@@ -53,7 +53,7 @@ export function PublicScorecard({ shareId }: { shareId: string }) {
   }, [shareId]);
   return (
     <main className="public-scorecard">
-      <img src="/brand/raidzon-logo.png" alt="raidzOn" width="120" />
+      <img src="/brand/raidzon-logo-256.webp" alt="raidzOn" width="120" />
       <h1>Match scorecard</h1>
       {score && (
         <>

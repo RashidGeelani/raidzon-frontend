@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   RaidzOnDatabase,
   createMatch,
+  recentPlayers,
   recordEvent,
   sessionId,
   undoTarget,
@@ -84,6 +85,20 @@ describe('durable local events', () => {
     expect(await database.players.count()).toBe(0);
     input.teams[0].players.pop();
     await expect(createMatch(input, 'session', database)).rejects.toThrow('seven starters');
+  });
+  it('lets a quick match leave phones blank but keeps them required for tournament fixtures', async () => {
+    const input = setup();
+    input.teams[0].players[0].phone = '';
+    input.teams[1].players[0].phone = '';
+    const match = await createMatch(input, 'session', database);
+    const blanks = match.state.teams.flatMap((team) => team.players).filter((player) => !player.phone);
+    expect(blanks).toHaveLength(2);
+    expect(new Set(blanks.map((player) => player.id)).size).toBe(2);
+    expect(await database.players.count()).toBe(12);
+    expect((await recentPlayers(database)).every((player) => player.phone)).toBe(true);
+    await expect(
+      createMatch({ ...input, fixtureRef: { tournamentId: 't', fixtureId: 'f' } }, 'session', database),
+    ).rejects.toThrow('valid phone');
   });
   it('retry of same event is idempotent and different facts with same ID fail', async () => {
     const match = await createMatch(setup(), 'session', database);

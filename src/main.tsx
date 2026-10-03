@@ -2,6 +2,8 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './app/App';
 import './app/styles.css';
+import './app/tokens.css';
+import './app/display-settings';
 import { PublicScorecard } from './features/scorecard/PublicScorecard';
 import { LiveMatchViewer } from './features/scorecard/LiveMatchViewer';
 import { HelpPage, PrivacyPage } from './features/legal/InfoPages';

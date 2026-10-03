@@ -12,7 +12,11 @@ export function CourtDrawers({
   teams: [Team, Team] | Team[];
   currentRaiderId: string | null;
 }) {
-  const [open, setOpen] = useState<[boolean, boolean]>([false, false]);
+  // On wide screens the drawers sit beside the scoring column, so both start open.
+  const [open, setOpen] = useState<[boolean, boolean]>(() => {
+    const wide = typeof window !== 'undefined' && !!window.matchMedia?.('(min-width: 1100px)').matches;
+    return [wide, wide];
+  });
   // On phones only one drawer is open at a time so the two never overlap.
   const toggle = (side: Side) =>
     setOpen((previous) => {
