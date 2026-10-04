@@ -85,6 +85,8 @@ test('match result tags a top raider who scored a Super 10', async ({ page }) =>
   await raid(page, 'Raider 1', ['Warrior 6', 'Warrior 7']);
   await raid(page, 'Warrior 1', []);
   await raid(page, 'Raider 1', ['Warrior 1', 'Warrior 2', 'Warrior 3', 'Warrior 4']);
+  // Two empty Warriors raids make their next raid Do-or-Die; dismiss that alert.
+  await page.getByRole('alertdialog').getByRole('button', { name: /Got it/ }).click();
   page.on('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'End first half', exact: true }).click();
   await page.getByRole('button', { name: 'Start second half →', exact: true }).click();

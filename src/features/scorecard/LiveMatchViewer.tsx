@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { requestInstallNudge } from '../../app/install';
 import { eventLabel } from '../scoring/domain/event-label';
 import { milestones } from '../scoring/domain/match-summary';
+import { isDoOrDie } from '../scoring/domain/match-types';
 import { watchMatch, type LiveConnection, type LiveStateUpdate } from './live-socket';
 import type { ClockState, MatchState, Player } from '../scoring/domain/match-types';
 
@@ -21,6 +22,12 @@ function standout(state: ViewerState, score: (player: ViewerPlayer) => number) {
     if (value > 0 && (!best || value > best.value)) best = { player, team: team.name, value };
   }));
   return best as { player: ViewerPlayer; team: string; value: number } | null;
+}
+/** The server reports the winner as 'TEAM_A' / 'TEAM_B' / 'DRAW'; the scorer's phone uses 0 / 1 / 'DRAW'. */
+export function winnerSide(winner: unknown): 0 | 1 | 'DRAW' | null {
+  if (winner === 0 || winner === 'TEAM_A') return 0;
+  if (winner === 1 || winner === 'TEAM_B') return 1;
+  return winner === 'DRAW' ? 'DRAW' : null;
 }
 const pts = (n: number, unit: string) => `${n} ${unit}${n === 1 ? '' : 's'}`;
 
@@ -83,7 +90,7 @@ export function LiveMatchViewer({ matchId, onBack }: { matchId: string; onBack?:
   }, [watching]);
   const state = view?.state;
   const now = anchor.server + Math.max(0, tick - anchor.local);
-  const raider = state?.teams[state.turn].players.find((player) => player.id === state.currentRaiderId);
+  const raider = state?.teams[state.turn]?.players.find((player) => player.id === state.currentRaiderId);
   const raidSeconds = state ? Math.ceil(clockRemaining(state.raidClock, now) / 1000) : 0;
   const halfSeconds = state ? Math.ceil(clockRemaining(state.clock, now) / 1000) : 0;
   const completed = state?.status === 'COMPLETED';
@@ -115,6 +122,7 @@ export function LiveMatchViewer({ matchId, onBack }: { matchId: string; onBack?:
       {state.phase !== 'REGULATION' && <p>{state.phase.replaceAll('_', ' ')} · Regulation {state.scores.join(' : ')}</p>}
       {completed ? <FullTime state={state} scores={finalScores} /> : <>
       <h3 className="live-section-title">Current raid</h3>
+      {isDoOrDie(state) && <div className="viewer-do-or-die" role="status"><strong>DO-OR-DIE RAID</strong><span>{state.teams[state.turn]?.name} must score or the raider is out</span></div>}
       <div className="live-current-raider"><div><strong>{raider?.name ?? (state.status === 'COMPLETED' ? 'Match complete' : 'Waiting for the next raider')}</strong><small>{state.teams[state.turn].name} · Raid #{state.raidNumber}</small></div><span className={`live-countdown ${raidSeconds === 0 ? 'expired' : raider && raidSeconds <= 10 ? 'warning' : ''}`} aria-label="Raid time remaining">{raider ? raidSeconds : '—'}<small>seconds</small></span></div>
       {raider && raidSeconds === 0 && <p className="field-note">Time elapsed — waiting for the scorer’s decision.</p>}
       <h3 className="live-section-title">On court</h3>
@@ -130,7 +138,8 @@ export function LiveMatchViewer({ matchId, onBack }: { matchId: string; onBack?:
 }
 
 function FullTime({ state, scores }: { state: ViewerState; scores: [number, number] | number[] }) {
-  const headline = state.winner === 'DRAW' || state.winner == null ? 'Match drawn' : `${state.teams[state.winner].name} win`;
+  const winner = winnerSide(state.winner);
+  const headline = winner === 'DRAW' || winner === null ? 'Match drawn' : `${state.teams[winner]?.name ?? 'Winner'} win`;
   const margin = Math.abs(scores[0] - scores[1]);
   const rows = [
     { label: 'Player of the match', icon: '★', best: standout(state, (p) => p.raidPoints + p.tacklePoints), unit: 'pt' },
@@ -140,7 +149,7 @@ function FullTime({ state, scores }: { state: ViewerState; scores: [number, numb
   return <section className="viewer-fulltime" aria-label="Full time">
     <p className="eyebrow">FULL TIME</p>
     <h3>{headline}</h3>
-    <p className="viewer-fulltime-margin">{state.winner === 'DRAW' || state.winner == null ? `Level at ${scores[0]} – ${scores[1]}` : margin ? `By ${pts(margin, 'point')}` : 'Won on the tie-break'}</p>
+    <p className="viewer-fulltime-margin">{winner === 'DRAW' || winner === null ? `Level at ${scores[0]} – ${scores[1]}` : margin ? `By ${pts(margin, 'point')}` : 'Won on the tie-break'}</p>
     {rows.length > 0 && <div className="result-standouts">
       {rows.map((row, index) => <div key={row.label} className={`result-standout ${index === 0 ? 'featured' : ''}`}>
         <span className="result-standout-icon" aria-hidden="true">{row.icon}</span>

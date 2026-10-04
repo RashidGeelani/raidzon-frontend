@@ -10,8 +10,11 @@ import {
   type MatchEvent,
   type MatchIntent,
   type Side,
+  isDoOrDie,
+  usesDoOrDie,
 } from '../domain/match-types';
 import { scoreRaid, type RaidOutcome } from '../domain/score-raid';
+import { DoOrDieAlert } from './DoOrDieAlert';
 import { undoTarget } from '../../matches/data/match-repository';
 import { CourtDrawers } from './CourtDrawers';
 import { MatchResult } from './MatchResult';
@@ -122,10 +125,14 @@ export function LiveMatch({
       previous.includes(id) ? previous.filter((item) => item !== id) : [...previous, id],
     );
   }
+  // v5: after two empty raids in a row, this raid must score or the raider is OUT.
+  const doOrDie = usesDoOrDie(match.rulesetVersion) && isDoOrDie(state) && state.status !== 'COMPLETED';
   let raidPreview = 'Choose what happened in the raid.';
   if (outcome) try {
+    const doOrDieFails =
+      doOrDie && outcome === 'EMPTY' && !bonus && !defenders.length && !raidSelfOuts.length;
     const effectiveOutcome =
-      state.phase !== 'REGULATION' && outcome === 'EMPTY' && !bonus ? 'SELF_OUT' : outcome;
+      (state.phase !== 'REGULATION' && outcome === 'EMPTY' && !bonus) || doOrDieFails ? 'SELF_OUT' : outcome;
     const result = scoreRaid({
       outcome: effectiveOutcome,
       defendingCount: defendersOnCourt.length,
@@ -144,7 +151,8 @@ export function LiveMatch({
     const revived = Math.min(result.attackingRevivals, attack.queue.length);
     if (revived) parts.push(`${revived} revived`);
     if (result.allOutPoints) parts.push('All-out');
-    if (effectiveOutcome !== outcome) parts.push('no touch in a tie-break: raider out');
+    if (doOrDieFails) parts.push('empty Do-or-Die raid');
+    else if (effectiveOutcome !== outcome) parts.push('no touch in a tie-break: raider out');
     else if (result.superTackleExtra) parts.push('Super Tackle');
     raidPreview = parts.join(' · ');
   } catch {
@@ -229,6 +237,9 @@ export function LiveMatch({
         </div>
       </section>
       {state.status !== 'COMPLETED' && <CourtDrawers teams={state.teams} currentRaiderId={state.currentRaiderId} />}
+      {doOrDie && state.status === 'LIVE' && !state.currentRaiderId && (
+        <DoOrDieAlert key={`${state.half}:${state.raidNumber}`} team={attack.name} raidNumber={state.raidNumber} />
+      )}
       <div className="match-layout">
         <div className="match-main">
           {state.status === 'COMPLETED' ? (
@@ -331,6 +342,7 @@ export function LiveMatch({
                 <div>
                   <p className="eyebrow">
                     {attack.name} · RAID {state.raidNumber}
+                    {doOrDie && <span className="do-or-die-badge">Do-or-Die</span>}
                   </p>
                   <h2>
                     {state.status === 'PAUSED'
@@ -423,9 +435,11 @@ export function LiveMatch({
                             ['TOUCH', 'Successful'],
                             [
                               'EMPTY',
-                              state.phase === 'REGULATION'
-                                ? 'Empty / bonus only'
-                                : 'No touch / bonus only',
+                              state.phase !== 'REGULATION'
+                                ? 'No touch / bonus only'
+                                : doOrDie
+                                  ? 'Empty = OUT / bonus'
+                                  : 'Empty / bonus only',
                             ],
                             ['TACKLE', 'Tackled'],
                             ['SELF_OUT', 'Self-Out'],

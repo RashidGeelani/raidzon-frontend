@@ -24,6 +24,8 @@ export function eventLabel(summary: string): string {
   const text = summary.trim();
   const lifecycle = LIFECYCLE[text.toLowerCase()];
   if (lifecycle) return lifecycle;
+  const doOrDie = text.match(/^(.*): do-or-die raid failed$/i);
+  if (doOrDie) return `${doOrDie[1]} · Do-or-Die failed · raider out`;
   const raid = text.match(/^(.*): (touch|empty|tackle|self out)( \+ bonus)?(.*)$/i);
   if (raid) return `${raid[1]} · ${OUTCOMES[raid[2].toLowerCase()]}${raid[3] ? ' + bonus' : ''}${raid[4]}`;
   return text ? text[0].toUpperCase() + text.slice(1) : text;

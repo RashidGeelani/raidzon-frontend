@@ -5,6 +5,8 @@ import {
   isScorable,
   opposite,
   usesV3Rules,
+  usesDoOrDie,
+  isDoOrDie,
   remainingTime,
   type MatchIntent,
   type MatchState,
@@ -28,11 +30,19 @@ export function applyEvent(
   const halfClockPending = () =>
     state.clock.startedAt === null && state.clock.remainingMs === state.halfMinutes * 60_000;
   const state = structuredClone(previous);
+  const doOrDie = usesDoOrDie(rulesetVersion);
+  if (doOrDie && !state.emptyRaids) state.emptyRaids = [0, 0];
+  const emptyRaid =
+    input.type === 'RAID' &&
+    input.outcome === 'EMPTY' &&
+    !input.bonus &&
+    !input.defenderIds.length &&
+    !(input.selfOutDefenderIds ?? []).length;
+  // An empty Do-or-Die raid puts the raider out, scored exactly like a raider Self-Out.
+  const doOrDieFailed = doOrDie && emptyRaid && isDoOrDie(state);
   const intent =
     input.type === 'RAID' &&
-    state.phase !== 'REGULATION' &&
-    input.outcome === 'EMPTY' &&
-    !input.bonus
+    ((state.phase !== 'REGULATION' && input.outcome === 'EMPTY' && !input.bonus) || doOrDieFailed)
       ? { ...input, outcome: 'SELF_OUT' as const }
       : input;
   const components: ScoreComponent[] = [];
@@ -180,6 +190,9 @@ export function applyEvent(
       allOut(defend);
       summary = `${raider.name}: ${intent.outcome.toLowerCase().replace('_', ' ')}${intent.bonus ? ' + bonus' : ''}${result.raiderPoints >= 3 ? ' · Super Raid' : ''}`;
       if (selfOuts.length) summary += ` · ${selfOuts.length} defender self-out`;
+      if (doOrDieFailed) summary = `${raider.name}: do-or-die raid failed`;
+      if (doOrDie && state.phase === 'REGULATION')
+        state.emptyRaids![attack] = emptyRaid && !doOrDieFailed ? state.emptyRaids![attack] + 1 : 0;
       if (state.phase !== 'REGULATION') {
         state.tieRaids[attack]++;
         state.lastTieRaiders[attack] = raider.id;
@@ -265,6 +278,7 @@ export function applyEvent(
       state.teams.forEach((t) => {
         t.activeSubstitutions = 0;
       });
+      if (doOrDie) state.emptyRaids = [0, 0];
       state.clock = {
         remainingMs: state.halfMinutes * 60_000,
         startedAt: clockStartsWithFirstRaid(rulesetVersion) ? null : now,

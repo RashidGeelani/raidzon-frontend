@@ -26,7 +26,7 @@ test('watchers see Super 10 and High 5 tags at full time', async ({ page }) => {
       half: 2,
       raidNumber: 40,
       turn: 0,
-      winner: 0,
+      winner: 'TEAM_A', // as the server sends it
       currentRaiderId: null,
       scores: [34, 27],
       tieScores: [0, 0],
