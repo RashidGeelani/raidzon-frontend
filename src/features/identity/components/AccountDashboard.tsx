@@ -83,30 +83,22 @@ export function AccountDashboard({
         <section className="profile-performance" aria-label="Player performance">
           <div className="profile-section-title">
             <h3>My player profile</h3>
-            <span>{profile ? `${profile.matchCount} match appearances` : 'No linked player record yet'}</span>
+            <span className="milestone-tag super-ten">{profile ? `${profile.matchCount} match appearances` : 'No linked player record yet'}</span>
           </div>
           <div className="profile-performance-grid">
-            <div><strong>{profile?.raidPoints ?? 0}</strong><span>Raid points</span></div>
-            <div><strong>{profile?.tacklePoints ?? 0}</strong><span>Tackle points</span></div>
-            <div><strong>{profile?.superRaids ?? 0}</strong><span>Super raids</span></div>
-            <div><strong>{profile?.superTackles ?? 0}</strong><span>Super tackles</span></div>
+            <div><strong>{profile?.raidPoints ?? 0}</strong><span className="milestone-tag super-ten">Raid points</span></div>
+            <div><strong>{profile?.tacklePoints ?? 0}</strong><span className="milestone-tag high-five">Tackle points</span></div>
+            <div><strong>{profile?.superRaids ?? 0}</strong><span className="milestone-tag super-ten">Super raids</span></div>
+            <div><strong>{profile?.superTackles ?? 0}</strong><span className="milestone-tag high-five">Super tackles</span></div>
           </div>
-          <div className="profile-milestones" aria-label="Match milestones">
-            <div className="profile-milestone super-ten">
-              <span className="profile-milestone-badge" aria-hidden="true">10</span>
-              <div>
-                <strong>{profile?.superTens ?? 0}</strong>
-                <span>Super 10s</span>
-                <small>10+ raid pts in a match</small>
-              </div>
+          <div className="profile-performance-grid profile-milestones" aria-label="Match milestones">
+            <div className="super-ten">
+              <em className="milestone-tag super-ten">Super 10</em>
+              <strong>{profile?.superTens ?? 0}</strong>
             </div>
-            <div className="profile-milestone high-five">
-              <span className="profile-milestone-badge" aria-hidden="true">5</span>
-              <div>
-                <strong>{profile?.highFives ?? 0}</strong>
-                <span>High 5s</span>
-                <small>5+ tackle pts in a match</small>
-              </div>
+            <div className="high-five">
+              <em className="milestone-tag high-five">High 5</em>
+              <strong>{profile?.highFives ?? 0}</strong>
             </div>
           </div>
           {!profile && <p>When a team adds your verified number and that match syncs, your player stats will appear here.</p>}

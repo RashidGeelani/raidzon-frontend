@@ -44,10 +44,10 @@ test('player profile shows Super 10 and High 5 counts', async ({ page }) => {
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await page.getByRole('button', { name: 'Profile' }).click();
   const cards = page.getByLabel('Match milestones');
-  await expect(cards.locator('.super-ten strong')).toHaveText('3');
-  await expect(cards.locator('.high-five strong')).toHaveText('1');
-  await expect(cards).toContainText('Super 10s');
-  await expect(cards).toContainText('High 5s');
+  await expect(cards.locator('div.super-ten strong')).toHaveText('3');
+  await expect(cards.locator('div.high-five strong')).toHaveText('1');
+  await expect(cards).toContainText('Super 10');
+  await expect(cards).toContainText('High 5');
   await cards.scrollIntoViewIfNeeded();
   await page.screenshot({ path: '../.local/milestones-profile.png' });
 });
