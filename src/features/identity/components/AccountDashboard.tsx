@@ -15,6 +15,10 @@ interface Dashboard {
     tacklePoints: number;
     superRaids: number;
     superTackles: number;
+    /** Completed matches with 10+ raid points. Older servers may not send it. */
+    superTens?: number;
+    /** Completed matches with 5+ tackle points. */
+    highFives?: number;
   } | null;
   tournamentCount: number;
   teamCount: number;
@@ -86,6 +90,24 @@ export function AccountDashboard({
             <div><strong>{profile?.tacklePoints ?? 0}</strong><span>Tackle points</span></div>
             <div><strong>{profile?.superRaids ?? 0}</strong><span>Super raids</span></div>
             <div><strong>{profile?.superTackles ?? 0}</strong><span>Super tackles</span></div>
+          </div>
+          <div className="profile-milestones" aria-label="Match milestones">
+            <div className="profile-milestone super-ten">
+              <span className="profile-milestone-badge" aria-hidden="true">10</span>
+              <div>
+                <strong>{profile?.superTens ?? 0}</strong>
+                <span>Super 10s</span>
+                <small>10+ raid pts in a match</small>
+              </div>
+            </div>
+            <div className="profile-milestone high-five">
+              <span className="profile-milestone-badge" aria-hidden="true">5</span>
+              <div>
+                <strong>{profile?.highFives ?? 0}</strong>
+                <span>High 5s</span>
+                <small>5+ tackle pts in a match</small>
+              </div>
+            </div>
           </div>
           {!profile && <p>When a team adds your verified number and that match syncs, your player stats will appear here.</p>}
         </section>

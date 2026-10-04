@@ -268,3 +268,19 @@ html[data-sideline] .scoreboard-compact .scores { gap: 22px; }
 .inapp-banner .inapp-close { background: transparent; color: #fff; font-size: 1.2rem; padding: 0 var(--space-2); }
 /* Pages without the tab bar (live viewer, scorecard, scoring) keep the nudge near the bottom edge. */
 body:not(:has(.bottom-nav)) .install-nudge { bottom: calc(var(--space-4) + env(safe-area-inset-bottom)); }
+
+/* Super 10 / High 5: profile milestone cards and result tags */
+.profile-milestones { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); margin-top: var(--space-2); }
+.profile-milestone { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3); border-radius: 15px; border: 1px solid var(--line); background: var(--card); min-width: 0; }
+.profile-milestone.super-ten { background: linear-gradient(135deg, rgba(255, 90, 31, .2), var(--card) 70%); border-color: rgba(255, 90, 31, .45); }
+.profile-milestone.high-five { background: linear-gradient(135deg, rgba(34, 211, 155, .16), var(--card) 70%); border-color: rgba(34, 211, 155, .4); }
+.profile-milestone-badge { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; font-family: Rajdhani, Inter, sans-serif; font-weight: 800; font-size: 1.2rem; color: #fff; background: var(--accent); }
+.profile-milestone.high-five .profile-milestone-badge { background: var(--success); color: #062a1f; }
+.profile-milestone > div { display: grid; min-width: 0; }
+.profile-milestone strong { color: #fff; font-family: Rajdhani, Inter, sans-serif; font-size: 1.6rem; line-height: 1; }
+.profile-milestone span { color: var(--text); font-size: var(--text-sm); font-weight: 700; }
+.profile-milestone small { color: var(--text-faint); font-size: var(--text-xs); line-height: 1.3; }
+.milestone-tags { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-1); }
+.milestone-tag { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: var(--radius-pill); font-size: var(--text-xs); font-weight: 800; letter-spacing: .02em; text-transform: uppercase; }
+.milestone-tag.super-ten { background: var(--accent); color: #fff; }
+.milestone-tag.high-five { background: var(--success); color: #062a1f; }

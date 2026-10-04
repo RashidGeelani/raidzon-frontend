@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { applyEvent } from './apply-event';
 import { initialState } from './apply-event.test';
 import type { MatchEvent, MatchIntent, MatchState } from './match-types';
-import { summarizeMatch } from './match-summary';
+import { milestones, summarizeMatch } from './match-summary';
 
 function play(intents: Exclude<MatchIntent, { type: 'UNDO' }>[]) {
   let state: MatchState = initialState();
@@ -31,5 +31,14 @@ describe('match summary', () => {
     expect(summary.playerOfTheMatch?.player.id).toBe('0-0');
     expect(summary.teams[0]).toMatchObject({ raidPoints: 3, tacklePoints: 1, superRaids: 1, raids: 1, successfulRaids: 1 });
     expect(summary.teams[1]).toMatchObject({ raidPoints: 0, extraPoints: 0, raids: 1, successfulRaids: 0 });
+  });
+});
+
+describe('milestones', () => {
+  it('awards Super 10 for 10+ raid points and High 5 for 5+ tackle points', () => {
+    expect(milestones({ raidPoints: 9, tacklePoints: 4 })).toEqual([]);
+    expect(milestones({ raidPoints: 10, tacklePoints: 0 })).toEqual(['Super 10']);
+    expect(milestones({ raidPoints: 2, tacklePoints: 5 })).toEqual(['High 5']);
+    expect(milestones({ raidPoints: 12, tacklePoints: 6 })).toEqual(['Super 10', 'High 5']);
   });
 });

@@ -26,6 +26,17 @@ export interface MatchSummary {
   topDefender: Standout | null;
 }
 
+/** Kabaddi milestones in a single match: a Super 10 is 10+ raid points, a High 5 is 5+ tackle points. */
+export const SUPER_TEN = 10;
+export const HIGH_FIVE = 5;
+export type Milestone = 'Super 10' | 'High 5';
+export function milestones(player: Pick<Player, 'raidPoints' | 'tacklePoints'>): Milestone[] {
+  const earned: Milestone[] = [];
+  if (player.raidPoints >= SUPER_TEN) earned.push('Super 10');
+  if (player.tacklePoints >= HIGH_FIVE) earned.push('High 5');
+  return earned;
+}
+
 /** Events that still count: undo entries and the events they reversed are left out. */
 export function countedEvents(events: MatchEvent[]) {
   const reversed = new Set(events.flatMap((e) => (e.intent.type === 'UNDO' ? [e.intent.targetEventId] : [])));

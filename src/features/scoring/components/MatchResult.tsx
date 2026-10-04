@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { LocalMatch, MatchEvent, Side } from '../domain/match-types';
-import { summarizeMatch, type MatchSummary, type Standout, type TeamPerformance } from '../domain/match-summary';
+import { milestones, summarizeMatch, type MatchSummary, type Standout, type TeamPerformance } from '../domain/match-summary';
 
 const TEAM_COLORS = ['#ff5a1f', '#4c7dff'] as const;
 
@@ -76,6 +76,13 @@ function StandoutRow({ label, icon, standout, value, featured = false }: {
         <small>{label}</small>
         <strong>{standout.player.name}</strong>
         <em className={`result-from-${standout.side}`}>{standout.team}</em>
+        {milestones(standout.player).length > 0 && (
+          <span className="milestone-tags">
+            {milestones(standout.player).map((tag) => (
+              <span key={tag} className={`milestone-tag ${tag === 'Super 10' ? 'super-ten' : 'high-five'}`}>{tag}</span>
+            ))}
+          </span>
+        )}
       </span>
       <b>{value(standout)}</b>
     </div>
@@ -192,6 +199,18 @@ export async function renderResultImage(summary: MatchSummary, extra: { tieBreak
     g.textAlign = 'left';
     g.font = font(700, 26); g.fillStyle = index === 0 ? '#ff8a4c' : '#9a9ac0';
     g.fillText(label, 130, y + 52);
+    // Super 10 / High 5 pills after the label.
+    if (standout) {
+      let tx = 130 + g.measureText(label).width + 18;
+      for (const tag of milestones(standout.player)) {
+        g.font = font(800, 22);
+        const tw = g.measureText(tag).width + 28;
+        round(tx, y + 28, tw, 34, 17, tag === 'Super 10' ? 'rgba(255,90,31,.9)' : 'rgba(34,211,155,.9)');
+        g.fillStyle = tag === 'Super 10' ? '#ffffff' : '#062a1f';
+        g.fillText(tag, tx + 14, y + 53);
+        tx += tw + 10;
+      }
+    }
     g.font = fit(standout?.player.name ?? '—', 560, (s) => font(800, s), index === 0 ? 56 : 44); g.fillStyle = '#ffffff';
     g.fillText(standout?.player.name ?? '—', 130, y + (index === 0 ? 122 : 100));
     if (standout) {
