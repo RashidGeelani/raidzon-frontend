@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { requestInstallNudge } from '../../app/install';
 import { eventLabel } from '../scoring/domain/event-label';
+import { milestones } from '../scoring/domain/match-summary';
 import { watchMatch, type LiveConnection, type LiveStateUpdate } from './live-socket';
 import type { ClockState, MatchState, Player } from '../scoring/domain/match-types';
 
@@ -143,7 +144,7 @@ function FullTime({ state, scores }: { state: ViewerState; scores: [number, numb
     {rows.length > 0 && <div className="result-standouts">
       {rows.map((row, index) => <div key={row.label} className={`result-standout ${index === 0 ? 'featured' : ''}`}>
         <span className="result-standout-icon" aria-hidden="true">{row.icon}</span>
-        <span className="result-standout-text"><small>{row.label}</small><strong>{row.best!.player.name}</strong><em>{row.best!.team}</em></span>
+        <span className="result-standout-text"><small>{row.label}</small><strong>{row.best!.player.name}</strong><em>{row.best!.team}</em>{milestones(row.best!.player).length > 0 && <span className="milestone-tags">{milestones(row.best!.player).map((tag) => <span key={tag} className={`milestone-tag ${tag === 'Super 10' ? 'super-ten' : 'high-five'}`}>{tag}</span>)}</span>}</span>
         <b>{pts(row.best!.value, row.unit)}</b>
       </div>)}
     </div>}
