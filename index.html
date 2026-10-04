@@ -7,8 +7,20 @@
     <meta name="description" content="raidzOn — courtside kabaddi scoring, ready offline." />
     <link rel="icon" href="/brand/raidzon-logo-192.png" type="image/png" />
     <link rel="apple-touch-icon" href="/brand/raidzon-logo-192.png" />
+    <!-- Home-screen app on iPhone: full screen, short name, dark status bar. -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="raidzOn" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <title>raidzOn · Own the court</title>
     <link rel="preload" as="image" href="/brand/raidzon-logo-256.webp" />
+    <script>
+      // Chrome can offer installation before the app's code has loaded; keep the offer for it.
+      window.addEventListener('beforeinstallprompt', function (event) {
+        event.preventDefault();
+        window.__raidzonInstallEvent = event;
+      });
+    </script>
   </head>
   <body>
     <div id="root"></div>

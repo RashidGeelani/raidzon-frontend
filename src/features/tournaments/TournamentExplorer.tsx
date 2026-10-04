@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { requestInstallNudge } from '../../app/install';
 import { Tabs } from '../../ui/Tabs';
 import { TournamentLeaders } from '../scoring/components/SyncedLeaderboards';
 import { api, type AccountSession } from '../identity/data/auth-client';
@@ -90,6 +91,7 @@ export function TournamentExplorer({ account, online, matches, onPrepareFixture,
       await api(`/tournaments/${id}/join`, {}, account.token);
       setJoined((current) => [...new Set([...current, id])]);
       setMessage('Joined. Its fixtures and scores now appear in Matches.');
+      requestInstallNudge('followed');
     } catch { setMessage('Could not join. Please reconnect and try again.'); }
     finally { setBusy(false); }
   }

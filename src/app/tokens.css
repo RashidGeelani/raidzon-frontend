@@ -235,3 +235,36 @@ html[data-sideline] .scoreboard-compact .scores { gap: 22px; }
 .avatar-guest { background: var(--card-raised); color: var(--text-muted); border: 1px solid var(--line-strong); }
 .tournament-detail-pending { display: flex; align-items: center; gap: var(--space-3); margin: var(--space-2) 0; }
 .settings-locked { grid-column: 1 / -1; margin: 0; }
+
+/* Install: nudge, Profile card, guide and in-app browser strip */
+.install-nudge { position: fixed; z-index: 55; left: var(--space-3); right: var(--space-3); bottom: calc(88px + env(safe-area-inset-bottom)); display: flex; gap: var(--space-3); align-items: flex-start; max-width: 480px; margin: 0 auto; padding: var(--space-4); border-radius: var(--radius-lg); background: var(--card-raised); border: 1px solid var(--line-strong); box-shadow: 0 18px 40px rgba(0, 0, 0, .45); color: var(--text); animation: ui-sheet-in .2s ease-out; }
+.install-nudge img { flex: none; border-radius: var(--radius-md); }
+.install-nudge strong { display: block; font-size: var(--text-md); }
+.install-nudge p { margin: var(--space-1) 0 var(--space-3); color: var(--text-muted); font-size: var(--text-sm); line-height: 1.4; }
+.install-nudge-actions { display: flex; gap: var(--space-2); }
+.install-nudge-actions .primary { padding: 0 var(--space-5); }
+@media (min-width: 900px) { .install-nudge { left: auto; right: var(--space-5); bottom: var(--space-5); margin: 0; width: 380px; } }
+@media (prefers-reduced-motion: reduce) { .install-nudge { animation: none; } }
+
+.install-card { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; margin-bottom: var(--space-4); }
+.install-card img { flex: none; border-radius: var(--radius-md); }
+.install-card > div { flex: 1 1 180px; }
+.install-card h3 { margin: 0 0 var(--space-1); font-size: var(--text-md); }
+.install-card p { margin: 0; color: var(--text-muted); font-size: var(--text-sm); }
+.install-card .primary { padding: 0 var(--space-5); }
+.install-card-done p { margin: 0; color: var(--success); font-weight: 700; }
+
+.install-guide-intro { margin: 0 0 var(--space-3); color: var(--text-muted); font-size: var(--text-sm); }
+.install-steps { list-style: none; margin: 0 0 var(--space-4); padding: 0; display: grid; gap: var(--space-3); }
+.install-steps li { position: relative; min-height: 28px; padding: 2px 0 0 40px; font-size: var(--text-md); line-height: 1.5; }
+.install-steps li > span { position: absolute; left: 0; top: 0; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 800; font-size: var(--text-sm); }
+.install-share-icon { width: 20px; height: 20px; color: #4c9dff; vertical-align: -4px; }
+.install-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.install-actions > * { flex: 1 1 140px; display: inline-grid; place-items: center; text-decoration: none; }
+
+.inapp-banner { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); background: var(--accent); color: #fff; font-size: var(--text-sm); font-weight: 700; }
+.inapp-banner span { flex: 1; }
+.inapp-banner a, .inapp-banner button { min-height: 32px; padding: 0 var(--space-3); border: 0; border-radius: var(--radius-pill); background: #fff; color: var(--accent); font-weight: 800; font-size: var(--text-sm); text-decoration: none; display: inline-grid; place-items: center; }
+.inapp-banner .inapp-close { background: transparent; color: #fff; font-size: 1.2rem; padding: 0 var(--space-2); }
+/* Pages without the tab bar (live viewer, scorecard, scoring) keep the nudge near the bottom edge. */
+body:not(:has(.bottom-nav)) .install-nudge { bottom: calc(var(--space-4) + env(safe-area-inset-bottom)); }

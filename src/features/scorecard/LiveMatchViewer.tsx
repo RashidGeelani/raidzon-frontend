@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { requestInstallNudge } from '../../app/install';
 import { eventLabel } from '../scoring/domain/event-label';
 import { watchMatch, type LiveConnection, type LiveStateUpdate } from './live-socket';
 import type { ClockState, MatchState, Player } from '../scoring/domain/match-types';
@@ -72,6 +73,13 @@ export function LiveMatchViewer({ matchId, onBack }: { matchId: string; onBack?:
     if (connection === 'reconnecting') setMessage((current) => current || 'Reconnecting… showing the latest update.');
     if (connection === 'live') setMessage((current) => (current.startsWith('Reconnecting') ? '' : current));
   }, [connection]);
+  // After half a minute of watching, suggest installing for quicker live scores next time.
+  const watching = !!view;
+  useEffect(() => {
+    if (!watching) return;
+    const timer = setTimeout(() => requestInstallNudge('watching'), 30_000);
+    return () => clearTimeout(timer);
+  }, [watching]);
   const state = view?.state;
   const now = anchor.server + Math.max(0, tick - anchor.local);
   const raider = state?.teams[state.turn].players.find((player) => player.id === state.currentRaiderId);

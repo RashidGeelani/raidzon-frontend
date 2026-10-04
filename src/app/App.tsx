@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Tabs } from '../ui/Tabs';
 import { Chip } from '../ui/Chip';
 import { DisplaySettingsCard } from './DisplaySettingsCard';
+import { InstallCard } from './InstallPrompt';
+import { requestInstallNudge } from './install';
 import { ProfileAvatar } from './ProfileAvatar';
 import { restoreSession } from '../features/identity/data/session-store';
 import { liveQuery } from 'dexie';
@@ -150,6 +152,43 @@ export function App() {
       (!owner || owner === scoringAccount)
     );
   };
+  // Finishing a match you scored is the best moment to suggest installing.
+  const previousStatus = useRef<{ id: string; status: string } | null>(null);
+  useEffect(() => {
+    if (!match) {
+      previousStatus.current = null;
+      return;
+    }
+    const before = previousStatus.current;
+    if (
+      before?.id === match.id &&
+      before.status !== 'COMPLETED' &&
+      match.state.status === 'COMPLETED' &&
+      canScore
+    )
+      requestInstallNudge('scored');
+    previousStatus.current = { id: match.id, status: match.state.status };
+  }, [match, canScore]);
+  // Home-screen shortcuts (see the manifest) open the app with ?action=score or ?tab=….
+  const shortcutHandled = useRef(false);
+  useEffect(() => {
+    if (startup !== 'ready' || !session || shortcutHandled.current) return;
+    shortcutHandled.current = true;
+    const params = new URLSearchParams(window.location.search);
+    const action = params.get('action');
+    const tabParam = params.get('tab');
+    if (!action && !tabParam) return;
+    window.history.replaceState(null, '', window.location.pathname);
+    if (action === 'score') startSetup();
+    else if (
+      tabParam === 'tournaments' ||
+      tabParam === 'matches' ||
+      tabParam === 'teams' ||
+      tabParam === 'profile'
+    )
+      navigate(tabParam);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startup, session]);
   // Scoring and match setup are task screens: no app header, footer or tab bar.
   const taskScreen = startup === 'ready' && (setup || !!match);
   async function record(intent: MatchIntent) {
@@ -399,7 +438,10 @@ export function App() {
               onBrowseTournaments={() => navigate('tournaments')}
             />
           ) : tab === 'profile' ? (
-            <DisplaySettingsCard />
+            <>
+              <InstallCard />
+              <DisplaySettingsCard />
+            </>
           ) : tab === 'tournaments' || tab === 'teams' ? null : (
             <>
               <header className="list-screen-heading">
