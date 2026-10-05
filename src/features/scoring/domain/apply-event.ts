@@ -175,6 +175,10 @@ export function applyEvent(
       add(attack, 'SELF_OUT', selfOuts.length);
       add(defend, 'TACKLE', result.defenderPoints, intent.tacklerId);
       add(defend, 'SUPER_TACKLE_EXTRA', result.superTackleExtra);
+      // A failed Do-or-Die against 3 or fewer defenders is worth 2, like a Super Tackle:
+      // 1 Self-Out point + 1 team-only extra, still with one revival and no tackle credit.
+      const doOrDieSuperTackle = doOrDieFailed && activePlayers(team(defend)).length <= 3;
+      if (doOrDieSuperTackle) add(defend, 'SUPER_TACKLE_EXTRA', 1);
       if (intent.outcome === 'SELF_OUT') add(defend, 'SELF_OUT', 1);
       allDefenderOuts.forEach((id) => out(defend, id));
       if (intent.outcome === 'TACKLE' || intent.outcome === 'SELF_OUT') out(attack, raider.id);
@@ -190,7 +194,8 @@ export function applyEvent(
       allOut(defend);
       summary = `${raider.name}: ${intent.outcome.toLowerCase().replace('_', ' ')}${intent.bonus ? ' + bonus' : ''}${result.raiderPoints >= 3 ? ' · Super Raid' : ''}`;
       if (selfOuts.length) summary += ` · ${selfOuts.length} defender self-out`;
-      if (doOrDieFailed) summary = `${raider.name}: do-or-die raid failed`;
+      if (doOrDieFailed)
+        summary = `${raider.name}: do-or-die raid failed${doOrDieSuperTackle ? ' · Super Tackle' : ''}`;
       if (doOrDie && state.phase === 'REGULATION')
         state.emptyRaids![attack] = emptyRaid && !doOrDieFailed ? state.emptyRaids![attack] + 1 : 0;
       if (state.phase !== 'REGULATION') {

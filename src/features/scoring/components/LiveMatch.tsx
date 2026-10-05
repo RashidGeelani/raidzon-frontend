@@ -140,9 +140,12 @@ export function LiveMatch({
       defenderSelfOuts: raidSelfOuts.length,
       bonus,
     });
+    // A failed Do-or-Die against 3 or fewer defenders is worth 2 (Super Tackle).
+    const doOrDieSuperTackle = doOrDieFails && defendersOnCourt.length <= 3;
+    const defendingPoints = result.defendingPoints + Number(doOrDieSuperTackle);
     const parts: string[] = [];
     if (result.attackingPoints) parts.push(`+${result.attackingPoints} ${attack.name}`);
-    if (result.defendingPoints) parts.push(`+${result.defendingPoints} ${defend.name}`);
+    if (defendingPoints) parts.push(`+${defendingPoints} ${defend.name}`);
     if (!parts.length) parts.push('No points');
     const outs = defenders.length + raidSelfOuts.length;
     if (outs) parts.push(`${outs} defender${outs === 1 ? '' : 's'} out`);
@@ -151,7 +154,7 @@ export function LiveMatch({
     const revived = Math.min(result.attackingRevivals, attack.queue.length);
     if (revived) parts.push(`${revived} revived`);
     if (result.allOutPoints) parts.push('All-out');
-    if (doOrDieFails) parts.push('empty Do-or-Die raid');
+    if (doOrDieFails) parts.push(doOrDieSuperTackle ? 'empty Do-or-Die raid · Super Tackle' : 'empty Do-or-Die raid');
     else if (effectiveOutcome !== outcome) parts.push('no touch in a tie-break: raider out');
     else if (result.superTackleExtra) parts.push('Super Tackle');
     raidPreview = parts.join(' · ');

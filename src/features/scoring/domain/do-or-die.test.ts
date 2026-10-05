@@ -53,4 +53,24 @@ describe('Do-or-Die (raidzon-v5)', () => {
     expect(state.emptyRaids).toBeUndefined();
     expect(state.scores).toEqual([0, 0]);
   });
+
+  it('against 3 or fewer defenders a failed Do-or-Die is worth 2, like a Super Tackle', () => {
+    const state = initialState();
+    const outIds = state.teams[1].players.slice(3, 7).map((p) => p.id);
+    state.teams[1].players.forEach((p) => {
+      if (outIds.includes(p.id)) p.status = 'OUT';
+    });
+    state.teams[1].queue = outIds;
+    state.emptyRaids = [2, 0];
+    const result = raid(state, 'EMPTY');
+    expect(result.state.scores).toEqual([0, 2]);
+    expect(result.components).toEqual([
+      { side: 1, kind: 'SUPER_TACKLE_EXTRA', points: 1 },
+      { side: 1, kind: 'SELF_OUT', points: 1 },
+    ]);
+    expect(result.summary).toMatch(/do-or-die raid failed · Super Tackle$/);
+    // Still only one defender comes back, and no defender gets tackle credit.
+    expect(result.state.teams[1].players.filter((p) => p.status === 'ACTIVE')).toHaveLength(4);
+    expect(result.state.teams[1].players.every((p) => p.tacklePoints === 0)).toBe(true);
+  });
 });
