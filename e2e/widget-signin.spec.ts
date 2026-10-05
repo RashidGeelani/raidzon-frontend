@@ -14,7 +14,10 @@ window.initSendOTP = function (config) {
   if (box) box.innerHTML = '<label><input type="checkbox" id="fake-captcha"> I am human</label>';
   document.addEventListener('change', function (e) { if (e.target && e.target.id === 'fake-captcha') human = e.target.checked; });
   window.isCaptchaVerified = function () { return human; };
-  window.sendOtp = function (id, ok, fail) { window.__msg91.sent.push(id); setTimeout(function () { ok({ type: 'success', message: 'req-1' }); }, 50); };
+  window.sendOtp = function (id, ok, fail) {
+    if (!human) return setTimeout(function () { fail({ type: 'error', message: 'Captcha verification failed' }); }, 50);
+    window.__msg91.sent.push(id); setTimeout(function () { ok({ type: 'success', message: 'req-1' }); }, 50);
+  };
   window.retryOtp = function (channel, ok) { window.__msg91.resent++; ok({ type: 'success', message: 'resent' }); };
   window.verifyOtp = function (otp, ok, fail, reqId) {
     setTimeout(function () {
@@ -55,7 +58,8 @@ test('sign in with our own phone form while MSG91 sends the code', async ({ page
   // MSG91's "I am human" check sits inside our card.
   await expect(page.getByLabel('I am human')).toBeVisible();
   await page.getByRole('button', { name: 'Send code', exact: true }).click();
-  await expect(page.getByRole('alert')).toHaveText('Tick “I am human” first.');
+  await expect(page.getByRole('alert')).toHaveText('Tick “I am human”, then tap send again.');
+  await expect(page.getByRole('button', { name: /Verify in the MSG91 window instead/ })).toBeVisible();
   await page.getByLabel('I am human').check();
   await page.getByRole('button', { name: 'Send code', exact: true }).click();
   await expect(page.getByLabel('Verification code', { exact: true })).toBeVisible();
@@ -117,4 +121,15 @@ test('changing the player name re-verifies the phone in our own form', async ({ 
   await expect(page.getByText(/Name updated/)).toBeVisible();
   expect(calls.saved).toEqual([{ name: 'Aamir Bhat', verificationToken: 'a'.repeat(43) }]);
   expect(await page.evaluate(() => (window as any).__msg91.sent)).toEqual(['919876543210']); // the form re-initialises MSG91 for its own captcha
+});
+
+test('a ticked box that MSG91 still reports as unticked does not block sending', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  // MSG91's status says "not verified" but it accepts the request (seen when a second form shows the check).
+  await mockServer(page, FAKE_MSG91.replace('window.isCaptchaVerified = function () { return human; };', 'window.isCaptchaVerified = function () { return false; };'));
+  await page.goto('/');
+  await page.getByLabel('Mobile number').fill('9876543210');
+  await page.getByLabel('I am human').check();
+  await page.getByRole('button', { name: 'Send code', exact: true }).click();
+  await expect(page.getByLabel('Verification code', { exact: true })).toBeVisible();
 });

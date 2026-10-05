@@ -43,6 +43,8 @@ export function WidgetPhoneSignIn({
   const [message, setMessage] = useState('');
   const [notice, setNotice] = useState('');
   const [now, setNow] = useState(Date.now());
+  /** After a failed attempt we offer MSG91's own popup as a way out. */
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
     let active = true;
     if (!online) return;
@@ -72,6 +74,7 @@ export function WidgetPhoneSignIn({
     try {
       await work();
     } catch (error) {
+      setFailed(true);
       setMessage(
         error instanceof Error ? error.message : 'Something went wrong. Please try again.',
       );
@@ -82,8 +85,15 @@ export function WidgetPhoneSignIn({
   const send = () =>
     run(async () => {
       const to = fixedPhone ?? normalizePhone(phone);
-      if (!widgetCaptchaReady()) throw new Error('Tick “I am human” first.');
-      const reqId = await widgetSendCode(to);
+      // MSG91 decides whether the "I am human" check passed; its own status can lag behind the
+      // box (e.g. when a second form shows the check), so we only use it to explain a failure.
+      let reqId: string | undefined;
+      try {
+        reqId = await widgetSendCode(to);
+      } catch (error) {
+        if (!widgetCaptchaReady()) throw new Error('Tick “I am human”, then tap send again.');
+        throw error;
+      }
       setSent({ to, reqId, resendAt: Date.now() + RESEND_SECONDS * 1000 });
       setNow(Date.now());
       setCode('');
@@ -212,6 +222,16 @@ export function WidgetPhoneSignIn({
           </>
         )}
       </div>
+      {failed && (
+        <button
+          type="button"
+          className="quiet widget-signin-fallback"
+          disabled={busy}
+          onClick={() => void run(async () => onToken(await verifyWithWidget()))}
+        >
+          Having trouble? Verify in the MSG91 window instead
+        </button>
+      )}
     </form>
   );
 }
