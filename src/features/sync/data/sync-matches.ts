@@ -215,14 +215,28 @@ async function syncOnce(
           ),
       );
     }
-    if (match.fixtureRef && !match.fixtureRef.linked) {
+    if (match.fixtureRef && !match.fixtureRef.linked && !match.fixtureRef.linkError) {
       if (!transport.linkFixture)
         throw new Error('Fixture linking is unavailable. Retry synchronization.');
-      await transport.linkFixture(
-        match.fixtureRef.tournamentId,
-        match.fixtureRef.fixtureId,
-        matchId,
-      );
+      try {
+        await transport.linkFixture(
+          match.fixtureRef.tournamentId,
+          match.fixtureRef.fixtureId,
+          matchId,
+        );
+      } catch (error) {
+        // The scores are uploaded; only the tournament refused the match (fixture regenerated or
+        // already taken, roster changed…). Retrying cannot help until someone changes something,
+        // so remember why and stop marking the match as failing to sync.
+        if (error instanceof ApiError && (error.status === 404 || error.status === 409)) {
+          await database.matches.update(matchId, {
+            fixtureRef: { ...match.fixtureRef, linkError: error.message },
+            syncError: '',
+          });
+          return;
+        }
+        throw error;
+      }
       await database.matches.update(matchId, {
         fixtureRef: { ...match.fixtureRef, linked: true },
         syncError: '',
@@ -240,6 +254,23 @@ export function needsSync(match: LocalMatch) {
     !match.serverAccountId ||
     match.serverVersion !== match.version ||
     !!match.syncError ||
-    !!(match.fixtureRef && !match.fixtureRef.linked)
+    !!(match.fixtureRef && !match.fixtureRef.linked && !match.fixtureRef.linkError)
   );
+}
+
+/** Try attaching the match to its fixture again (after the organizer fixed the fixture or roster). */
+export function retryFixtureLink(matchId: string, database: RaidzOnDatabase = db) {
+  return database.transaction('rw', database.matches, async () => {
+    const match = await database.matches.get(matchId);
+    if (!match?.fixtureRef) return;
+    const { linkError: _ignored, ...fixtureRef } = match.fixtureRef;
+    await database.matches.update(matchId, { fixtureRef });
+  });
+}
+
+/** Keep the scores as a normal match that does not count in the tournament. */
+export function detachFixture(matchId: string, database: RaidzOnDatabase = db) {
+  return database.matches.where('id').equals(matchId).modify((match) => {
+    delete match.fixtureRef;
+  });
 }

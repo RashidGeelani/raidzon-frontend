@@ -14,6 +14,12 @@ import { FormatSetup } from './FormatSetup';
 import { BracketView, GroupTables, StagedFixtures } from './FormatViews';
 import { FORMAT_LABELS, isKnockout, sideName, type FormatFixture, type FormatStanding, type TournamentFormat, type TournamentGroup } from './data/format-types';
 
+/** Today's date on this phone (YYYY-MM-DD), so a tournament starting today is active after midnight local time. */
+function localToday() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
 interface Tournament {
   id: string;
   name: string;
@@ -100,7 +106,7 @@ export function TournamentDashboard({
           next[item.id] = {
             teams: result.value.teams.length,
             matches: fixtures.length,
-            status: item.startsOn > new Date().toISOString().slice(0, 10)
+            status: item.startsOn > localToday()
               ? 'UPCOMING'
               : fixtures.length > 0 && fixtures.every((fixture) => fixture.status === 'COMPLETED')
                 ? 'COMPLETED' : 'ACTIVE',
@@ -137,8 +143,9 @@ export function TournamentDashboard({
     void show().then(() => (online ? refreshTeamCache(account).then(show) : undefined)).catch(() => undefined);
     return () => { active = false; };
   }, [account, online, selected]);
-  async function save(path: string, body: object, withId = true) {
-    if (working.current || !online) return;
+  /** Returns true when the change was saved. */
+  async function save(path: string, body: object, withId = true): Promise<boolean> {
+    if (working.current || !online) return false;
     working.current = true;
     setBusy(true);
     setMessage('');
@@ -153,21 +160,35 @@ export function TournamentDashboard({
       requests.current.delete(key);
       setDetail(result);
       setSelected(result.tournament.id);
-      setFilter(result.tournament.startsOn > new Date().toISOString().slice(0, 10) ? 'UPCOMING' : 'ACTIVE');
+      setFilter(result.tournament.startsOn > localToday() ? 'UPCOMING' : 'ACTIVE');
       setRevision((value) => value + 1);
       setMessage('Saved.');
+      return true;
     } catch (error) {
       setMessage(
         error instanceof Error ? error.message : 'Unable to save. Retry with the same details.',
       );
+      return false;
     } finally {
       working.current = false;
       setBusy(false);
     }
   }
+  /** Regenerating replaces unplayed fixtures, so matches already prepared on this phone would lose theirs. */
+  function confirmReplacingPrepared() {
+    const prepared = matches.filter(
+      (match) => match.fixtureRef?.tournamentId === selected && !match.fixtureRef.linked && !match.fixtureRef.linkError,
+    ).length;
+    return (
+      !prepared ||
+      window.confirm(
+        `${prepared} match${prepared === 1 ? ' is' : 'es are'} being scored on this phone for current fixtures. Changing the fixtures means ${prepared === 1 ? 'it' : 'they'} won't count in the tournament. Continue?`,
+      )
+    );
+  }
   const teamName = (id: string) => detail?.teams.find((item) => item.id === id)?.name ?? 'Team';
   const visibleItems = items.filter((item) => (summaries[item.id]?.status ??
-    (item.startsOn > new Date().toISOString().slice(0, 10) ? 'UPCOMING' : 'ACTIVE')) === filter);
+    (item.startsOn > localToday() ? 'UPCOMING' : 'ACTIVE')) === filter);
   return (
     <section aria-label="My tournaments" className="account-dashboard tournament-screen">
       {!selected ? <>
@@ -374,9 +395,9 @@ export function TournamentDashboard({
               teamName={teamName}
               busy={busy}
               online={online}
-              onSaveFormat={(input) => void save(`/tournaments/${selected}/format`, input, false)}
-              onArrange={(groups) => void save(`/tournaments/${selected}/arrangement`, { groups }, false)}
-              onGenerate={() => void save(`/tournaments/${selected}/fixtures/generate`, {}, false).then(() => setDetailTab('matches'))}
+              onSaveFormat={(input) => { if (confirmReplacingPrepared()) void save(`/tournaments/${selected}/format`, input, false); }}
+              onArrange={(groups) => { if (confirmReplacingPrepared()) void save(`/tournaments/${selected}/arrangement`, { groups }, false); }}
+              onGenerate={() => { if (confirmReplacingPrepared()) void save(`/tournaments/${selected}/fixtures/generate`, {}, false).then((saved) => { if (saved) setDetailTab('matches'); }); }}
             />
           </div>}
           {detailTab === 'matches' && <div className="tournament-tab-content">

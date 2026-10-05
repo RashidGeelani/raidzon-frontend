@@ -340,10 +340,10 @@ export function AccountSync({
       )}
       {message && (!account || accountArea) && <p role="status">{message}</p>}
       {accountArea && matches
-        .filter((match) => match.syncError)
+        .filter((match) => match.syncError || match.fixtureRef?.linkError)
         .map((match) => (
           <p className="error" key={match.id}>
-            {match.name}: {match.syncError}
+            {match.name}: {match.syncError || `not counted in the tournament — ${match.fixtureRef?.linkError}`}
           </p>
         ))}
     </section>

@@ -7,7 +7,7 @@ import {
   type SetupInput,
 } from '../../matches/data/match-repository';
 import { ApiError, deviceCredentials } from '../../identity/data/auth-client';
-import { needsSync, syncMatch, type SyncTransport } from './sync-matches';
+import { detachFixture, needsSync, retryFixtureLink, syncMatch, type SyncTransport } from './sync-matches';
 import type { MatchState } from '../../scoring/domain/match-types';
 
 let database: RaidzOnDatabase;
@@ -305,4 +305,29 @@ it('a later tap replaces a half-saved event instead of failing on it', async () 
   expect(next.version).toBe(3);
   expect(await database.events.get('orphan')).toBeUndefined();
   expect((await database.events.get('next'))?.sequence).toBe(3);
+});
+it('stops retrying when the tournament refuses the link, then retries or detaches on request', async () => {
+  const f = await fixture();
+  await database.matches.update(f.match.id, {
+    fixtureRef: { tournamentId: crypto.randomUUID(), fixtureId: crypto.randomUUID(), linked: false },
+  });
+  let attempts = 0;
+  f.transport.linkFixture = async () => {
+    attempts++;
+    throw new ApiError(404, 'Fixture not found.');
+  };
+  await syncMatch(f.match.id, f.account, database, f.transport);
+  const refused = (await database.matches.get(f.match.id))!;
+  expect(refused.fixtureRef?.linkError).toBe('Fixture not found.');
+  expect(refused.syncError).toBe('');
+  expect(needsSync(refused)).toBe(false);
+  await syncMatch(f.match.id, f.account, database, f.transport);
+  expect(attempts).toBe(1); // not hammered again
+  await retryFixtureLink(f.match.id, database);
+  expect(needsSync((await database.matches.get(f.match.id))!)).toBe(true);
+  f.transport.linkFixture = async () => undefined;
+  await syncMatch(f.match.id, f.account, database, f.transport);
+  expect((await database.matches.get(f.match.id))!.fixtureRef?.linked).toBe(true);
+  await detachFixture(f.match.id, database);
+  expect((await database.matches.get(f.match.id))!.fixtureRef).toBeUndefined();
 });

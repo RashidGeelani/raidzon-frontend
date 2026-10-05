@@ -9,7 +9,7 @@ import type { ClockState, MatchState, Player } from '../scoring/domain/match-typ
 type ViewerState = Pick<MatchState, 'scores' | 'tieScores' | 'status' | 'phase' | 'half' | 'raidNumber' | 'turn' | 'currentRaiderId' | 'clock' | 'raidClock' | 'winner'> & {
   teams: { name: string; players: Omit<Player, 'phone'>[] }[];
 };
-interface LiveView { state: ViewerState; serverTime: number; lastSyncedAt: number; version: number; events: { id: string; summary: string; raidNumber: number; type: string }[] }
+interface LiveView { state: ViewerState; serverTime: number; lastSyncedAt: number; version: number; /** Server clock minus the scoring phone's clock (ms). */ clockOffset?: number; events: { id: string; summary: string; raidNumber: number; type: string }[] }
 export function clockRemaining(clock: ClockState, now: number) {
   return Math.max(0, clock.remainingMs - (clock.startedAt == null ? 0 : Math.max(0, now - clock.startedAt)));
 }
@@ -89,7 +89,8 @@ export function LiveMatchViewer({ matchId, onBack }: { matchId: string; onBack?:
     return () => clearTimeout(timer);
   }, [watching]);
   const state = view?.state;
-  const now = anchor.server + Math.max(0, tick - anchor.local);
+  // Match clocks are in the scoring phone's time: shift server time by that phone's clock error.
+  const now = anchor.server - (view?.clockOffset ?? 0) + Math.max(0, tick - anchor.local);
   const raider = state?.teams[state.turn]?.players.find((player) => player.id === state.currentRaiderId);
   const raidSeconds = state ? Math.ceil(clockRemaining(state.raidClock, now) / 1000) : 0;
   const halfSeconds = state ? Math.ceil(clockRemaining(state.clock, now) / 1000) : 0;
@@ -122,7 +123,7 @@ export function LiveMatchViewer({ matchId, onBack }: { matchId: string; onBack?:
       {state.phase !== 'REGULATION' && <p>{state.phase.replaceAll('_', ' ')} · Regulation {state.scores.join(' : ')}</p>}
       {completed ? <FullTime state={state} scores={finalScores} /> : <>
       <h3 className="live-section-title">Current raid</h3>
-      {isDoOrDie(state) && <div className="viewer-do-or-die" role="status"><strong>DO-OR-DIE RAID</strong><span>{state.teams[state.turn]?.name} must score or the raider is out</span></div>}
+      {isDoOrDie(state) && (state.status === 'LIVE' || state.status === 'PAUSED') && <div className="viewer-do-or-die" role="status"><strong>DO-OR-DIE RAID</strong><span>{state.teams[state.turn]?.name} must score or the raider is out</span></div>}
       <div className="live-current-raider"><div><strong>{raider?.name ?? (state.status === 'COMPLETED' ? 'Match complete' : 'Waiting for the next raider')}</strong><small>{state.teams[state.turn].name} · Raid #{state.raidNumber}</small></div><span className={`live-countdown ${raidSeconds === 0 ? 'expired' : raider && raidSeconds <= 10 ? 'warning' : ''}`} aria-label="Raid time remaining">{raider ? raidSeconds : '—'}<small>seconds</small></span></div>
       {raider && raidSeconds === 0 && <p className="field-note">Time elapsed — waiting for the scorer’s decision.</p>}
       <h3 className="live-section-title">On court</h3>

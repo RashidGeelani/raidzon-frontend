@@ -76,7 +76,14 @@ export async function pushNow(
     return;
   }
   clearRetry(matchId);
-  if (running.has(matchId)) { dirty.add(matchId); return running.get(matchId)!.catch(() => undefined); }
+  if (running.has(matchId)) {
+    dirty.add(matchId);
+    // Our own upload loop picks the tap up; if the running job was the background sync instead,
+    // nobody reads the flag, so send it as soon as that job finishes.
+    return running.get(matchId)!.catch(() => undefined).then(() => {
+      if (dirty.has(matchId)) return pushNow(matchId, options);
+    });
+  }
   return runSerialized(matchId, async () => {
     do {
       dirty.delete(matchId);

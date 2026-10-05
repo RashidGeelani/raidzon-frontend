@@ -24,6 +24,7 @@ import { pushNow } from '../features/sync/data/live-sync';
 import { needsSync } from '../features/sync/data/sync-matches';
 import { LiveSyncBadge } from '../features/sync/LiveSyncBadge';
 import { ShareMatchPopup } from '../features/scorecard/ShareMatchPopup';
+import { FixtureLinkNotice } from '../features/sync/FixtureLinkNotice';
 import type { Focus } from '../features/notifications/notification-client';
 
 function readFlag(key: string) {
@@ -409,6 +410,7 @@ export function App() {
                 pending={unsent}
                 syncError={match.syncError}
               />
+              <FixtureLinkNotice match={match} online={online} />
               <LiveMatch
                 match={match}
                 events={events}

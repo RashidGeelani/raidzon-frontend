@@ -45,11 +45,12 @@ function readSnooze(): number {
   }
 }
 
-export function detectPlatform(userAgent: string, standalone: boolean): InstallPlatform {
+export function detectPlatform(userAgent: string, standalone: boolean, touchPoints = 0): InstallPlatform {
   if (standalone) return 'native';
   const ios =
     /iPhone|iPad|iPod/i.test(userAgent) ||
-    (/Macintosh/i.test(userAgent) && /Mobile/i.test(userAgent));
+    // iPadOS Safari reports a desktop Mac user agent; touch support gives it away.
+    (/Macintosh/i.test(userAgent) && (/Mobile/i.test(userAgent) || touchPoints > 1));
   const inApp = /WhatsApp|FBAN|FBAV|FB_IAB|Instagram|Line\/|Snapchat|Twitter|; wv\)/i.test(
     userAgent,
   );
@@ -70,7 +71,7 @@ function isStandalone(): boolean {
 let state: InstallState = {
   installed: isStandalone(),
   platform:
-    typeof navigator === 'undefined' ? 'unsupported' : detectPlatform(navigator.userAgent, false),
+    typeof navigator === 'undefined' ? 'unsupported' : detectPlatform(navigator.userAgent, false, navigator.maxTouchPoints ?? 0),
   canPrompt: false,
   nudge: null,
 };
@@ -132,11 +133,16 @@ export async function promptInstall(): Promise<boolean> {
   const event = deferred;
   if (!event) return false;
   deferred = null; // a prompt can only be used once
-  set({ canPrompt: false });
-  await event.prompt();
-  const choice = await event.userChoice;
-  if (choice.outcome === 'accepted') set({ installed: true, nudge: null });
-  return choice.outcome === 'accepted';
+  // Close the nudge either way: a dismissed prompt cannot be reopened until Chrome offers again.
+  set({ canPrompt: false, nudge: null });
+  try {
+    await event.prompt();
+    const choice = await event.userChoice;
+    if (choice.outcome === 'accepted') set({ installed: true });
+    return choice.outcome === 'accepted';
+  } catch {
+    return false;
+  }
 }
 
 /** Android intent link that opens the current page in Chrome from an in-app browser. */

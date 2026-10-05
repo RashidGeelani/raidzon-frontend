@@ -14,6 +14,7 @@ import {
   type Team,
 } from '../../scoring/domain/match-types';
 import type { TeamDetail } from '../../teams/data/team-types';
+import { matchNow, notBefore } from '../../scoring/match-clock';
 
 export interface CachedTeam {
   id: string;
@@ -148,7 +149,7 @@ export async function createMatch(
         return { ...identity, status: index < 7 ? 'ACTIVE' : 'BENCH', raidPoints: 0, tacklePoints: 0 } as Player;
       }),
     }));
-    const now = Date.now();
+    const now = matchNow();
     const match: LocalMatch = {
       fixtureRef: input.fixtureRef ? { ...input.fixtureRef, linked: false } : undefined,
       rulesetVersion: CURRENT_RULESET,
@@ -212,7 +213,7 @@ export async function recordEvent(
   expectedVersion: number,
   ownerSessionId: string,
   intent: MatchIntent,
-  eventId = crypto.randomUUID(),
+  eventId: string = crypto.randomUUID(),
   database = db,
 ): Promise<LocalMatch> {
   try {
@@ -242,7 +243,8 @@ export async function recordEvent(
         }
         if (match.version !== expectedVersion)
           throw new Error('Another tab updated this match. Refresh its saved state before scoring.');
-        const now = Math.max(Date.now(), Date.parse(match.updatedAt));
+        notBefore(Date.parse(match.updatedAt));
+        const now = matchNow();
         const history = [...unsorted].sort((a, b) => a.sequence - b.sequence);
         const result = applyRecordedEvent(match.state, intent, now, history, match.rulesetVersion);
         const event: MatchEvent = {

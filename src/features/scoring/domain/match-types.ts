@@ -111,7 +111,14 @@ export interface MatchEvent {
 }
 export interface LocalMatch {
   /** knockout: a draw is not allowed; a tie goes to the five-raid tie-break. */
-  fixtureRef?: { tournamentId: string; fixtureId: string; linked: boolean; knockout?: boolean };
+  fixtureRef?: {
+    tournamentId: string;
+    fixtureId: string;
+    linked: boolean;
+    knockout?: boolean;
+    /** Why the server refused to attach this match to its fixture (it stays unlinked until retried). */
+    linkError?: string;
+  };
   initialState?: MatchState;
   serverAccountId?: string;
   localAccountId?: string;

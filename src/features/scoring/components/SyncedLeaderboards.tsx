@@ -32,7 +32,8 @@ export function TournamentLeaders({ tournamentId, online }: { tournamentId: stri
     return () => { active = false; clearInterval(timer); };
   }, [online, category, tournamentId]);
   const pointsOf = (player: Ranking) => (category === 'raid' ? player.raidPoints : category === 'tackle' ? player.tacklePoints : player.raidPoints + player.tacklePoints);
-  const shown = rows.filter((player) => pointsOf(player) > 0);
+  // Sort here too: after switching category (or offline) the rows are still in the old order.
+  const shown = rows.filter((player) => pointsOf(player) > 0).sort((a, b) => pointsOf(b) - pointsOf(a));
   const ranks = sharedRanks(shown, pointsOf);
   return <section className="tournament-leaders" aria-label="Tournament leaders">
     <Tabs label="Leaderboard category" value={category} onChange={setCategory} items={(['raid', 'tackle', 'total'] as const).map((item) => ({ value: item, label: LABEL[item] }))} />

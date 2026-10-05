@@ -165,7 +165,7 @@ export function InstallNudge() {
                 type="button"
                 className="primary"
                 onClick={() => {
-                  if (install.platform !== 'native') closeNudge();
+                  closeNudge();
                   void start();
                 }}
               >

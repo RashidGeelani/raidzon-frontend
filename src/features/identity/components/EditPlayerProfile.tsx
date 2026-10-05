@@ -26,6 +26,12 @@ export function EditPlayerProfile({
       setMessage('Enter a name between 1 and 80 characters.');
       return;
     }
+    // Nothing to save: don't ask for verification or use up the name-change allowance.
+    if (draft.trim() === name.trim()) {
+      setEditing(false);
+      setMessage('That is already your player name.');
+      return;
+    }
     setBusy(true);
     setMessage('');
     let proof: AccountSession | undefined;

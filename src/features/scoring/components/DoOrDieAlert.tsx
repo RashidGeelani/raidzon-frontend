@@ -1,12 +1,30 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 
+/** Raids whose alert was already dismissed, so pause/resume or an undone raid start don't reopen it. */
+const dismissed = new Set<string>();
+
 /**
  * Full-screen warning shown once when a team's raid is Do-or-Die (two empty raids in a row).
  * One tap dismisses it; the raid card keeps a red Do-or-Die badge until the raid is scored.
  */
-export function DoOrDieAlert({ team, raidNumber }: { team: string; raidNumber: number }) {
-  const [open, setOpen] = useState(true);
+export function DoOrDieAlert({
+  raidKey,
+  team,
+  raidNumber,
+  points,
+}: {
+  raidKey: string;
+  team: string;
+  raidNumber: number;
+  /** Defenders' points if the raid is empty: 2 against 3 or fewer defenders, otherwise 1. */
+  points: number;
+}) {
+  const [open, setOpenState] = useState(() => !dismissed.has(raidKey));
+  const setOpen = (next: boolean) => {
+    if (!next) dismissed.add(raidKey);
+    setOpenState(next);
+  };
   useEffect(() => {
     if (!open) return;
     navigator.vibrate?.([120, 80, 120]);
@@ -33,7 +51,7 @@ export function DoOrDieAlert({ team, raidNumber }: { team: string; raidNumber: n
         <p className="do-or-die-alert-team">{team}</p>
         <p className="do-or-die-alert-rule">
           Two empty raids in a row. This raider must score a touch or bonus, or they are OUT and the
-          defenders get 1 point.
+          defenders get {points === 1 ? '1 point' : `${points} points`}.
         </p>
         <button type="button" className="primary" autoFocus onClick={() => setOpen(false)}>
           Got it — pick the raider

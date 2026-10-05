@@ -38,8 +38,16 @@ export function applyEvent(
     !input.bonus &&
     !input.defenderIds.length &&
     !(input.selfOutDefenderIds ?? []).length;
-  // An empty Do-or-Die raid puts the raider out, scored exactly like a raider Self-Out.
-  const doOrDieFailed = doOrDie && emptyRaid && isDoOrDie(state);
+  // The raider scored nothing and went out on their own (e.g. the raid clock expired).
+  const raiderOnlySelfOut =
+    input.type === 'RAID' &&
+    input.outcome === 'SELF_OUT' &&
+    !input.bonus &&
+    !input.defenderIds.length &&
+    !(input.selfOutDefenderIds ?? []).length;
+  // A Do-or-Die raid that is empty, or ends in the raider's own Self-Out, fails: the raider is out,
+  // scored as a raider Self-Out (plus the Super Tackle extra against 3 or fewer defenders).
+  const doOrDieFailed = doOrDie && (emptyRaid || raiderOnlySelfOut) && isDoOrDie(state);
   const intent =
     input.type === 'RAID' &&
     ((state.phase !== 'REGULATION' && input.outcome === 'EMPTY' && !input.bonus) || doOrDieFailed)
@@ -274,15 +282,22 @@ export function applyEvent(
       );
       stopClock();
       state.status = 'HALF_TIME';
+      // v5: the second half's three active substitutions start at half-time, so changes made
+      // during the break count towards the second half (earlier rulesets reset at SECOND_HALF).
+      if (doOrDie)
+        state.teams.forEach((t) => {
+          t.activeSubstitutions = 0;
+        });
       break;
     case 'SECOND_HALF':
       requireRule(state.status === 'HALF_TIME', 'End the first half first.');
       state.half = 2;
       state.turn = opposite(state.firstTurn);
       state.status = 'LIVE';
-      state.teams.forEach((t) => {
-        t.activeSubstitutions = 0;
-      });
+      if (!doOrDie)
+        state.teams.forEach((t) => {
+          t.activeSubstitutions = 0;
+        });
       if (doOrDie) state.emptyRaids = [0, 0];
       state.clock = {
         remainingMs: state.halfMinutes * 60_000,

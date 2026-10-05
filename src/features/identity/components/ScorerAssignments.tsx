@@ -27,7 +27,12 @@ export function ScorerAssignments({
   const [busy, setBusy] = useState(false);
   const [revision, setRevision] = useState(0);
   const available = matches.filter(
-    (m) => m.serverAccountId === account.accountId && m.version === 0 && m.serverVersion === 0,
+    // A fixture match must be linked first: once delegated, this phone stops syncing it.
+    (m) =>
+      m.serverAccountId === account.accountId &&
+      m.version === 0 &&
+      m.serverVersion === 0 &&
+      (!m.fixtureRef || m.fixtureRef.linked),
   );
   useEffect(() => {
     if (!online) return;

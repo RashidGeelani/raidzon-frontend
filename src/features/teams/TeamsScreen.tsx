@@ -93,6 +93,7 @@ export function TeamsScreen({
   if (selected)
     return (
       <TeamDetailView
+        key={selected}
         account={account}
         online={online}
         teamId={selected}
@@ -450,7 +451,13 @@ function TeamDetailView({
         )}
       </section>
 
-      <TeamRequests account={account} online={online} teamId={team.id} canEdit={canEdit} />
+      {/* Withdrawing stays possible after archiving, so a pending request never gets stuck. */}
+      <TeamRequests
+        account={account}
+        online={online}
+        teamId={team.id}
+        canEdit={online && team.myRole !== 'COACH'}
+      />
 
       {isOwner && (
         <div className="team-danger">

@@ -73,4 +73,46 @@ describe('Do-or-Die (raidzon-v5)', () => {
     expect(result.state.teams[1].players.filter((p) => p.status === 'ACTIVE')).toHaveLength(4);
     expect(result.state.teams[1].players.every((p) => p.tacklePoints === 0)).toBe(true);
   });
+
+  it('an expired Do-or-Die raid (raider Self-Out) scores the same as an empty one', () => {
+    const state = initialState();
+    const outIds = state.teams[1].players.slice(3, 7).map((p) => p.id);
+    state.teams[1].players.forEach((p) => {
+      if (outIds.includes(p.id)) p.status = 'OUT';
+    });
+    state.teams[1].queue = outIds;
+    state.emptyRaids = [2, 0];
+    const raiderId = active(state, 0);
+    const started = applyEvent(
+      state,
+      { type: 'START_RAID', raiderId },
+      (now += 1000),
+      'raidzon-v5',
+    ).state;
+    const expired = applyEvent(
+      started,
+      { type: 'RAID', raiderId, outcome: 'SELF_OUT', defenderIds: [], bonus: false },
+      (now += 60_000),
+      'raidzon-v5',
+    );
+    expect(expired.state.scores).toEqual([0, 2]);
+    expect(expired.summary).toMatch(/do-or-die raid failed · Super Tackle$/);
+    expect(expired.state.emptyRaids).toEqual([0, 0]);
+  });
+
+  it('v5: substitutions made at half-time count towards the second half', () => {
+    let state = initialState();
+    state.teams[0].activeSubstitutions = 3; // used all three in the first half
+    state = applyEvent(state, { type: 'END_HALF' }, (now += 1000), 'raidzon-v5').state;
+    expect(state.teams[0].activeSubstitutions).toBe(0);
+    for (let i = 0; i < 2; i++)
+      state = applyEvent(
+        state,
+        { type: 'SUBSTITUTE', side: 0, outgoingId: `0-${i}`, incomingId: `0-${7 + i}` },
+        (now += 1000),
+        'raidzon-v5',
+      ).state;
+    state = applyEvent(state, { type: 'SECOND_HALF' }, (now += 1000), 'raidzon-v5').state;
+    expect(state.teams[0].activeSubstitutions).toBe(2); // not wiped: one change left this half
+  });
 });

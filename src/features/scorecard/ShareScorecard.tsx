@@ -23,7 +23,9 @@ export function ShareScorecard({
       );
       setLink(published ? `${window.location.origin}/scorecard/${result.shareId}` : '');
       setMessage(
-        published ? 'Anyone with this link can view the score.' : 'Public sharing is off.',
+        published
+          ? 'Anyone with this link can view the score.'
+          : 'The scorecard link is off. Tournament matches stay visible on the tournament page.',
       );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Unable to update sharing.');

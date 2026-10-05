@@ -15,6 +15,7 @@ import {
 } from '../domain/match-types';
 import { scoreRaid, type RaidOutcome } from '../domain/score-raid';
 import { DoOrDieAlert } from './DoOrDieAlert';
+import { matchNow, notBefore } from '../match-clock';
 import { undoTarget } from '../../matches/data/match-repository';
 import { CourtDrawers } from './CourtDrawers';
 import { MatchResult } from './MatchResult';
@@ -43,7 +44,10 @@ export function LiveMatch({
   saving: boolean;
 }) {
   const state = match.state;
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => {
+    notBefore(Date.parse(match.updatedAt));
+    return matchNow();
+  });
   // No outcome is pre-selected, so a rushed Confirm cannot record an empty raid by accident.
   const [outcome, setOutcome] = useState<RaidOutcome | null>(null);
   const [defenders, setDefenders] = useState<string[]>([]);
@@ -60,7 +64,7 @@ export function LiveMatch({
   const [outgoingId, setOutgoingId] = useState('');
   const [incomingId, setIncomingId] = useState('');
   useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 250);
+    const timer = setInterval(() => setNow(matchNow()), 250);
     return () => clearInterval(timer);
   }, []);
   useEffect(() => {
@@ -130,7 +134,11 @@ export function LiveMatch({
   let raidPreview = 'Choose what happened in the raid.';
   if (outcome) try {
     const doOrDieFails =
-      doOrDie && outcome === 'EMPTY' && !bonus && !defenders.length && !raidSelfOuts.length;
+      doOrDie &&
+      (outcome === 'EMPTY' || outcome === 'SELF_OUT') &&
+      !bonus &&
+      !defenders.length &&
+      !raidSelfOuts.length;
     const effectiveOutcome =
       (state.phase !== 'REGULATION' && outcome === 'EMPTY' && !bonus) || doOrDieFails ? 'SELF_OUT' : outcome;
     const result = scoreRaid({
@@ -154,7 +162,7 @@ export function LiveMatch({
     const revived = Math.min(result.attackingRevivals, attack.queue.length);
     if (revived) parts.push(`${revived} revived`);
     if (result.allOutPoints) parts.push('All-out');
-    if (doOrDieFails) parts.push(doOrDieSuperTackle ? 'empty Do-or-Die raid · Super Tackle' : 'empty Do-or-Die raid');
+    if (doOrDieFails) parts.push(doOrDieSuperTackle ? 'Do-or-Die failed · Super Tackle' : 'Do-or-Die failed');
     else if (effectiveOutcome !== outcome) parts.push('no touch in a tie-break: raider out');
     else if (result.superTackleExtra) parts.push('Super Tackle');
     raidPreview = parts.join(' · ');
@@ -241,7 +249,13 @@ export function LiveMatch({
       </section>
       {state.status !== 'COMPLETED' && <CourtDrawers teams={state.teams} currentRaiderId={state.currentRaiderId} />}
       {doOrDie && state.status === 'LIVE' && !state.currentRaiderId && (
-        <DoOrDieAlert key={`${state.half}:${state.raidNumber}`} team={attack.name} raidNumber={state.raidNumber} />
+        <DoOrDieAlert
+          key={`${match.id}:${state.half}:${state.raidNumber}`}
+          raidKey={`${match.id}:${state.half}:${state.raidNumber}`}
+          team={attack.name}
+          raidNumber={state.raidNumber}
+          points={defendersOnCourt.length <= 3 ? 2 : 1}
+        />
       )}
       <div className="match-layout">
         <div className="match-main">

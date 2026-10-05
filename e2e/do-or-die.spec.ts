@@ -33,6 +33,13 @@ test('third empty raid in a row is Do-or-Die: alert, then the raider is out', as
   await page.screenshot({ path: '../.local/do-or-die-alert.png' });
   await alert.getByRole('button', { name: /Got it/ }).click();
   await expect(alert).toBeHidden();
+  // Pausing and resuming does not bring the dismissed alert back.
+  await page.getByRole('button', { name: 'Pause match', exact: true }).click();
+  await page
+    .getByRole('button', { name: /Resume/ })
+    .first()
+    .click();
+  await expect(alert).toBeHidden();
   await expect(page.locator('.do-or-die-badge')).toBeVisible();
   await page
     .getByRole('button', { name: /^Raider 3 / })
@@ -40,7 +47,7 @@ test('third empty raid in a row is Do-or-Die: alert, then the raider is out', as
     .click();
   await expect(page.getByRole('button', { name: 'Empty = OUT / bonus' })).toBeVisible();
   await page.getByRole('button', { name: /^Empty/ }).click();
-  await expect(page.getByText(/raider out · empty Do-or-Die raid/)).toBeVisible();
+  await expect(page.getByText(/raider out · Do-or-Die failed/)).toBeVisible();
   await page.screenshot({ path: '../.local/do-or-die-raid.png' });
   await page.getByRole('button', { name: 'Confirm raid →', exact: true }).click();
   await expect(page.locator('.score-team strong').nth(1)).toHaveText('1');

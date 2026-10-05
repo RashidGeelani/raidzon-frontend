@@ -38,6 +38,10 @@ it('recognises browsers by how they can install', () => {
   expect(detectPlatform(`${iphone} Instagram 300`, false)).toBe('in-app-ios');
   expect(detectPlatform(iphone.replace('Version/17.5', 'CriOS/128'), false)).toBe('unsupported');
   expect(detectPlatform(iphone, true)).toBe('native');
+  const ipad =
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15';
+  expect(detectPlatform(ipad, false, 5)).toBe('ios');
+  expect(detectPlatform(ipad, false, 0)).toBe('native'); // a real Mac
 });
 
 it('only offers native install once the browser has provided a prompt', () => {

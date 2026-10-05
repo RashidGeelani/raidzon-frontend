@@ -44,7 +44,8 @@ export function watchMatch<V>(
   function connect() {
     if (stopped) return;
     handlers.onConnection(attempt === 0 ? 'connecting' : 'reconnecting');
-    try { socket = new Socket(liveSocketUrl(matchId)); } catch { scheduleReconnect(); return; }
+    // If the socket can't even be created (e.g. blocked), poll meanwhile so watchers still see scores.
+    try { socket = new Socket(liveSocketUrl(matchId)); } catch { startPolling(); scheduleReconnect(); return; }
     socket.onopen = () => { attempt = 0; stopPolling(); armWatchdog(); handlers.onConnection('live'); };
     socket.onmessage = (event) => {
       armWatchdog();

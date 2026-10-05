@@ -47,7 +47,8 @@ export function summarizeMatch(state: MatchState, events: MatchEvent[]): MatchSu
   const counted = countedEvents(events);
   const teams = state.teams.map((team, index) => {
     const side = index as Side;
-    const parts = counted.flatMap((e) => e.components).filter((c) => c.side === side);
+    // The breakdown adds up to the regulation total; tie-break points are shown separately.
+    const parts = counted.filter((e) => e.before.phase === 'REGULATION').flatMap((e) => e.components).filter((c) => c.side === side);
     const sum = (...kinds: string[]) => parts.filter((c) => kinds.includes(c.kind)).reduce((total, c) => total + c.points, 0);
     const raids = counted.filter((e) => e.intent.type === 'RAID' && e.before.turn === side);
     const raidPointsOf = (e: MatchEvent) =>
