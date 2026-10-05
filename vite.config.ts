@@ -86,6 +86,10 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Activate new versions as soon as they download so no phone stays on an old one; the app
+        // decides when to reload (never in the middle of scoring) — see src/app/update-on-launch.ts.
+        skipWaiting: true,
+        clientsClaim: true,
         // The full-resolution source logo is not needed in the app; small copies are precached instead.
         maximumFileSizeToCacheInBytes: 2 * 1024 * 1024,
         globPatterns: ['**/*.{js,css,html,svg,png,webp,ico}'],

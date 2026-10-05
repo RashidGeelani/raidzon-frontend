@@ -8,6 +8,7 @@ import { ProfileAvatar } from './ProfileAvatar';
 import { restoreSession } from '../features/identity/data/session-store';
 import { liveQuery } from 'dexie';
 import { useRegisterSW } from 'virtual:pwa-register/react';
+import { useNewVersionReady } from './update-on-launch';
 import { db, recordEvent, sessionId } from '../features/matches/data/match-repository';
 import { MatchSetup } from '../features/matches/components/MatchSetup';
 import { LiveMatch } from '../features/scoring/components/LiveMatch';
@@ -83,10 +84,9 @@ export function App() {
   const [shareId, setShareId] = useState<string | null>(null);
   const closeShare = useCallback(() => setShareId(null), []);
   const busy = useRef(false);
-  const {
-    needRefresh: [needRefresh],
-    updateServiceWorker,
-  } = useRegisterSW();
+  // Registers the service worker; new versions take over on their own (see update-on-launch.ts).
+  useRegisterSW();
+  const needRefresh = useNewVersionReady();
   useEffect(() => {
     sessionId()
       .then(setSession)
@@ -190,6 +190,10 @@ export function App() {
       navigate(tabParam);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startup, session]);
+  // A new version is ready: switch now unless a match is open or being set up.
+  useEffect(() => {
+    if (needRefresh && !selectedId && !setup) window.location.reload();
+  }, [needRefresh, selectedId, setup]);
   // Scoring and match setup are task screens: no app header, footer or tab bar.
   const taskScreen = startup === 'ready' && (setup || !!match);
   async function record(intent: MatchIntent) {
@@ -605,7 +609,7 @@ export function App() {
             An app update is ready. Finish scoring before updating.
             <button
               disabled={(!!match && match.state.status !== 'COMPLETED') || setup}
-              onClick={() => updateServiceWorker(true)}
+              onClick={() => window.location.reload()}
             >
               Update app
             </button>
