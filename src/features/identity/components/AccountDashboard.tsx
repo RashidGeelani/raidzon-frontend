@@ -80,7 +80,10 @@ export function AccountDashboard({
           <span className="profile-avatar" aria-hidden="true">{initials}</span>
           <h2>{displayName}</h2>
           <p>{data.phone}</p>
-          <span className="profile-role">🏆 Tournament Organizer</span>
+          {/* Role from what the account actually does, not a fixed label. */}
+          {(data.tournamentCount ?? 0) > 0 ? <span className="profile-role">🏆 Tournament Organizer</span>
+            : data.ownedMatchCount > 0 ? <span className="profile-role">📋 Match Scorer</span>
+            : profile ? <span className="profile-role">⚡ Player</span> : null}
         </header>
         <div className="profile-summary" aria-label="Organizer totals">
           <div><strong>{data.tournamentCount ?? 0}</strong><span>Tournaments</span></div>
@@ -99,16 +102,15 @@ export function AccountDashboard({
             <div><strong>{profile?.superTackles ?? 0}</strong><span>Super tackles</span></div>
           </div>
           <div className="profile-performance-grid profile-milestones" aria-label="Match milestones">
-            <div className="super-ten">
+              <div className="super-ten"><strong>{profile?.superTens ?? 0}</strong>
               <em className="milestone-tag super-ten">Super 10</em>
-              <strong>{profile?.superTens ?? 0}</strong>
               <span>10+ raid pts in a match</span>
-            </div>
-            <div className="high-five">
-              <em className="milestone-tag high-five">High 5</em>
+          </div>
+          <div className="high-five">
               <strong>{profile?.highFives ?? 0}</strong>
+              <em className="milestone-tag high-five">High 5</em>
               <span>5+ tackle pts in a match</span>
-            </div>
+          </div>
           </div>
           {!profile && <p>When a team adds your verified number and that match syncs, your player stats will appear here.</p>}
         </section>
