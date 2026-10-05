@@ -4,7 +4,7 @@ import { db, normalizePhone } from '../../matches/data/match-repository';
 import { needsSync, syncMatch } from '../../sync/data/sync-matches';
 import { markSynced, runSerialized } from '../../sync/data/live-sync';
 import { isScorable, type LocalMatch } from '../../scoring/domain/match-types';
-import { verifyWithWidget } from '../data/widget-client';
+import { WidgetPhoneSignIn } from './WidgetPhoneSignIn';
 import { clearSession, flushLogouts, restoreSession, saveSession } from '../data/session-store';
 import { AccountDashboard } from './AccountDashboard';
 import { claimDeviceGuestMatches, isClaimableGuest } from '../data/claim-guest-matches';
@@ -214,7 +214,7 @@ export function AccountSync({
             <span className="signin-card-icon" aria-hidden="true">✆</span>
             <div>
               <strong>Sign in with your phone</strong>
-              <small>{widgetAvailable ? 'Verify your number in a few seconds. No password needed.' : challenge ? `Enter the 6-digit code we sent to ${phone}.` : 'We’ll text you a 6-digit code. No password needed.'}</small>
+              <small>{widgetAvailable ? 'We’ll text you a verification code. No password needed.' : challenge ? `Enter the 6-digit code we sent to ${phone}.` : 'We’ll text you a 6-digit code. No password needed.'}</small>
             </div>
           </div>
           {available === null && !widgetAvailable ? (
@@ -223,26 +223,16 @@ export function AccountSync({
           {online && capabilityError && <button className="secondary" onClick={() => setCapabilityRetry((value) => value + 1)}>Retry sign-in</button>}
         </div>
       ) : widgetAvailable ? (
-        <button
-          className="primary signin-card-submit"
-          disabled={!online || busy}
-          onClick={() =>
-            void run(async () => {
-              const accessToken = await verifyWithWidget();
-              const credentials = await deviceCredentials();
-              const session = await api<AccountSession>('/auth/widget', {
-                accessToken,
-                ...credentials,
-              });
-              if (session.deviceId !== credentials.deviceId)
-                throw new Error('Sign-in device mismatch.');
-              await saveSession(session);
-              setAccount(session);
-            })
-          }
-        >
-          {busy ? 'Complete phone verification…' : 'Sign in with phone'}
-        </button>
+        <WidgetPhoneSignIn
+          online={online}
+          onToken={async (accessToken) => {
+            const credentials = await deviceCredentials();
+            const session = await api<AccountSession>('/auth/widget', { accessToken, ...credentials });
+            if (session.deviceId !== credentials.deviceId) throw new Error('Sign-in device mismatch.');
+            await saveSession(session);
+            setAccount(session);
+          }}
+        />
       ) : available === false ? (
         <p className="profile-signin-note">Phone sign-in is temporarily unavailable. You can still score offline; your matches stay saved on this device.</p>
       ) : (

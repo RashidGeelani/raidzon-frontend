@@ -2389,3 +2389,8 @@ article.home-match { cursor: default; }
 .admin-report-actions a { align-self: center; }
 .admin-remove label { display: grid; gap: 6px; margin-top: 8px; font-size: .82rem; }
 .admin-remove input { padding: 8px 10px; border-radius: 10px; }
+
+/* MSG91's "I am human" check, drawn inside our sign-in card */
+.signin-captcha:not(:empty) { display: flex; justify-content: center; margin: 4px 0 10px; max-width: 100%; overflow-x: auto; }
+.signin-captcha[hidden] { display: none; }
+.widget-signin .field-note { margin: -4px 0 10px; }

@@ -60,7 +60,8 @@ test('widget session survives reload and offline logout is revoked on reconnect'
     return route.fulfill({ json: { signedOut: true } });
   });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Sign in with phone' }).click();
+  // This provider script only supports MSG91's popup, so the app falls back to it.
+  await page.getByRole('button', { name: 'Verify with phone' }).click({ timeout: 15_000 });
   await page.getByRole('button', { name: 'Profile', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'My player profile' })).toBeVisible();
