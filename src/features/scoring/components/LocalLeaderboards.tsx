@@ -9,6 +9,7 @@ export function LocalLeaderboards({ matches }: { matches: LocalMatch[] }) {
   const [category, setCategory] = useState<Category>('Raiders');
   const players = new Map<string, { name: string; team: string; raid: number; tackle: number }>();
   for (const match of matches) {
+    if (match.practice) continue; // practice matches never count towards leaderboards
     for (const team of match.state.teams) {
       for (const player of team.players) {
         // Players without a phone are told apart by team and name.

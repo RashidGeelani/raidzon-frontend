@@ -9,7 +9,8 @@ import { restoreSession } from '../features/identity/data/session-store';
 import { liveQuery } from 'dexie';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { useNewVersionReady } from './update-on-launch';
-import { db, recordEvent, sessionId } from '../features/matches/data/match-repository';
+import { db, deleteLocalMatch, recordEvent, sessionId } from '../features/matches/data/match-repository';
+import { api, ApiError } from '../features/identity/data/auth-client';
 import { MatchSetup } from '../features/matches/components/MatchSetup';
 import { LiveMatch } from '../features/scoring/components/LiveMatch';
 import { LiveMatchViewer } from '../features/scorecard/LiveMatchViewer';
@@ -211,6 +212,27 @@ export function App() {
       busy.current = false;
       setSaving(false);
     }
+  }
+  /**
+   * Deletes the open match (creator only, before the first event or while paused). A match already on RaidzOn is
+   * deleted there first, so watchers and the tournament stop showing it; then it leaves this phone.
+   */
+  async function deleteMatch() {
+    if (!match) return;
+    const account = await restoreSession().catch(() => null);
+    const onServer = !!match.serverAccountId;
+    if (onServer && !account) throw new Error('Sign in again to delete this match from RaidzOn.');
+    if (onServer && !online) throw new Error('Connect to the internet to delete this match. It is also saved on RaidzOn.');
+    if (account && online) {
+      try {
+        await api(`/matches/${match.id}/delete`, {}, account.token);
+      } catch (cause) {
+        // Not on the server yet: deleting it from this phone is enough.
+        if (!(cause instanceof ApiError && cause.status === 404)) throw cause;
+      }
+    }
+    await deleteLocalMatch(match.id);
+    home();
   }
   function home() {
     setShareId(null);
@@ -421,6 +443,7 @@ export function App() {
                 onRecord={record}
                 onBack={home}
                 onShare={() => setShareId(match.id)}
+                onDelete={deleteMatch}
                 saving={saving}
               />
               {shareId === match.id && (
@@ -509,6 +532,7 @@ export function App() {
                                   ? '● Live'
                                   : item.state.status.replaceAll('_', ' ').toLowerCase()}
                             </Chip>
+                            {item.practice && <Chip>Practice</Chip>}
                             <small>
                               {item.serverAccountId &&
                               item.serverVersion === item.version &&

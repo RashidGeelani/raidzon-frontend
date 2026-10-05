@@ -167,6 +167,8 @@ async function syncOnce(
       halfMinutes: initial.halfMinutes,
       raidSeconds: initial.raidSeconds,
       startedAt: Date.parse(match.createdAt),
+      // Sent only for a practice match, so other matches keep their creation fingerprint.
+      ...(match.practice ? { practice: true } : {}),
     });
     if (registration.matchId !== matchId || registration.rulesetVersion !== match.rulesetVersion)
       throw new Error('Unexpected server match acknowledgement.');

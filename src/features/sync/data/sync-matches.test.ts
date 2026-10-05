@@ -331,3 +331,18 @@ it('stops retrying when the tournament refuses the link, then retries or detache
   await detachFixture(f.match.id, database);
   expect((await database.matches.get(f.match.id))!.fixtureRef).toBeUndefined();
 });
+it('sends the practice flag only for a practice match', async () => {
+  for (const practice of [true, false]) {
+    const f = await fixture('raidzon-v4');
+    await database.matches.update(f.match.id, { practice: practice || undefined });
+    const bodies: Record<string, unknown>[] = [];
+    const claim = f.transport.claim;
+    f.transport.claim = async (body) => {
+      bodies.push(body as Record<string, unknown>);
+      return claim(body);
+    };
+    await syncMatch(f.match.id, f.account, database, f.transport);
+    expect(bodies[0].practice).toBe(practice ? true : undefined);
+    expect('practice' in bodies[0]).toBe(practice);
+  }
+});

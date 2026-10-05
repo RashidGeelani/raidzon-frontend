@@ -1,6 +1,11 @@
 import { api, type AccountSession } from '../identity/data/auth-client';
 
-export type NotificationKind = 'JOIN_REQUEST_RECEIVED' | 'JOIN_REQUEST_WITHDRAWN' | 'JOIN_REQUEST_APPROVED' | 'JOIN_REQUEST_REJECTED';
+export type NotificationKind =
+  | 'JOIN_REQUEST_RECEIVED'
+  | 'JOIN_REQUEST_WITHDRAWN'
+  | 'JOIN_REQUEST_APPROVED'
+  | 'JOIN_REQUEST_REJECTED'
+  | 'MATCH_REMOVED';
 export interface AppNotification {
   id: string;
   kind: NotificationKind;

@@ -15,6 +15,7 @@ import {
 } from '../domain/match-types';
 import { scoreRaid, type RaidOutcome } from '../domain/score-raid';
 import { DoOrDieAlert } from './DoOrDieAlert';
+import { DeleteMatchSheet } from './DeleteMatchSheet';
 import { matchNow, notBefore } from '../match-clock';
 import { undoTarget } from '../../matches/data/match-repository';
 import { CourtDrawers } from './CourtDrawers';
@@ -34,6 +35,7 @@ export function LiveMatch({
   onRecord,
   onBack,
   onShare,
+  onDelete,
   saving,
 }: {
   match: LocalMatch;
@@ -41,6 +43,8 @@ export function LiveMatch({
   onRecord: (intent: MatchIntent) => Promise<void>;
   onBack: () => void;
   onShare?: () => void;
+  /** Deletes an unfinished match (creator only); rejects with a message the sheet shows. */
+  onDelete?: () => Promise<void>;
   saving: boolean;
 }) {
   const state = match.state;
@@ -115,6 +119,8 @@ export function LiveMatch({
   const live =
     state.status === 'LIVE' && isScorable(match.rulesetVersion);
   const displayScores = state.phase === 'REGULATION' ? state.scores : state.tieScores;
+  // The match's creator can delete it before anything is recorded or while it is paused.
+  const [deleting, setDeleting] = useState(false);
   async function confirmAction(intent: MatchIntent, question: string) {
     if (window.confirm(question)) await onRecord(intent);
   }
@@ -181,7 +187,7 @@ export function LiveMatch({
 
   return (
     <div className="scoring-screen" onPointerDown={unlockRaidAudio}>
-      <header className="live-view-header"><button className="tournament-back" onClick={onBack} aria-label="Back to matches">←</button><span className="live-status">{state.status.replaceAll('_', ' ')}</span><small>{state.status === 'COMPLETED' ? 'Match result' : 'Scorer mode'}</small><SidelineToggle />{onShare && <button className="share-live-button secondary" onClick={onShare}>Share live link</button>}</header>
+      <header className="live-view-header"><button className="tournament-back" onClick={onBack} aria-label="Back to matches">←</button><span className="live-status">{state.status.replaceAll('_', ' ')}</span>{match.practice && <span className="practice-tag" title="Practice match: not counted in player stats or leaderboards">PRACTICE</span>}<small>{state.status === 'COMPLETED' ? 'Match result' : 'Scorer mode'}</small><SidelineToggle />{onShare && <button className="share-live-button secondary" onClick={onShare}>Share live link</button>}</header>
       {!isScorable(match.rulesetVersion) && (
         <p role="status" className="field-note">
           Previous ruleset: history is preserved. Start a new match to use the updated rules.
@@ -660,7 +666,23 @@ export function LiveMatch({
                 {state.half === 1 ? 'End first half' : 'End regulation'}
               </button>
             )}
+            {/* Deleting is offered before the first event or while the match is paused. */}
+            {onDelete && (match.version === 0 || state.status === 'PAUSED') && (
+              <button className="quiet delete-match-button" disabled={saving} onClick={() => setDeleting(true)}>
+                Delete match
+              </button>
+            )}
           </div>
+          {deleting && onDelete && (
+            <DeleteMatchSheet
+              state={state}
+              events={events.length}
+              synced={!!match.serverAccountId}
+              inTournament={!!match.fixtureRef}
+              onClose={() => setDeleting(false)}
+              onConfirm={onDelete}
+            />
+          )}
           {live && (
             <details className="panel">
               <summary>Official actions</summary>

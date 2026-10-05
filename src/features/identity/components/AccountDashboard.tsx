@@ -3,6 +3,7 @@ import { api, type AccountSession } from '../data/auth-client';
 import { OPEN_NOTIFICATIONS } from '../../notifications/notification-client';
 import { ShareScorecard } from '../../scorecard/ShareScorecard';
 import { EditPlayerProfile } from './EditPlayerProfile';
+import { AdminReports } from './AdminReports';
 
 interface Dashboard {
   accountId: string;
@@ -31,7 +32,13 @@ interface Dashboard {
     scoreA: number;
     scoreB: number;
     updatedAt: number;
+    /** Quick match with filled-in names: not counted in stats. */
+    practice?: boolean;
+    /** Taken down by a RaidzOn admin. */
+    removed?: boolean;
   }[];
+  /** This account can review match reports. */
+  admin?: boolean;
 }
 export function AccountDashboard({
   account,
@@ -83,22 +90,24 @@ export function AccountDashboard({
         <section className="profile-performance" aria-label="Player performance">
           <div className="profile-section-title">
             <h3>My player profile</h3>
-            <span className="milestone-tag super-ten">{profile ? `${profile.matchCount} match appearances` : 'No linked player record yet'}</span>
+            <span>{profile ? `${profile.matchCount} match appearances` : 'No linked player record yet'}</span>
           </div>
           <div className="profile-performance-grid">
-            <div><strong>{profile?.raidPoints ?? 0}</strong><span className="milestone-tag super-ten">Raid points</span></div>
-            <div><strong>{profile?.tacklePoints ?? 0}</strong><span className="milestone-tag high-five">Tackle points</span></div>
-            <div><strong>{profile?.superRaids ?? 0}</strong><span className="milestone-tag super-ten">Super raids</span></div>
-            <div><strong>{profile?.superTackles ?? 0}</strong><span className="milestone-tag high-five">Super tackles</span></div>
+            <div><strong>{profile?.raidPoints ?? 0}</strong><span>Raid points</span></div>
+            <div><strong>{profile?.tacklePoints ?? 0}</strong><span>Tackle points</span></div>
+            <div><strong>{profile?.superRaids ?? 0}</strong><span>Super raids</span></div>
+            <div><strong>{profile?.superTackles ?? 0}</strong><span>Super tackles</span></div>
           </div>
           <div className="profile-performance-grid profile-milestones" aria-label="Match milestones">
             <div className="super-ten">
               <em className="milestone-tag super-ten">Super 10</em>
               <strong>{profile?.superTens ?? 0}</strong>
+              <span>10+ raid pts in a match</span>
             </div>
             <div className="high-five">
               <em className="milestone-tag high-five">High 5</em>
               <strong>{profile?.highFives ?? 0}</strong>
+              <span>5+ tackle pts in a match</span>
             </div>
           </div>
           {!profile && <p>When a team adds your verified number and that match syncs, your player stats will appear here.</p>}
@@ -117,11 +126,12 @@ export function AccountDashboard({
           <summary>My synced matches · {data.ownedMatchCount}</summary>
           {data.recentMatches.length ? <ul>{data.recentMatches.map((match) => <li key={match.id}>
             <strong>{match.teamA} {match.scoreA}–{match.scoreB} {match.teamB}</strong>
-            <small>{match.status === 'COMPLETED' ? 'Completed' : 'In progress'} · {new Date(match.updatedAt).toLocaleString()}</small>
-            <ShareScorecard matchId={match.id} token={account.token} online={online} />
+            <small>{match.status === 'COMPLETED' ? 'Completed' : 'In progress'} · {new Date(match.updatedAt).toLocaleString()}{match.practice ? ' · Practice, not counted in stats' : ''}</small>
+            {match.removed ? <small className="match-removed-note">Removed by RaidzOn after a report. It no longer counts and can’t be shared.</small> : <ShareScorecard matchId={match.id} token={account.token} online={online} />}
           </li>)}</ul> : <p>Your synced matches will appear here.</p>}
           {data.ownedMatchCount > 20 && <p>Showing your 20 most recently updated matches.</p>}
         </details>
+        {data.admin && <AdminReports account={account} online={online} />}
       </>}
       {!online && (
         <p>

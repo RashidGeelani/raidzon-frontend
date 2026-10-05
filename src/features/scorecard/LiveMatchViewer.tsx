@@ -4,6 +4,7 @@ import { eventLabel } from '../scoring/domain/event-label';
 import { milestones } from '../scoring/domain/match-summary';
 import { isDoOrDie } from '../scoring/domain/match-types';
 import { watchMatch, type LiveConnection, type LiveStateUpdate } from './live-socket';
+import { ReportMatch } from './ReportMatch';
 import type { ClockState, MatchState, Player } from '../scoring/domain/match-types';
 
 type ViewerState = Pick<MatchState, 'scores' | 'tieScores' | 'status' | 'phase' | 'half' | 'raidNumber' | 'turn' | 'currentRaiderId' | 'clock' | 'raidClock' | 'winner'> & {
@@ -134,6 +135,7 @@ export function LiveMatchViewer({ matchId, onBack }: { matchId: string; onBack?:
       <h3 className="live-section-title">Match events</h3>
       <ol className="live-event-list">{view?.events.map((event) => <li key={event.id}><span>{eventLabel(event.summary)}</span><small>R{event.raidNumber}</small></li>)}</ol>
       <p className="viewer-footnote">Viewer mode · Read only · Updates follow the scorer’s connection.<br />Last synced {new Date(view!.lastSyncedAt).toLocaleTimeString()}</p>
+      <ReportMatch matchId={matchId} />
     </>}
   </section>;
 }

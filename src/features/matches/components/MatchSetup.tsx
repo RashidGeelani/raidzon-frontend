@@ -40,6 +40,8 @@ export function MatchSetup({
   const [raidSeconds, setRaidSeconds] = useState(preset?.raidSeconds ?? 30);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  // Once blank names are filled in automatically, the match is a practice match.
+  const [practice, setPractice] = useState(false);
   // Players scored before on this phone, offered as suggestions so names and numbers are typed once.
   const [recent, setRecent] = useState<{ name: string; phone: string }[]>([]);
   useEffect(() => {
@@ -49,6 +51,7 @@ export function MatchSetup({
   }, []);
   const phoneRequired = !!preset;
   function quickFill() {
+    setPractice(true);
     setTeams((previous) => {
       const next = structuredClone(previous);
       next.forEach((team, side) => {
@@ -87,6 +90,7 @@ export function MatchSetup({
             firstTurn,
             halfMinutes,
             raidSeconds,
+            practice: practice && !preset,
             fixtureRef: preset
               ? { tournamentId: preset.tournamentId, fixtureId: preset.fixtureId, knockout: !!preset.knockout }
               : undefined,
@@ -155,8 +159,13 @@ export function MatchSetup({
       {!preset && (
         <div className="setup-quick">
           <button type="button" className="secondary" onClick={quickFill}>Quick match: fill blank names</button>
-          <small>Fills empty team and player names so you can start scoring straight away.</small>
+          <small>Fills empty team and player names so you can start scoring straight away. The match becomes a practice match.</small>
         </div>
+      )}
+      {practice && !preset && (
+        <p className="practice-note" role="status">
+          <span className="practice-tag">PRACTICE</span> Practice match: it won’t count towards player profiles or leaderboards.
+        </p>
       )}
       {recent.length > 0 && (
         <datalist id="recent-players">

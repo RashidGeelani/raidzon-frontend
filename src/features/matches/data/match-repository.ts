@@ -57,6 +57,8 @@ export interface SetupInput {
   firstTurn: Side;
   halfMinutes: number;
   raidSeconds: number;
+  /** Quick match with filled-in names: kept out of player stats and leaderboards. */
+  practice?: boolean;
 }
 export function normalizePhone(value: string) {
   const phone = parsePhoneNumberFromString(value, 'IN');
@@ -153,6 +155,7 @@ export async function createMatch(
     const match: LocalMatch = {
       fixtureRef: input.fixtureRef ? { ...input.fixtureRef, linked: false } : undefined,
       rulesetVersion: CURRENT_RULESET,
+      ...(input.practice && !input.fixtureRef ? { practice: true } : {}),
       id: crypto.randomUUID(),
       name: `${teams[0].name} vs ${teams[1].name}`,
       createdAt: new Date(now).toISOString(),
@@ -282,4 +285,15 @@ export async function recordEvent(
     }
     throw error;
   }
+}
+
+/** Removes a match and its events from this phone. */
+export async function deleteLocalMatch(matchId: string, database = db) {
+  await database.transaction('rw', database.matches, database.events, () =>
+    database.events
+      .where('matchId')
+      .equals(matchId)
+      .delete()
+      .then(() => database.matches.delete(matchId)),
+  );
 }

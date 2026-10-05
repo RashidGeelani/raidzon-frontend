@@ -2347,3 +2347,45 @@ article.home-match { cursor: default; }
 .setup-quick { display: grid; gap: 6px; margin: 4px 0 16px; }
 .setup-quick button { justify-self: start; }
 .setup-quick small { color: #9a9abf; font-size: .74rem; }
+
+/* Practice matches (quick match with filled-in names) */
+.practice-tag { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: var(--radius-pill); background: #2a2440; border: 1px solid #4a3f6e; color: #b9a8ff; font-size: .66rem; font-weight: 800; letter-spacing: .06em; }
+.practice-note { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: -6px 0 16px; padding: 10px 12px; border: 1px solid #3a3358; border-radius: 12px; background: #17142a; color: var(--text-muted); font-size: .82rem; }
+
+/* Delete match confirmation */
+.delete-match-button { color: var(--danger); }
+.delete-match-effects { display: grid; gap: 6px; margin: 0 0 8px; padding-left: 18px; color: var(--text-muted); font-size: .86rem; }
+.end-match-score { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; margin: 4px 0 12px; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--card-raised); text-align: center; }
+.end-match-score span { color: var(--text-muted); font-size: .82rem; overflow-wrap: anywhere; }
+.end-match-score strong { font-family: Rajdhani, Inter, sans-serif; font-size: 1.9rem; }
+.end-match-outcome { font-weight: 700; }
+.end-match-actions, .report-actions, .admin-report-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.end-match-actions button, .report-actions :is(button, a) { min-width: 120px; }
+
+/* Report a match (watch page) */
+.report-match-link { display: block; margin: 4px auto 24px; color: var(--text-faint); font-size: .8rem; }
+.report-reasons { display: grid; gap: 8px; margin: 0 0 12px; padding: 0; border: 0; }
+.report-reasons legend { margin-bottom: 8px; font-weight: 700; }
+.report-reasons label { display: flex; align-items: flex-start; justify-content: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--card-raised); text-align: left; cursor: pointer; }
+.report-reasons label.selected { border-color: var(--accent); background: #24162a; }
+.report-reasons input[type='radio'] { flex: none; width: 18px; height: 18px; min-width: 0; min-height: 0; margin: 2px 0 0; padding: 0; border: 0; appearance: auto; accent-color: var(--accent); }
+.report-reasons span { display: grid; gap: 2px; font-weight: 600; }
+.report-reasons small { color: var(--text-muted); font-size: .76rem; }
+.ui-sheet textarea { width: 100%; box-sizing: border-box; margin-top: 6px; padding: 8px; border-radius: 10px; resize: vertical; font: inherit; }
+
+/* Admin: match reports on the Profile tab */
+.match-removed-note { color: var(--danger) !important; }
+.admin-reports .field-note { margin: 8px 0; }
+.admin-lookup { display: flex; gap: 8px; margin: 8px 0 12px; }
+.admin-lookup input { flex: 1; min-width: 0; padding: 8px 10px; border-radius: 10px; }
+.admin-report-list { display: grid; gap: 10px; margin: 0; padding: 0 !important; list-style: none; }
+.admin-report { padding: 12px !important; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--card-raised); }
+.admin-report.removed { opacity: .75; border-style: dashed; }
+.admin-report-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.admin-report-count { flex: none; padding: 2px 8px; border-radius: var(--radius-pill); background: #3b1520; color: var(--danger); font-size: .72rem; font-weight: 800; }
+.admin-report-reasons { margin: 6px 0; font-size: .85rem; font-weight: 600; }
+.admin-report blockquote { margin: 4px 0; padding-left: 10px; border-left: 2px solid var(--line-strong); color: var(--text-muted); font-size: .82rem; }
+.admin-report-removed { margin: 6px 0; color: var(--danger); font-size: .82rem; }
+.admin-report-actions a { align-self: center; }
+.admin-remove label { display: grid; gap: 6px; margin-top: 8px; font-size: .82rem; }
+.admin-remove input { padding: 8px 10px; border-radius: 10px; }

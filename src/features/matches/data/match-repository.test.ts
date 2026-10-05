@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   RaidzOnDatabase,
   createMatch,
+  deleteLocalMatch,
   recentPlayers,
   recordEvent,
   sessionId,
@@ -28,6 +29,33 @@ beforeEach(() => {
 });
 afterEach(async () => {
   await database.delete();
+});
+
+describe('deleting a match', () => {
+  it('removes the match and its events from this phone', async () => {
+    await database.metadata.put({ key: 'scoring-account', value: 'organizer' });
+    const keep = await createMatch(setup(), 'session', database);
+    const gone = await createMatch(setup(), 'session', database);
+    await recordEvent(gone.id, 0, 'session', { type: 'TECHNICAL', side: 0 }, crypto.randomUUID(), database);
+    await recordEvent(keep.id, 0, 'session', { type: 'TECHNICAL', side: 1 }, crypto.randomUUID(), database);
+    await deleteLocalMatch(gone.id, database);
+    expect(await database.matches.get(gone.id)).toBeUndefined();
+    expect(await database.events.where('matchId').equals(gone.id).count()).toBe(0);
+    expect(await database.events.where('matchId').equals(keep.id).count()).toBe(1);
+  });
+});
+
+describe('practice matches', () => {
+  it('marks a quick match with filled-in names as practice, but never a fixture match', async () => {
+    expect((await createMatch({ ...setup(), practice: true }, 'session', database)).practice).toBe(true);
+    expect((await createMatch(setup(), 'session', database)).practice).toBeUndefined();
+    const fixture = await createMatch(
+      { ...setup(), practice: true, fixtureRef: { tournamentId: 't', fixtureId: 'f' } },
+      'session',
+      database,
+    );
+    expect(fixture.practice).toBeUndefined();
+  });
 });
 
 describe('durable local events', () => {

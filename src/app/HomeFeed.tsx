@@ -179,7 +179,9 @@ export function HomeFeed({
                   </b>
                   <strong>{match.state.teams[1].name}</strong>
                 </span>
-                <span className="home-match-cta">View result →</span>
+                <span className="home-match-cta">
+                  {match.practice && <span className="practice-tag">PRACTICE</span>} View result →
+                </span>
               </button>
             ))}
           </section>

@@ -126,6 +126,8 @@ export interface LocalMatch {
   serverVersion?: number;
   syncError?: string;
   rulesetVersion?: RulesetVersion;
+  /** Practice match (quick match with filled-in names): never counts towards player stats or leaderboards. */
+  practice?: boolean;
   id: string;
   name: string;
   createdAt: string;
