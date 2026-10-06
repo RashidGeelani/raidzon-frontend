@@ -102,17 +102,19 @@ export function AccountDashboard({
             <div><strong>{profile?.superTackles ?? 0}</strong><span>Super tackles</span></div>
           </div>
           <div className="profile-performance-grid profile-milestones" aria-label="Match milestones">
-              <div className="super-ten"><strong>{profile?.superTens ?? 0}</strong>
+            <div className="super-ten">
+              <strong>{profile?.superTens ?? 0}</strong>
               <em className="milestone-tag super-ten">Super 10</em>
               <span>10+ raid pts in a match</span>
-          </div>
-          <div className="high-five">
+            </div>
+            <div className="high-five">
               <strong>{profile?.highFives ?? 0}</strong>
               <em className="milestone-tag high-five">High 5</em>
               <span>5+ tackle pts in a match</span>
-          </div>
+            </div>
           </div>
           {!profile && <p>When a team adds your verified number and that match syncs, your player stats will appear here.</p>}
+          <p className="field-note profile-stats-rule">Only completed matches count. Practice matches, and matches scored by someone who also played in them, don’t count.</p>
         </section>
         <div className="profile-menu">
           <div className="profile-menu-row">
