@@ -451,6 +451,15 @@ export function TournamentDashboard({
             const prepared = matches.some((match) => match.fixtureRef?.fixtureId === fixture.id);
             const winner = fixture.status === 'COMPLETED' ? fixture.winner : null;
             const tie = fixture.phase && fixture.phase !== 'REGULATION';
+            // A team can't be on two courts at once: an unfinished match in another fixture (live on the
+            // server, or started on this phone and not linked yet) blocks scoring this one. The server checks too.
+            const liveFixtures = new Set([
+              ...detail.fixtures.filter((f) => f.matchId && f.status !== 'COMPLETED').map((f) => f.id),
+              ...matches.filter((m) => m.fixtureRef?.tournamentId === selected && m.state.status !== 'COMPLETED').map((m) => m.fixtureRef!.fixtureId),
+            ]);
+            const busyTeams = [fixture.teamAId, fixture.teamBId].filter((team) =>
+              team && detail.fixtures.some((f) => f.id !== fixture.id && liveFixtures.has(f.id) && (f.teamAId === team || f.teamBId === team)),
+            ).map((team) => teamName(team!));
             return (
             <div className={`fixture-row ${isKnockout(fixture) ? 'knockout' : ''} ${fixture.matchId && fixture.status !== 'COMPLETED' ? 'live' : ''}`}>
               <div className="fixture-row-meta">
@@ -467,9 +476,10 @@ export function TournamentDashboard({
               {winner === 'DRAW' && <p className="fixture-row-note">{isKnockout(fixture) ? 'Drawn — a knockout needs a winner: undo and play the tie-break.' : 'Draw'}</p>}
               {!fixture.matchId && !decided && <p className="fixture-row-note">Teams are decided by earlier results.</p>}
               {!fixture.matchId && prepared && <p className="fixture-row-note">Prepared on this phone. It links to this fixture after it syncs.</p>}
+              {!fixture.matchId && decided && !prepared && busyTeams.length > 0 && <p className="fixture-row-note" role="status">{busyTeams.join(' and ')} {busyTeams.length === 1 ? 'is' : 'are'} already playing a live match in this tournament. Finish that match first.</p>}
               <div className="fixture-row-actions">
                 {fixture.matchId && <MatchActions matchId={fixture.matchId} matches={matches} onScore={onScoreMatch} completed={fixture.status === 'COMPLETED'} />}
-                {!fixture.matchId && decided && !prepared && (
+                {!fixture.matchId && decided && !prepared && !busyTeams.length && (
                   <button
                     className="primary"
                     type="button"
