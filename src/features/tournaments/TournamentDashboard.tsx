@@ -6,7 +6,7 @@ import { api, type AccountSession } from '../identity/data/auth-client';
 import type { LocalMatch } from '../scoring/domain/match-types';
 import type { PreparedFixture } from './types';
 import { MatchActions } from '../scorecard/MatchActions';
-import { normalizePhone, parseJersey } from '../matches/data/match-repository';
+import { normalizePhone, parseJersey, RAID_SECONDS } from '../matches/data/match-repository';
 import { cachedTeams, refreshTeamCache, type TeamDetail } from '../teams/data/team-client';
 import { JoinRequestsPanel } from './JoinRequestsPanel';
 import type { Focus } from '../notifications/notification-client';
@@ -228,7 +228,7 @@ export function TournamentDashboard({
               venue: String(data.get('venue')).trim(),
               startsOn: data.get('date'),
               halfMinutes: Number(data.get('half')),
-              raidSeconds: Number(data.get('raid')),
+              raidSeconds: RAID_SECONDS,
             });
           }}
         >
@@ -249,10 +249,7 @@ export function TournamentDashboard({
               Half duration (minutes)
               <input name="half" required type="number" min={1} max={60} defaultValue={20} />
             </label>
-            <label>
-              Raid duration (seconds)
-              <input name="raid" required type="number" min={5} max={120} defaultValue={30} />
-            </label>
+            <p className="field-note">Raids are the standard {RAID_SECONDS} seconds.</p>
             <button>Create tournament</button>
           </fieldset>
         </form>

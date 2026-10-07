@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { createMatch, parseJersey, recentPlayers, type TeamInput } from '../data/match-repository';
+import { createMatch, parseJersey, RAID_SECONDS, recentPlayers, type TeamInput } from '../data/match-repository';
 import type { LocalMatch, Side } from '../../scoring/domain/match-types';
 import type { PreparedFixture } from '../../tournaments/types';
 import { SavedTeamPicker } from '../../teams/SavedTeamPicker';
@@ -37,7 +37,6 @@ export function MatchSetup({
   });
   const [firstTurn, setFirstTurn] = useState<Side>(0);
   const [halfMinutes, setHalfMinutes] = useState(preset?.halfMinutes ?? 20);
-  const [raidSeconds, setRaidSeconds] = useState(preset?.raidSeconds ?? 30);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   // Once blank names are filled in automatically, the match is a practice match.
@@ -98,7 +97,6 @@ export function MatchSetup({
             teams,
             firstTurn,
             halfMinutes,
-            raidSeconds,
             practice: practice && !preset,
             fixtureRef: preset
               ? { tournamentId: preset.tournamentId, fixtureId: preset.fixtureId, knockout: !!preset.knockout }
@@ -133,7 +131,7 @@ export function MatchSetup({
       </div>
       <section className="panel settings" aria-label="Match settings">
         {preset && (
-          <p className="field-note settings-locked">Team names come from the fixture. Timers start at the tournament’s defaults — change them if this match is shorter or longer.</p>
+          <p className="field-note settings-locked">Team names come from the fixture. Halves start at the tournament’s default — change it if this match is shorter or longer.</p>
         )}
         <label>
           First raid
@@ -153,17 +151,7 @@ export function MatchSetup({
             onChange={(e) => setHalfMinutes(Number(e.target.value))}
           />
         </label>
-        <label>
-          Seconds per raid
-          <input
-            required
-            type="number"
-            min={5}
-            max={120}
-            value={raidSeconds}
-            onChange={(e) => setRaidSeconds(Number(e.target.value))}
-          />
-        </label>
+        <p className="field-note raid-time-fixed">Raid time: <strong>{RAID_SECONDS} seconds</strong></p>
       </section>
       {!preset && (
         <div className="setup-quick">

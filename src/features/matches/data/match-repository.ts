@@ -62,10 +62,13 @@ export interface SetupInput {
   teams: [TeamInput, TeamInput];
   firstTurn: Side;
   halfMinutes: number;
-  raidSeconds: number;
+  /** Ignored: every raid is the standard {@link RAID_SECONDS}. Kept so older callers still compile. */
+  raidSeconds?: number;
   /** Quick match with filled-in names: kept out of player stats and leaderboards. */
   practice?: boolean;
 }
+/** Standard kabaddi raid time. It is not a setting anywhere in the app. */
+export const RAID_SECONDS = 30;
 export function normalizePhone(value: string) {
   const phone = parsePhoneNumberFromString(value, 'IN');
   if (!phone?.isValid())
@@ -112,12 +115,9 @@ export async function createMatch(
   if (
     !Number.isInteger(input.halfMinutes) ||
     input.halfMinutes < 1 ||
-    input.halfMinutes > 60 ||
-    !Number.isInteger(input.raidSeconds) ||
-    input.raidSeconds < 5 ||
-    input.raidSeconds > 120
+    input.halfMinutes > 60
   )
-    throw new Error('Use 1–60 minutes per half and 5–120 seconds per raid.');
+    throw new Error('Use 1–60 minutes per half.');
   const normalized = input.teams.map((t) => ({
     ...t,
     // Phones are optional for a quick match; tournament fixtures need them to check the roster.
@@ -198,10 +198,10 @@ export async function createMatch(
         raidNumber: 1,
         winner: null,
         halfMinutes: input.halfMinutes,
-        raidSeconds: input.raidSeconds,
+        raidSeconds: RAID_SECONDS,
         // v4: the match clock starts with the first raid, not when the match is set up.
         clock: { remainingMs: input.halfMinutes * 60_000, startedAt: clockStartsWithFirstRaid(CURRENT_RULESET) ? null : now },
-        raidClock: { remainingMs: input.raidSeconds * 1000, startedAt: null },
+        raidClock: { remainingMs: RAID_SECONDS * 1000, startedAt: null },
         currentRaiderId: null,
         expiryReviewed: false,
       },

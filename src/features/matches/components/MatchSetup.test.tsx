@@ -14,7 +14,7 @@ it('prefills a prepared fixture with saved players and tournament timers', () =>
         teamA: 'Raiders',
         teamB: 'Defenders',
         halfMinutes: 24,
-        raidSeconds: 35,
+        raidSeconds: 35, // an older tournament setting is ignored: raids are always 30 seconds
         rosterA: Array.from({ length: 7 }, (_, index) => ({
           name: `Raider ${index + 1}`,
           phone: `+9198765432${index + 10}`,
@@ -27,5 +27,6 @@ it('prefills a prepared fixture with saved players and tournament timers', () =>
   expect(markup).toContain('value="Defenders"');
   expect(markup).toContain('value="Raider 1"');
   expect(markup).toContain('value="24"');
-  expect(markup).toContain('value="35"');
+  expect(markup).not.toContain('value="35"');
+  expect(markup).toContain('Raid time: <strong>30 seconds</strong> (standard)');
 });
