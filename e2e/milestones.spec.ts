@@ -74,10 +74,14 @@ test('match result tags a top raider who scored a Super 10', async ({ page }) =>
   await names.nth(0).fill('Valley Raiders');
   await names.nth(1).fill('City Warriors');
   for (let side = 0; side < 2; side++)
-    for (let player = 0; player < 7; player++)
+    for (let player = 0; player < 7; player++) {
+      await page
+        .getByLabel(`Team ${side + 1} player ${player + 1} jersey number`, { exact: true })
+        .fill(`${player + 1}`);
       await page
         .getByLabel(`Team ${side + 1} player ${player + 1} name`, { exact: true })
         .fill(`${side ? 'Warrior' : 'Raider'} ${player + 1}`);
+    }
   await page.getByRole('button', { name: 'Start match →', exact: true }).click();
   // Raider 1: 5 touches, then the last 2 defenders (all out), then 4 more after the revival = 11 raid points.
   await raid(page, 'Raider 1', ['Warrior 1', 'Warrior 2', 'Warrior 3', 'Warrior 4', 'Warrior 5']);

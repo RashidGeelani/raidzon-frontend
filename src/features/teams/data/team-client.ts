@@ -102,8 +102,8 @@ export type LineupSlot = 'STARTER' | 'SUB' | 'OUT';
 /** Anyone who can be picked for a match: a saved-squad member or a tournament roster entry. */
 export type LineupMember = Pick<TeamMember, 'id' | 'name' | 'phone'> & Partial<Pick<TeamMember, 'jersey' | 'leadership'>>;
 /** Tournament roster entries have no member IDs; the phone is unique within a roster. */
-export const rosterMembers = (roster: { name: string; phone: string }[]): LineupMember[] =>
-  roster.map((player) => ({ id: player.phone, name: player.name, phone: player.phone }));
+export const rosterMembers = (roster: { name: string; phone: string; jersey?: number | null }[]): LineupMember[] =>
+  roster.map((player) => ({ id: player.phone, name: player.name, phone: player.phone, jersey: player.jersey ?? null }));
 /** Default match-day lineup: captain and vice-captain first, then squad order; 7 starters, up to 5 subs. */
 export function defaultLineup(members: LineupMember[]): Record<string, LineupSlot> {
   const ordered = [...members].sort((a, b) => rank(a) - rank(b));
@@ -130,6 +130,8 @@ export function lineupToTeamInput(team: { name: string; members: LineupMember[] 
   const problem = lineupProblem(lineup);
   if (problem) throw new Error(problem);
   const pick = (slot: LineupSlot) =>
-    team.members.filter((member) => lineup[member.id] === slot).map((member) => ({ name: member.name, phone: member.phone }));
+    team.members
+      .filter((member) => lineup[member.id] === slot)
+      .map((member) => ({ name: member.name, phone: member.phone, jersey: member.jersey == null ? '' : String(member.jersey) }));
   return { name: team.name, players: [...pick('STARTER'), ...pick('SUB')] };
 }

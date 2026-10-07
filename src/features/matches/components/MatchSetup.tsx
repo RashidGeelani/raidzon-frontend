@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { createMatch, recentPlayers, type TeamInput } from '../data/match-repository';
+import { createMatch, parseJersey, recentPlayers, type TeamInput } from '../data/match-repository';
 import type { LocalMatch, Side } from '../../scoring/domain/match-types';
 import type { PreparedFixture } from '../../tournaments/types';
 import { SavedTeamPicker } from '../../teams/SavedTeamPicker';
@@ -8,7 +8,7 @@ import { defaultLineup, lineupToTeamInput, rosterMembers } from '../../teams/dat
 
 const emptyTeam = (): TeamInput => ({
   name: '',
-  players: Array.from({ length: 7 }, () => ({ name: '', phone: '' })),
+  players: Array.from({ length: 7 }, () => ({ name: '', phone: '', jersey: '' })),
 });
 export function MatchSetup({
   session,
@@ -58,6 +58,15 @@ export function MatchSetup({
         if (!team.name.trim()) team.name = side === 0 ? 'Team A' : 'Team B';
         team.players.forEach((player, index) => {
           if (!player.name.trim()) player.name = `${side === 0 ? 'A' : 'B'} player ${index + 1}`;
+        });
+        // Blank jersey numbers become the lowest numbers not already used in the team.
+        const used = new Set(team.players.map((player) => parseJersey(player.jersey)).filter((n) => n !== null));
+        let next = 1;
+        team.players.forEach((player) => {
+          if (parseJersey(player.jersey) !== null) return;
+          while (used.has(next)) next++;
+          player.jersey = String(next);
+          used.add(next);
         });
       });
       return next;
@@ -159,7 +168,7 @@ export function MatchSetup({
       {!preset && (
         <div className="setup-quick">
           <button type="button" className="secondary" onClick={quickFill}>Quick match: fill blank names</button>
-          <small>Fills empty team and player names so you can start scoring straight away. The match becomes a practice match.</small>
+          <small>Fills empty team names, player names and jersey numbers so you can start scoring straight away. The match becomes a practice match.</small>
         </div>
       )}
       {practice && !preset && (
@@ -215,10 +224,29 @@ export function MatchSetup({
                   }
                 />
               </label>
-              <p className="field-note">Players 1–7 start on court.{phoneRequired ? ' Phone numbers stay private.' : ' Phone numbers are optional and stay private.'}</p>
+              <p className="field-note">Players 1–7 start on court. Every player needs their jersey number (#) so you can pick them quickly while scoring.{phoneRequired ? ' Phone numbers stay private.' : ' Phone numbers are optional and stay private.'}</p>
               {team.players.map((player, playerIndex) => (
                 <div className="player-input" key={playerIndex}>
                   <span className="number">{String(playerIndex + 1).padStart(2, '0')}</span>
+                  <label className="jersey-field">
+                    <span className="sr-only">
+                      Team {side + 1} player {playerIndex + 1} jersey number
+                    </span>
+                    <input
+                      required
+                      inputMode="numeric"
+                      pattern="[0-9]{1,3}"
+                      maxLength={3}
+                      placeholder="#"
+                      title="Jersey number (0–999)"
+                      value={player.jersey ?? ''}
+                      onChange={(e) =>
+                        update(side, (t) => {
+                          t.players[playerIndex].jersey = e.target.value.replace(/\D/g, '');
+                        })
+                      }
+                    />
+                  </label>
                   <label>
                     <span className="sr-only">
                       Team {side + 1} player {playerIndex + 1} name
@@ -271,7 +299,7 @@ export function MatchSetup({
                 disabled={team.players.length === 12}
                 onClick={() =>
                   update(side, (t) => {
-                    t.players.push({ name: '', phone: '' });
+                    t.players.push({ name: '', phone: '', jersey: '' });
                   })
                 }
               >

@@ -654,7 +654,7 @@ function MemberRow({
           <input
             type="number"
             min={0}
-            max={99}
+            max={999}
             value={jersey}
             onChange={(e) => setJersey(e.target.value)}
           />
@@ -807,7 +807,7 @@ function AddMemberForm({
         <input
           type="number"
           min={0}
-          max={99}
+          max={999}
           value={jersey}
           onChange={(e) => setJersey(e.target.value)}
         />

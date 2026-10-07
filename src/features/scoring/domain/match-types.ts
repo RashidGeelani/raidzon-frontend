@@ -10,6 +10,8 @@ export interface Player {
   status: 'ACTIVE' | 'OUT' | 'BENCH';
   raidPoints: number;
   tacklePoints: number;
+  /** Shirt number 0-999, unique within the team. Absent for matches created before numbers. */
+  jersey?: number;
 }
 export interface Team {
   name: string;

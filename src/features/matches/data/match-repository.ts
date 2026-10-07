@@ -49,7 +49,13 @@ export const db = new RaidzOnDatabase();
 
 export interface TeamInput {
   name: string;
-  players: { name: string; phone: string }[];
+  /** jersey: the shirt number as typed (required for every match player, 0-999). */
+  players: { name: string; phone: string; jersey?: string }[];
+}
+/** A shirt number as typed in setup: 1 to 3 digits, 0-999. Returns null when it isn't one. */
+export function parseJersey(value: string | number | undefined | null): number | null {
+  const text = String(value ?? '').trim();
+  return /^[0-9]{1,3}$/.test(text) ? Number(text) : null;
 }
 export interface SetupInput {
   fixtureRef?: { tournamentId: string; fixtureId: string; knockout?: boolean };
@@ -118,8 +124,18 @@ export async function createMatch(
     players: t.players.map((p) => ({
       name: p.name.trim(),
       phone: !p.phone.trim() && !input.fixtureRef ? '' : normalizePhone(p.phone),
+      jersey: parseJersey(p.jersey),
     })),
   }));
+  // Scorers pick players by the number on their shirt, so every player needs one.
+  for (const team of normalized) {
+    if (team.players.some((p) => p.jersey === null))
+      throw new Error(`Enter a jersey number (0–999) for every ${team.name.trim() || 'team'} player.`);
+    const numbers = team.players.map((p) => p.jersey);
+    const repeated = numbers.find((n, i) => numbers.indexOf(n) !== i);
+    if (repeated !== undefined)
+      throw new Error(`Jersey ${repeated} is used twice in ${team.name.trim()}. Each player needs a different number.`);
+  }
   const phones = normalized.flatMap((t) => t.players.map((p) => p.phone)).filter(Boolean);
   if (new Set(phones).size !== phones.length)
     throw new Error('Each player must have a unique phone number across both teams.');
@@ -139,16 +155,18 @@ export async function createMatch(
       activeSubstitutions: 0,
       players: team.players.map((candidate, index) => {
         // Without a phone a player is known only in this match.
+        const jersey = candidate.jersey!;
         if (!candidate.phone)
-          return { ...candidate, id: crypto.randomUUID(), status: index < 7 ? 'ACTIVE' : 'BENCH', raidPoints: 0, tacklePoints: 0 } as Player;
+          return { name: candidate.name, phone: '', id: crypto.randomUUID(), status: index < 7 ? 'ACTIVE' : 'BENCH', raidPoints: 0, tacklePoints: 0, jersey } as Player;
         let identity = byPhone.get(candidate.phone);
         if (!identity) {
-          identity = { ...candidate, id: crypto.randomUUID() };
+          // The number belongs to this match's team, not to the player, so it isn't stored with them.
+          identity = { name: candidate.name, phone: candidate.phone, id: crypto.randomUUID() };
           byPhone.set(candidate.phone, identity);
           added.push(identity);
         }
         // Reuse identity without allowing setup to overwrite protected personal data.
-        return { ...identity, status: index < 7 ? 'ACTIVE' : 'BENCH', raidPoints: 0, tacklePoints: 0 } as Player;
+        return { ...identity, status: index < 7 ? 'ACTIVE' : 'BENCH', raidPoints: 0, tacklePoints: 0, jersey } as Player;
       }),
     }));
     const now = matchNow();

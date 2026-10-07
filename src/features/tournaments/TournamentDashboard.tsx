@@ -6,7 +6,7 @@ import { api, type AccountSession } from '../identity/data/auth-client';
 import type { LocalMatch } from '../scoring/domain/match-types';
 import type { PreparedFixture } from './types';
 import { MatchActions } from '../scorecard/MatchActions';
-import { normalizePhone } from '../matches/data/match-repository';
+import { normalizePhone, parseJersey } from '../matches/data/match-repository';
 import { cachedTeams, refreshTeamCache, type TeamDetail } from '../teams/data/team-client';
 import { JoinRequestsPanel } from './JoinRequestsPanel';
 import type { Focus } from '../notifications/notification-client';
@@ -32,7 +32,7 @@ interface Team {
   id: string;
   name: string;
   rosterRevision: number;
-  roster: { name: string; phone: string }[];
+  roster: { name: string; phone: string; jersey?: number | null }[];
   /** Set when the team was registered from a saved team. */
   teamId?: string | null;
 }
@@ -611,16 +611,17 @@ function RosterEditor({
   team: Team;
   busy: boolean;
   online: boolean;
-  onSave: (players: { name: string; phone: string }[]) => void;
+  onSave: (players: { name: string; phone: string; jersey: number | null }[]) => void;
   onSync?: () => void;
 }) {
-  const [players, setPlayers] = useState(() =>
+  // jersey is kept as typed; it is optional on the roster and pre-fills match setup.
+  const [players, setPlayers] = useState<{ name: string; phone: string; jersey: string }[]>(() =>
     team.roster?.length
-      ? structuredClone(team.roster)
-      : Array.from({ length: 7 }, () => ({ name: '', phone: '' })),
+      ? team.roster.map((player) => ({ name: player.name, phone: player.phone, jersey: player.jersey == null ? '' : String(player.jersey) }))
+      : Array.from({ length: 7 }, () => ({ name: '', phone: '', jersey: '' })),
   );
   const [error, setError] = useState('');
-  function update(index: number, field: 'name' | 'phone', value: string) {
+  function update(index: number, field: 'name' | 'phone' | 'jersey', value: string) {
     setPlayers((current) =>
       current.map((player, at) => (at === index ? { ...player, [field]: value } : player)),
     );
@@ -638,14 +639,22 @@ function RosterEditor({
         onSubmit={(event) => {
           event.preventDefault();
           try {
-            const normalized = players.map((player) => ({
-              name: player.name.trim(),
-              phone: normalizePhone(player.phone),
-            }));
+            const normalized = players.map((player) => {
+              if (player.jersey.trim() && parseJersey(player.jersey) === null)
+                throw new Error('Jersey numbers are 0 to 999.');
+              return {
+                name: player.name.trim(),
+                phone: normalizePhone(player.phone),
+                jersey: parseJersey(player.jersey),
+              };
+            });
             if (normalized.some((player) => !player.name || player.name.length > 70))
               throw new Error('Enter a name for every player.');
             if (new Set(normalized.map((player) => player.phone)).size !== normalized.length)
               throw new Error('Each player needs a unique phone number.');
+            const numbers = normalized.map((player) => player.jersey).filter((n) => n !== null);
+            if (new Set(numbers).size !== numbers.length)
+              throw new Error('Each player needs a different jersey number.');
             setError('');
             onSave(normalized);
           } catch (cause) {
@@ -656,6 +665,20 @@ function RosterEditor({
         {players.map((player, index) => (
           <div className="roster-player-card" key={index}>
             <span className="number">{String(index + 1).padStart(2, '0')}</span>
+            <label className="jersey-field">
+              <span className="sr-only">
+                {team.name} player {index + 1} jersey number
+              </span>
+              <input
+                inputMode="numeric"
+                pattern="[0-9]{1,3}"
+                maxLength={3}
+                placeholder="#"
+                value={player.jersey}
+                disabled={busy || !online}
+                onChange={(event) => update(index, 'jersey', event.target.value.replace(/\D/g, ''))}
+              />
+            </label>
             <label>
               <span className="sr-only">
                 {team.name} player {index + 1} name
@@ -699,7 +722,7 @@ function RosterEditor({
           type="button"
           className="secondary"
           disabled={busy || !online || players.length >= 20}
-          onClick={() => setPlayers((current) => [...current, { name: '', phone: '' }])}
+          onClick={() => setPlayers((current) => [...current, { name: '', phone: '', jersey: '' }])}
         >
           Add player <small>{players.length}/20</small>
         </button>

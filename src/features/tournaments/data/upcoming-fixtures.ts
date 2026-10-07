@@ -12,7 +12,7 @@ export interface TournamentListItem {
 
 export interface TournamentFixtureDetail {
   tournament: TournamentListItem;
-  teams: { id: string; name: string; roster: { name: string; phone: string }[] }[];
+  teams: { id: string; name: string; roster: { name: string; phone: string; jersey?: number | null }[] }[];
   fixtures: { id: string; teamAId: string | null; teamBId: string | null; scheduledAt: string | null; matchId: string | null; stage?: string }[];
 }
 

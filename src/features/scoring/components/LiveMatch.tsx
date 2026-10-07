@@ -16,6 +16,8 @@ import {
 import { scoreRaid, type RaidOutcome } from '../domain/score-raid';
 import { DoOrDieAlert } from './DoOrDieAlert';
 import { DeleteMatchSheet } from './DeleteMatchSheet';
+import { PlayerName } from './PlayerName';
+import { byJersey, withJersey } from '../domain/jersey';
 import { matchNow, notBefore } from '../match-clock';
 import { undoTarget } from '../../matches/data/match-repository';
 import { CourtDrawers } from './CourtDrawers';
@@ -119,6 +121,32 @@ export function LiveMatch({
   const live =
     state.status === 'LIVE' && isScorable(match.rulesetVersion);
   const displayScores = state.phase === 'REGULATION' ? state.scores : state.tieScores;
+  // Pick a player by the number on their shirt: the raider before the raid, then defenders or the tackler.
+  const [pick, setPick] = useState('');
+  const [pickNote, setPickNote] = useState('');
+  const hasJerseys = state.teams.some((t) => t.players.some((p) => p.jersey !== undefined));
+  function pickByJersey() {
+    const typed = pick.trim();
+    setPick('');
+    if (!typed) return;
+    if (!currentRaider) {
+      const raider = byJersey(eligibleRaiders, typed);
+      if (!raider) return setPickNote(`No ${attack.name} player who can raid wears #${typed}.`);
+      setPickNote('');
+      void onRecord({ type: 'START_RAID', raiderId: raider.id });
+      return;
+    }
+    const defender = byJersey(defendersOnCourt, typed);
+    if (!defender) return setPickNote(`No ${defend.name} defender on court wears #${typed}.`);
+    if (!outcome) return setPickNote('Choose what happened first, then type the defender’s number.');
+    if (outcome === 'EMPTY') return setPickNote('An empty raid has no defenders to pick.');
+    if (outcome === 'TACKLE') {
+      setTacklerId(defender.id);
+      return setPickNote(`${withJersey(defender)} credited with the tackle.`);
+    }
+    toggleDefender(defender.id);
+    setPickNote('');
+  }
   // The match's creator can delete it before anything is recorded or while it is paused.
   const [deleting, setDeleting] = useState(false);
   async function confirmAction(intent: MatchIntent, question: string) {
@@ -297,7 +325,7 @@ export function LiveMatch({
                               value={p.id}
                               disabled={tieSelection[side].includes(p.id) && id !== p.id}
                             >
-                              {p.name}
+                              {withJersey(p)}
                             </option>
                           ))}
                       </select>
@@ -371,7 +399,7 @@ export function LiveMatch({
                     {state.status === 'PAUSED'
                       ? 'Match paused'
                       : currentRaider
-                        ? `${currentRaider.name} is raiding`
+                        ? `${withJersey(currentRaider)} is raiding`
                         : 'Who’s taking the raid?'}
                   </h2>
                 </div>
@@ -402,6 +430,41 @@ export function LiveMatch({
                 </button>
               ) : (
                 <>
+                  {hasJerseys && !expiryPending && (
+                    <form
+                      className="jersey-pick"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        pickByJersey();
+                      }}
+                    >
+                      <label>
+                        <span>
+                          {!currentRaider
+                            ? `Raider #`
+                            : outcome === 'TACKLE'
+                              ? 'Tackled by #'
+                              : 'Defender out #'}
+                        </span>
+                        <input
+                          inputMode="numeric"
+                          pattern="[0-9]{1,3}"
+                          maxLength={3}
+                          value={pick}
+                          placeholder="—"
+                          aria-label={!currentRaider ? 'Raider jersey number' : outcome === 'TACKLE' ? 'Tackler jersey number' : 'Defender jersey number'}
+                          onChange={(e) => {
+                            setPick(e.target.value.replace(/\D/g, ''));
+                            setPickNote('');
+                          }}
+                        />
+                      </label>
+                      <button className="secondary" disabled={saving || !pick}>
+                        {!currentRaider ? 'Start raid' : 'Pick'}
+                      </button>
+                      {pickNote && <small role="status">{pickNote}</small>}
+                    </form>
+                  )}
                   {!currentRaider ? (
                     <>
                       <p className="field-note">
@@ -415,7 +478,7 @@ export function LiveMatch({
                             disabled={saving}
                             onClick={() => onRecord({ type: 'START_RAID', raiderId: p.id })}
                           >
-                            {p.name}
+                            <PlayerName player={p} />
                             <small>{p.raidPoints} raid pts</small>
                           </button>
                         ))}
@@ -511,7 +574,7 @@ export function LiveMatch({
                                 aria-pressed={defenders.includes(p.id)}
                                 onClick={() => toggleDefender(p.id)}
                               >
-                                {p.name}
+                                <PlayerName player={p} />
                                 <small>
                                   {defenders.includes(p.id)
                                     ? `OUT #${outOrder.indexOf(p.id) + 1}`
@@ -529,7 +592,7 @@ export function LiveMatch({
                             <option value="">Choose defender</option>
                             {defendersOnCourt.map((p) => (
                               <option key={p.id} value={p.id}>
-                                {p.name}
+                                {withJersey(p)}
                               </option>
                             ))}
                           </select>
@@ -564,7 +627,7 @@ export function LiveMatch({
                                   );
                                 }}
                               >
-                                {p.name}
+                                <PlayerName player={p} />
                                 <small>
                                   {raidSelfOuts.includes(p.id)
                                     ? `OUT #${outOrder.indexOf(p.id) + 1} · Self-Out`
@@ -586,7 +649,7 @@ export function LiveMatch({
                                 aria-pressed={defenders.includes(p.id)}
                                 onClick={() => toggleDefender(p.id)}
                               >
-                                {p.name}
+                                <PlayerName player={p} />
                                 <small>
                                   {defenders.includes(p.id)
                                     ? `OUT #${outOrder.indexOf(p.id) + 1}`
@@ -705,7 +768,7 @@ export function LiveMatch({
                   <option value="">Choose active defender</option>
                   {defendersOnCourt.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.name}
+                      {withJersey(p)}
                     </option>
                   ))}
                 </select>
@@ -749,7 +812,7 @@ export function LiveMatch({
                         .filter((p) => p.status !== 'BENCH')
                         .map((p) => (
                           <option key={p.id} value={p.id}>
-                            {p.name} · {p.status}
+                            {withJersey(p)} · {p.status}
                           </option>
                         ))}
                     </select>
@@ -762,7 +825,7 @@ export function LiveMatch({
                         .filter((p) => p.status === 'BENCH')
                         .map((p) => (
                           <option key={p.id} value={p.id}>
-                            {p.name}
+                            {withJersey(p)}
                           </option>
                         ))}
                     </select>
@@ -829,7 +892,7 @@ export function LiveMatch({
                 {team.players.map((p) => (
                   <div key={p.id}>
                     <span>
-                      {p.name}
+                      <PlayerName player={p} />
                       <small>
                         {p.raidPoints} raid · {p.tacklePoints} tackle
                         {p.raidPoints >= 10 ? ' · Super 10' : ''}

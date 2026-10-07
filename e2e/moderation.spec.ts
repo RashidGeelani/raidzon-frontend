@@ -261,7 +261,7 @@ test('a signed-in creator also deletes the match from RaidzOn', async ({ page })
   // Close the share popup that opens for signed-in scorers.
   const share = page.getByRole('dialog', { name: 'Share the live scorecard' });
   await expect(share).toBeVisible();
-  await page.keyboard.press('Escape');
+  await share.getByRole('button', { name: 'Close' }).click();
   await expect(share).toBeHidden();
   await page.getByRole('button', { name: 'Delete match', exact: true }).click();
   const sheet = page.getByRole('dialog', { name: 'Delete this match?' });

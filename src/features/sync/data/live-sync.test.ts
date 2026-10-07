@@ -8,7 +8,7 @@ const account: AccountSession = { token: 't'.repeat(43), accountId: 'acc', devic
 let database: RaidzOnDatabase;
 async function match(signedIn = true) {
   if (signedIn) await database.metadata.put({ key: 'scoring-account', value: account.accountId });
-  const teams = [0, 1].map((side) => ({ name: `T${side}`, players: Array.from({ length: 7 }, (_, i) => ({ name: `P${side}${i}`, phone: `+9198765432${side}${i}` })) }));
+  const teams = [0, 1].map((side) => ({ name: `T${side}`, players: Array.from({ length: 7 }, (_, i) => ({ name: `P${side}${i}`, phone: `+9198765432${side}${i}`, jersey: String(i + 1) })) }));
   return createMatch({ teams: teams as never, firstTurn: 0, halfMinutes: 20, raidSeconds: 30 }, account.deviceId, database);
 }
 beforeEach(() => { database = new RaidzOnDatabase(`live-${crypto.randomUUID()}`); resetLiveSync(); });

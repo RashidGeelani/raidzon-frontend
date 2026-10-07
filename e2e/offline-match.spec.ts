@@ -9,6 +9,9 @@ async function fillMatch(page: Page) {
   for (let side = 0; side < 2; side++) {
     for (let player = 0; player < 7; player++) {
       await page
+        .getByLabel(`Team ${side + 1} player ${player + 1} jersey number`, { exact: true })
+        .fill(`${player + 1}`);
+      await page
         .getByLabel(`Team ${side + 1} player ${player + 1} name`, { exact: true })
         .fill(`${side ? 'Warrior' : 'Raider'} ${player + 1}`);
       await page
@@ -98,7 +101,7 @@ test('mobile tie-break selects five ordered raiders and awards empty-raid OUT', 
     for (let i = 1; i <= 5; i++)
       await page
         .getByLabel(`${team} raid ${i}`, { exact: true })
-        .selectOption({ label: `${player} ${i}` });
+        .selectOption({ label: `#${i} ${player} ${i}` }); // lists show the jersey number first
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await page.getByRole('button', { name: 'Decide winner →', exact: true }).click();

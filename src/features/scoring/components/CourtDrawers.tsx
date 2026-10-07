@@ -1,3 +1,4 @@
+import { withJersey } from '../domain/jersey';
 import { useState } from 'react';
 import type { Side, Team } from '../domain/match-types';
 
@@ -58,7 +59,7 @@ export function CourtDrawers({
                   {onCourt.map((player) => (
                     <li key={player.id} className={player.id === currentRaiderId ? 'current' : ''}>
                       <i className="court-dot" aria-label="On court" />
-                      <span>{player.name}</span>
+                      <span>{withJersey(player)}</span>
                     </li>
                   ))}
                   {onCourt.length === 0 && <li className="muted">Nobody on court</li>}
@@ -69,7 +70,7 @@ export function CourtDrawers({
                     {queue.map((player, order) => (
                       <li key={player.id}>
                         <b title="Revival order">{order + 1}</b>
-                        <span>{player.name}</span>
+                        <span>{withJersey(player)}</span>
                       </li>
                     ))}
                   </ol>

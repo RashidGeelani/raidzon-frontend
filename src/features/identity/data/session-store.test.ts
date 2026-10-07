@@ -21,6 +21,7 @@ async function guest() {
     players: Array.from({ length: 7 }, (_, i) => ({
       name: `Player ${side}${i}`,
       phone: `+9198765432${side}${i}`,
+      jersey: String(i + 1),
     })),
   })) as SetupInput['teams'];
   return createMatch({ teams, firstTurn: 0, halfMinutes: 20, raidSeconds: 30 }, session.deviceId);

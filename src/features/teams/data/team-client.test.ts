@@ -80,11 +80,13 @@ describe('match-day lineup', () => {
 
 describe('tournament roster lineup', () => {
   it('turns a 20-player tournament roster into a legal 12-player match team in roster order', () => {
-    const roster = Array.from({ length: 20 }, (_, i) => ({ name: `R${i}`, phone: `+9193000000${String(i).padStart(2, '0')}` }));
+    const roster = Array.from({ length: 20 }, (_, i) => ({ name: `R${i}`, phone: `+9193000000${String(i).padStart(2, '0')}`, jersey: i === 1 ? null : i + 100 }));
     const members = rosterMembers(roster);
     const input = lineupToTeamInput({ name: 'Raiders', members }, defaultLineup(members));
     expect(input.players).toHaveLength(12);
-    expect(input.players[0]).toEqual({ name: 'R0', phone: '+919300000000' });
+    // Roster jersey numbers carry into match setup; a missing one is left blank for the scorer.
+    expect(input.players[0]).toEqual({ name: 'R0', phone: '+919300000000', jersey: '100' });
+    expect(input.players[1].jersey).toBe('');
     expect(input.players.map((p) => p.name)).not.toContain('R12');
   });
 });

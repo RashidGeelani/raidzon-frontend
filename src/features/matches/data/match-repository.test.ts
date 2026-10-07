@@ -21,6 +21,7 @@ const setup = (): SetupInput => ({
     players: Array.from({ length: 7 }, (_, i) => ({
       name: `Player ${side}-${i}`,
       phone: `+9198765432${side}${i}`,
+      jersey: String(i + 1),
     })),
   })) as SetupInput['teams'],
 });
@@ -42,6 +43,33 @@ describe('deleting a match', () => {
     expect(await database.matches.get(gone.id)).toBeUndefined();
     expect(await database.events.where('matchId').equals(gone.id).count()).toBe(0);
     expect(await database.events.where('matchId').equals(keep.id).count()).toBe(1);
+  });
+});
+
+describe('jersey numbers', () => {
+  it('stores each player\'s number in the match and requires one for everybody', async () => {
+    const match = await createMatch(setup(), 'session', database);
+    expect(match.state.teams[0].players.map((p) => p.jersey)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    const missing = setup();
+    missing.teams[1].players[3].jersey = '';
+    await expect(createMatch(missing, 'session', database)).rejects.toThrow('Enter a jersey number (0–999) for every Team 1 player.');
+  });
+  it('accepts 0 to 999, one number per player in a team', async () => {
+    const wide = setup();
+    wide.teams[0].players[0].jersey = '0';
+    wide.teams[0].players[1].jersey = '999';
+    wide.teams[1].players[0].jersey = '999'; // the other team may use the same number
+    expect((await createMatch(wide, 'session', database)).state.teams[0].players[1].jersey).toBe(999);
+    const tooBig = setup();
+    tooBig.teams[0].players[0].jersey = '1000';
+    await expect(createMatch(tooBig, 'session', database)).rejects.toThrow('Enter a jersey number');
+    const twice = setup();
+    twice.teams[0].players[1].jersey = '1';
+    await expect(createMatch(twice, 'session', database)).rejects.toThrow('Jersey 1 is used twice in Team 0.');
+  });
+  it('keeps numbers out of the reusable player list', async () => {
+    await createMatch(setup(), 'session', database);
+    expect((await database.players.toArray()).every((p) => !('jersey' in p))).toBe(true);
   });
 });
 

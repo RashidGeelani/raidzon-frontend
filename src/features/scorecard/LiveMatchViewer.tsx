@@ -3,6 +3,7 @@ import { requestInstallNudge } from '../../app/install';
 import { eventLabel } from '../scoring/domain/event-label';
 import { milestones } from '../scoring/domain/match-summary';
 import { isDoOrDie } from '../scoring/domain/match-types';
+import { withJersey } from '../scoring/domain/jersey';
 import { watchMatch, type LiveConnection, type LiveStateUpdate } from './live-socket';
 import { ReportMatch } from './ReportMatch';
 import type { ClockState, MatchState, Player } from '../scoring/domain/match-types';
@@ -125,12 +126,12 @@ export function LiveMatchViewer({ matchId, onBack }: { matchId: string; onBack?:
       {completed ? <FullTime state={state} scores={finalScores} /> : <>
       <h3 className="live-section-title">Current raid</h3>
       {isDoOrDie(state) && (state.status === 'LIVE' || state.status === 'PAUSED') && <div className="viewer-do-or-die" role="status"><strong>DO-OR-DIE RAID</strong><span>{state.teams[state.turn]?.name} must score or the raider is out</span></div>}
-      <div className="live-current-raider"><div><strong>{raider?.name ?? (state.status === 'COMPLETED' ? 'Match complete' : 'Waiting for the next raider')}</strong><small>{state.teams[state.turn].name} · Raid #{state.raidNumber}</small></div><span className={`live-countdown ${raidSeconds === 0 ? 'expired' : raider && raidSeconds <= 10 ? 'warning' : ''}`} aria-label="Raid time remaining">{raider ? raidSeconds : '—'}<small>seconds</small></span></div>
+      <div className="live-current-raider"><div><strong>{raider ? withJersey(raider) : (state.status === 'COMPLETED' ? 'Match complete' : 'Waiting for the next raider')}</strong><small>{state.teams[state.turn].name} · Raid #{state.raidNumber}</small></div><span className={`live-countdown ${raidSeconds === 0 ? 'expired' : raider && raidSeconds <= 10 ? 'warning' : ''}`} aria-label="Raid time remaining">{raider ? raidSeconds : '—'}<small>seconds</small></span></div>
       {raider && raidSeconds === 0 && <p className="field-note">Time elapsed — waiting for the scorer’s decision.</p>}
       <h3 className="live-section-title">On court</h3>
-      {state.teams.map((team, side) => <div className="live-court-team" key={side}><strong>{team.name}</strong><div className="live-player-chips">{team.players.map((player) => player.status === 'ACTIVE' && <span className={player.id === state.currentRaiderId ? 'current' : ''} key={player.id}><i className="court-dot" aria-hidden="true" /><small>{player.name}</small></span>)}</div></div>)}
+      {state.teams.map((team, side) => <div className="live-court-team" key={side}><strong>{team.name}</strong><div className="live-player-chips">{team.players.map((player) => player.status === 'ACTIVE' && <span className={player.id === state.currentRaiderId ? 'current' : ''} key={player.id}><i className="court-dot" aria-hidden="true" /><small>{withJersey(player)}</small></span>)}</div></div>)}
       <h3 className="live-section-title">Substitutes</h3>
-      {state.teams.map((team, side) => <div className="live-court-team" key={side}><strong>{team.name}</strong><p>{team.players.filter((player) => player.status === 'BENCH').map((player) => player.name).join(', ') || 'No substitutes'}</p></div>)}
+      {state.teams.map((team, side) => <div className="live-court-team" key={side}><strong>{team.name}</strong><p>{team.players.filter((player) => player.status === 'BENCH').map((player) => withJersey(player)).join(', ') || 'No substitutes'}</p></div>)}
       </>}
       <h3 className="live-section-title">Match events</h3>
       <ol className="live-event-list">{view?.events.map((event) => <li key={event.id}><span>{eventLabel(event.summary)}</span><small>R{event.raidNumber}</small></li>)}</ol>

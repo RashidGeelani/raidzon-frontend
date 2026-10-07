@@ -161,7 +161,8 @@ async function syncOnce(
       matchId,
       teams: initial.teams.map((team) => ({
         name: team.name,
-        players: team.players.map(({ id, name, phone }) => ({ id, name, phone })),
+        // Older matches have no numbers; the key is left out so their creation fingerprint is unchanged.
+        players: team.players.map(({ id, name, phone, jersey }) => ({ id, name, phone, ...(jersey === undefined ? {} : { jersey }) })),
       })),
       firstTurn: initial.firstTurn,
       halfMinutes: initial.halfMinutes,
