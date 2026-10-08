@@ -291,6 +291,19 @@ body:not(:has(.bottom-nav)) .install-nudge { bottom: calc(var(--space-4) + env(s
 .viewer-do-or-die { display: grid; gap: 2px; margin: 0 0 var(--space-2); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); background: linear-gradient(90deg, rgba(255, 90, 122, .25), rgba(255, 90, 122, .08)); border: 1px solid rgba(255, 90, 122, .6); color: var(--text); }
 .viewer-do-or-die strong { color: var(--danger); font-size: var(--text-sm); letter-spacing: .08em; animation: do-or-die-pulse 1.2s ease-in-out infinite; }
 .viewer-do-or-die span { font-size: var(--text-sm); color: var(--text-muted); }
+/* Super Raid / Super Tackle / All Out / technical point: shown over the screen, never blocks taps. */
+.highlight-toast-region { position: fixed; top: 22%; left: 0; right: 0; z-index: 80; display: grid; justify-items: center; gap: var(--space-2); pointer-events: none; }
+.highlight-toast { display: grid; justify-items: center; gap: 2px; min-width: min(80vw, 300px); padding: var(--space-3) var(--space-5); border-radius: var(--radius-lg); background: rgba(14, 14, 28, .94); border: 2px solid var(--accent); box-shadow: 0 12px 40px rgba(0, 0, 0, .5); color: var(--text); text-align: center; animation: highlight-in .25s ease-out, highlight-out .4s ease-in 2.2s forwards; }
+.highlight-toast strong { font-family: Rajdhani, Inter, sans-serif; font-size: clamp(2rem, 10vw, 3rem); line-height: 1; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; color: var(--accent-soft); }
+.highlight-toast span { font-size: var(--text-md); font-weight: 700; }
+.highlight-toast.side-0 { border-color: var(--team-a); }
+.highlight-toast.side-1 { border-color: var(--team-b); }
+.highlight-super-tackle strong { color: #7fb0ff; }
+.highlight-all-out strong { color: var(--danger); }
+.highlight-technical strong { color: var(--success); font-size: clamp(1.5rem, 7vw, 2.2rem); }
+@keyframes highlight-in { from { opacity: 0; transform: translateY(-12px) scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes highlight-out { to { opacity: 0; transform: translateY(-8px); } }
+@media (prefers-reduced-motion: reduce) { .highlight-toast { animation: none; } }
 @keyframes do-or-die-in { from { opacity: 0; transform: scale(1.04); } to { opacity: 1; transform: none; } }
 @keyframes do-or-die-pulse { 50% { opacity: .55; } }
 @media (prefers-reduced-motion: reduce) { .do-or-die-alert, .do-or-die-badge, .viewer-do-or-die strong { animation: none; } }

@@ -15,6 +15,7 @@ import {
 } from '../domain/match-types';
 import { scoreRaid, type RaidOutcome } from '../domain/score-raid';
 import { DoOrDieAlert } from './DoOrDieAlert';
+import { HighlightToast } from './HighlightToast';
 import { DeleteMatchSheet } from './DeleteMatchSheet';
 import { PlayerName } from './PlayerName';
 import { byJersey, withJersey } from '../domain/jersey';
@@ -103,6 +104,7 @@ export function LiveMatch({
   const raidWarn = raidWarning(raidRemaining, raiding);
   useRaidWarning(raiding ? `${state.half}:${state.raidNumber}:${state.currentRaiderId}` : null, raidRemaining);
   const target = undoTarget(events);
+  const latestEvent = events.at(-1)?.matchId === match.id ? events.at(-1) : undefined;
   const reversed = new Set(
     events.flatMap((e) => (e.intent.type === 'UNDO' ? [e.intent.targetEventId] : [])),
   );
@@ -282,6 +284,11 @@ export function LiveMatch({
         </div>
       </section>
       {state.status !== 'COMPLETED' && <CourtDrawers teams={state.teams} currentRaiderId={state.currentRaiderId} />}
+      <HighlightToast
+        key={match.id}
+        event={latestEvent && { id: latestEvent.id, components: latestEvent.components, at: Date.parse(latestEvent.createdAt) }}
+        teams={state.teams.map((t) => t.name)}
+      />
       {doOrDie && state.status === 'LIVE' && !state.currentRaiderId && (
         <DoOrDieAlert
           key={`${match.id}:${state.half}:${state.raidNumber}`}

@@ -7,6 +7,7 @@ import { isScorable, type LocalMatch } from '../../scoring/domain/match-types';
 import { WidgetPhoneSignIn } from './WidgetPhoneSignIn';
 import { clearSession, flushLogouts, restoreSession, saveSession } from '../data/session-store';
 import { AccountDashboard } from './AccountDashboard';
+import { clearAllSetupDrafts } from '../../matches/data/setup-draft';
 import { claimDeviceGuestMatches, isClaimableGuest } from '../data/claim-guest-matches';
 import { TournamentExplorer } from '../../tournaments/TournamentExplorer';
 import { TeamsScreen } from '../../teams/TeamsScreen';
@@ -197,6 +198,8 @@ export function AccountSync({
             onClick={() =>
               void run(async () => {
                 await clearSession(account);
+                // Setup drafts hold players' phone numbers; don't leave them for the next person.
+                clearAllSetupDrafts();
                 setAccount(null);
                 setChallenge(null);
                 setCode('');

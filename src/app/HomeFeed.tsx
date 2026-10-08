@@ -3,6 +3,7 @@ import type { PreparedFixture } from '../features/tournaments/types';
 import { UpcomingMatches } from '../features/tournaments/UpcomingMatches';
 import { useJoinedTournaments } from '../features/tournaments/JoinedTournamentMatches';
 import { MatchActions } from '../features/scorecard/MatchActions';
+import { listSetupDrafts } from '../features/matches/data/setup-draft';
 
 /**
  * Home answers "what's happening for me?": matches to resume on this phone, live matches in
@@ -46,6 +47,7 @@ export function HomeFeed({
       })),
   );
   const recent = matches.filter((match) => match.state.status === 'COMPLETED').slice(0, 3);
+  const drafts = listSetupDrafts();
   return (
     <div className="home-feed">
       <div className="section-heading home-heading">
@@ -55,6 +57,28 @@ export function HomeFeed({
         </div>
       </div>
       <div className="home-main">
+        {drafts.length > 0 && (
+          <section className="home-block" aria-label="Continue match setup">
+            <h2>Continue match setup</h2>
+            {drafts.map((draft) => (
+              <button
+                key={draft.preset?.fixtureId ?? 'new-match'}
+                className="home-match home-resume"
+                onClick={() => (draft.preset ? onPrepare(draft.preset) : onStartMatch())}
+              >
+                <span className="home-match-meta">
+                  Draft · saved {new Date(draft.savedAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                </span>
+                <span className="home-match-teams">
+                  <strong>{draft.teams[0].name || 'Team A'}</strong>
+                  <b>vs</b>
+                  <strong>{draft.teams[1].name || 'Team B'}</strong>
+                </span>
+                <span className="home-match-cta">Continue setup →</span>
+              </button>
+            ))}
+          </section>
+        )}
         {resumable.length > 0 && (
           <section className="home-block" aria-label="Resume scoring">
             <h2>Resume scoring</h2>

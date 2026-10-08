@@ -30,3 +30,33 @@ it('prefills a prepared fixture with saved players and tournament timers', () =>
   expect(markup).not.toContain('value="35"');
   expect(markup).toContain('Raid time: <strong>30 seconds</strong> (standard)');
 });
+
+it('restores a saved setup draft with an option to clear it', () => {
+  const store = new Map([
+    [
+      'raidzon.setup-draft:new-match',
+      JSON.stringify({
+        preset: null,
+        teams: [
+          { name: 'Valley Raiders', players: [{ name: 'Arjun', phone: '', jersey: '7' }] },
+          { name: 'City Warriors', players: [] },
+        ],
+        firstTurn: 1,
+        halfMinutes: 15,
+        practice: false,
+        savedAt: 1,
+      }),
+    ],
+  ]);
+  (globalThis as { localStorage?: unknown }).localStorage = { getItem: (key: string) => store.get(key) ?? null };
+  try {
+    const markup = renderToStaticMarkup(<MatchSetup session="device" onCreated={() => {}} onCancel={() => {}} />);
+    expect(markup).toContain('Draft restored');
+    expect(markup).toContain('Clear form');
+    expect(markup).toContain('value="Valley Raiders"');
+    expect(markup).toContain('value="Arjun"');
+    expect(markup).toContain('value="15"');
+  } finally {
+    delete (globalThis as { localStorage?: unknown }).localStorage;
+  }
+});

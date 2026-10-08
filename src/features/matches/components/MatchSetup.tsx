@@ -5,6 +5,7 @@ import type { PreparedFixture } from '../../tournaments/types';
 import { SavedTeamPicker } from '../../teams/SavedTeamPicker';
 import { LineupPicker } from '../../teams/LineupPicker';
 import { defaultLineup, lineupToTeamInput, rosterMembers } from '../../teams/data/team-client';
+import { clearSetupDraft, loadSetupDraft, saveSetupDraft } from '../data/setup-draft';
 
 const emptyTeam = (): TeamInput => ({
   name: '',
@@ -21,7 +22,8 @@ export function MatchSetup({
   onCancel: () => void;
   preset?: PreparedFixture | null;
 }) {
-  const [teams, setTeams] = useState<[TeamInput, TeamInput]>(() => {
+  // What this form looks like untouched; anything else is kept as a draft until the match starts.
+  const [blank] = useState(() => {
     const teamA = emptyTeam();
     const teamB = emptyTeam();
     if (preset) {
@@ -33,14 +35,35 @@ export function MatchSetup({
       if (preset.rosterA.length >= 7) teamA.players = fromRoster(preset.teamA, preset.rosterA);
       if (preset.rosterB.length >= 7) teamB.players = fromRoster(preset.teamB, preset.rosterB);
     }
-    return [teamA, teamB];
+    return {
+      teams: [teamA, teamB] as [TeamInput, TeamInput],
+      firstTurn: 0 as Side,
+      halfMinutes: preset?.halfMinutes ?? 20,
+      practice: false,
+    };
   });
-  const [firstTurn, setFirstTurn] = useState<Side>(0);
-  const [halfMinutes, setHalfMinutes] = useState(preset?.halfMinutes ?? 20);
+  const [restored] = useState(() => loadSetupDraft(preset));
+  const start = restored ?? blank;
+  const [teams, setTeams] = useState<[TeamInput, TeamInput]>(start.teams);
+  const [firstTurn, setFirstTurn] = useState<Side>(start.firstTurn);
+  const [halfMinutes, setHalfMinutes] = useState(start.halfMinutes);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   // Once blank names are filled in automatically, the match is a practice match.
-  const [practice, setPractice] = useState(false);
+  const [practice, setPractice] = useState(start.practice);
+  const [showRestored, setShowRestored] = useState(!!restored);
+  useEffect(() => {
+    const form = { teams, firstTurn, halfMinutes, practice };
+    if (JSON.stringify(form) === JSON.stringify(blank)) clearSetupDraft(preset);
+    else saveSetupDraft({ ...form, preset: preset ?? null, savedAt: Date.now() });
+  }, [teams, firstTurn, halfMinutes, practice, blank, preset]);
+  function clearForm() {
+    setTeams(structuredClone(blank.teams));
+    setFirstTurn(blank.firstTurn);
+    setHalfMinutes(blank.halfMinutes);
+    setPractice(false);
+    setShowRestored(false);
+  }
   // Players scored before on this phone, offered as suggestions so names and numbers are typed once.
   const [recent, setRecent] = useState<{ name: string; phone: string }[]>([]);
   useEffect(() => {
@@ -91,8 +114,7 @@ export function MatchSetup({
     setError('');
     setSaving(true);
     try {
-      onCreated(
-        await createMatch(
+      const created = await createMatch(
           {
             teams,
             firstTurn,
@@ -103,8 +125,9 @@ export function MatchSetup({
               : undefined,
           },
           session,
-        ),
-      );
+        );
+      clearSetupDraft(preset);
+      onCreated(created);
     } catch (cause) {
       setError((cause as Error).message);
     } finally {
@@ -129,6 +152,14 @@ export function MatchSetup({
           Back to matches
         </button>
       </div>
+      {showRestored && (
+        <p className="field-note" role="status">
+          Draft restored: your details were kept from last time.{' '}
+          <button type="button" className="quiet" onClick={clearForm}>
+            Clear form
+          </button>
+        </p>
+      )}
       <section className="panel settings" aria-label="Match settings">
         {preset && (
           <p className="field-note settings-locked">Team names come from the fixture. Halves start at the tournament’s default — change it if this match is shorter or longer.</p>
