@@ -81,6 +81,47 @@ function set(change: Partial<InstallState>) {
   listeners.forEach((listener) => listener());
 }
 
+const INSTALL_ID_KEY = 'raidzon.install.id';
+const INSTALL_REPORTED_KEY = 'raidzon.install.reported';
+export type InstallSource = 'appinstalled' | 'standalone_launch';
+type SendInstall = (installId: string, source: InstallSource) => Promise<unknown>;
+let reporting = false;
+
+async function sendInstall(installId: string, source: InstallSource) {
+  const [{ api }, { restoreSession }] = await Promise.all([
+    import('../features/identity/data/auth-client'),
+    import('../features/identity/data/session-store'),
+  ]);
+  const session = await restoreSession().catch(() => null);
+  return api('/public/installs', { installId, source }, session?.token);
+}
+
+/**
+ * Counts this install once for the admin stats: a random ID kept on the device, sent on the
+ * browser's install event or the first home-screen launch. Retried on a later launch if it fails.
+ */
+export async function reportInstall(source: InstallSource, send: SendInstall = sendInstall): Promise<boolean> {
+  if (reporting) return false;
+  let installId: string;
+  try {
+    if (localStorage.getItem(INSTALL_REPORTED_KEY)) return false;
+    installId = localStorage.getItem(INSTALL_ID_KEY) ?? crypto.randomUUID();
+    localStorage.setItem(INSTALL_ID_KEY, installId);
+  } catch {
+    return false; // no storage: we couldn't dedupe, so don't count it
+  }
+  reporting = true;
+  try {
+    await send(installId, source);
+    localStorage.setItem(INSTALL_REPORTED_KEY, '1');
+    return true;
+  } catch {
+    return false;
+  } finally {
+    reporting = false;
+  }
+}
+
 if (typeof window !== 'undefined') {
   // An offer that arrived before this code loaded (caught by the inline script in index.html).
   const early = (window as Window & { __raidzonInstallEvent?: InstallPromptEvent })
@@ -98,7 +139,9 @@ if (typeof window !== 'undefined') {
   window.addEventListener('appinstalled', () => {
     deferred = null;
     set({ installed: true, canPrompt: false, nudge: null });
+    void reportInstall('appinstalled');
   });
+  if (state.installed) void reportInstall('standalone_launch');
 }
 
 /** True when this browser can install in some way (button, iOS guide or open-in-browser help). */
@@ -167,6 +210,7 @@ export function useInstallState(): InstallState {
 /** Test hook: reset module state. */
 export function __resetInstallForTests(next: Partial<InstallState> = {}) {
   deferred = null;
+  reporting = false;
   state = { installed: false, platform: 'native', canPrompt: false, nudge: null, ...next };
   listeners.forEach((listener) => listener());
 }

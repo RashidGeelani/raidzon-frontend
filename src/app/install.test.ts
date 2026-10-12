@@ -6,6 +6,7 @@ import {
   chromeIntentUrl,
   detectPlatform,
   promptInstall,
+  reportInstall,
   requestInstallNudge,
   snoozeInstall,
   __peekInstallForTests,
@@ -106,3 +107,25 @@ function readNudge() {
 function readInstalled() {
   return __peekInstallForTests().installed;
 }
+
+it('reports an install once per device and retries after a failure', async () => {
+  const sent: string[] = [];
+  const send = async (id: string, source: string) => void sent.push(`${source}:${id}`);
+  const fail = async () => {
+    throw new Error('offline');
+  };
+  expect(await reportInstall('appinstalled', fail)).toBe(false);
+  const id = store.get('raidzon.install.id');
+  expect(id).toBeTruthy();
+  expect(await reportInstall('appinstalled', send)).toBe(true);
+  expect(await reportInstall('standalone_launch', send)).toBe(false);
+  expect(sent).toEqual([`appinstalled:${id}`]); // same ID after the retry, never sent twice
+});
+
+it('sends one ping when the install event and first launch race', async () => {
+  let calls = 0;
+  const send = () => new Promise<void>((resolve) => setTimeout(() => resolve(void calls++), 1));
+  const results = await Promise.all([reportInstall('appinstalled', send), reportInstall('standalone_launch', send)]);
+  expect(results).toEqual([true, false]);
+  expect(calls).toBe(1);
+});

@@ -214,3 +214,74 @@ function AdminMatchCard({
     </li>
   );
 }
+
+interface AppStats {
+  totalUsers: number;
+  activeToday: number;
+  active7Days: number;
+  active30Days: number;
+  newUsers7Days: number;
+  totalInstalls: number;
+  installs7Days: number;
+  matchesScored: number;
+  matchesScored7Days: number;
+}
+
+/** Admin-only usage numbers. Users are signed-in accounts; fans who only watch aren't counted. */
+export function AdminStats({ account, online }: { account: AccountSession; online: boolean }) {
+  const [stats, setStats] = useState<AppStats | null>(null);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  async function load() {
+    setLoading(true);
+    setError('');
+    try {
+      setStats(await api<AppStats>('/admin/stats', undefined, account.token));
+    } catch (cause) {
+      setError((cause as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+  const rows: [string, (s: AppStats) => string][] = [
+    ['Signed-in users', (s) => `${s.totalUsers} · ${s.newUsers7Days} new this week`],
+    ['Active users', (s) => `${s.activeToday} today · ${s.active7Days} in 7 days · ${s.active30Days} in 30 days`],
+    ['App installs', (s) => `${s.totalInstalls} · ${s.installs7Days} this week`],
+    ['Matches scored', (s) => `${s.matchesScored} · ${s.matchesScored7Days} this week`],
+  ];
+  return (
+    <details
+      className="profile-matches admin-reports"
+      onToggle={(event) => {
+        if ((event.currentTarget as HTMLDetailsElement).open && !stats && online) void load();
+      }}
+    >
+      <summary>Admin · App stats</summary>
+      <p className="field-note">
+        Users are signed-in accounts; fans who only watch aren’t counted. “Today” means the last 24 hours.
+        Installs are counted from when this card was added.
+      </p>
+      {error && (
+        <p role="alert" className="error">
+          {error}
+        </p>
+      )}
+      {loading && <p>Loading stats…</p>}
+      {stats && (
+        <ul className="admin-report-list">
+          {rows.map(([label, value]) => (
+            <li key={label} className="admin-report">
+              <strong>{label}</strong>
+              <small>{value(stats)}</small>
+            </li>
+          ))}
+        </ul>
+      )}
+      {stats && (
+        <button type="button" className="quiet" disabled={!online || loading} onClick={() => void load()}>
+          Refresh
+        </button>
+      )}
+    </details>
+  );
+}

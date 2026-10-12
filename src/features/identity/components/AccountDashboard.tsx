@@ -3,7 +3,7 @@ import { api, type AccountSession } from '../data/auth-client';
 import { OPEN_NOTIFICATIONS } from '../../notifications/notification-client';
 import { ShareScorecard } from '../../scorecard/ShareScorecard';
 import { EditPlayerProfile } from './EditPlayerProfile';
-import { AdminReports } from './AdminReports';
+import { AdminReports, AdminStats } from './AdminReports';
 
 interface Dashboard {
   accountId: string;
@@ -135,6 +135,7 @@ export function AccountDashboard({
           </li>)}</ul> : <p>Your synced matches will appear here.</p>}
           {data.ownedMatchCount > 20 && <p>Showing your 20 most recently updated matches.</p>}
         </details>
+        {data.admin && <AdminStats account={account} online={online} />}
         {data.admin && <AdminReports account={account} online={online} />}
       </>}
       {!online && (
