@@ -116,3 +116,57 @@ describe('Do-or-Die (raidzon-v5)', () => {
     expect(state.teams[0].activeSubstitutions).toBe(2); // not wiped: one change left this half
   });
 });
+
+describe('Self-Out Super Tackle (raidzon-v6)', () => {
+  const threeDefenders = () => {
+    const state = initialState();
+    const outIds = state.teams[1].players.slice(3, 7).map((p) => p.id);
+    state.teams[1].players.forEach((p) => {
+      if (outIds.includes(p.id)) p.status = 'OUT';
+    });
+    state.teams[1].queue = outIds;
+    return state;
+  };
+  const selfOut = (state: MatchState, ruleset: string, selfOutDefenderIds: string[] = []) => {
+    const raiderId = active(state, 0);
+    const started = applyEvent(state, { type: 'START_RAID', raiderId }, (now += 1000), ruleset).state;
+    return applyEvent(
+      started,
+      { type: 'RAID', raiderId, outcome: 'SELF_OUT', defenderIds: [], selfOutDefenderIds, bonus: false },
+      (now += 60_000),
+      ruleset,
+    );
+  };
+
+  it('a raider Self-Out against 3 or fewer defenders is worth 2, with one revival and no tackle credit', () => {
+    const result = selfOut(threeDefenders(), 'raidzon-v6');
+    expect(result.state.scores).toEqual([0, 2]);
+    expect(result.components).toEqual([
+      { side: 1, kind: 'SUPER_TACKLE_EXTRA', points: 1 },
+      { side: 1, kind: 'SELF_OUT', points: 1 },
+    ]);
+    expect(result.summary).toMatch(/: self out · Super Tackle$/);
+    expect(result.state.teams[1].players.filter((p) => p.status === 'ACTIVE')).toHaveLength(4);
+    expect(result.state.teams[1].players.every((p) => p.tacklePoints === 0)).toBe(true);
+  });
+
+  it('a failed Do-or-Die adds the extra only once', () => {
+    const state = threeDefenders();
+    state.emptyRaids = [2, 0];
+    const result = selfOut(state, 'raidzon-v6');
+    expect(result.state.scores).toEqual([0, 2]);
+    expect(result.components.filter((c) => c.kind === 'SUPER_TACKLE_EXTRA')).toHaveLength(1);
+    expect(result.summary).toMatch(/do-or-die raid failed · Super Tackle$/);
+  });
+
+  it('not with defender outs in the same raid, or with 4+ defenders', () => {
+    const state = threeDefenders();
+    const withOut = selfOut(state, 'raidzon-v6', [active(state, 1)]);
+    expect(withOut.components.some((c) => c.kind === 'SUPER_TACKLE_EXTRA')).toBe(false);
+    expect(selfOut(initialState(), 'raidzon-v6').state.scores).toEqual([0, 1]);
+  });
+
+  it('v5 matches replay unchanged: a plain Self-Out stays 1 point', () => {
+    expect(selfOut(threeDefenders(), 'raidzon-v5').state.scores).toEqual([0, 1]);
+  });
+});
