@@ -24,6 +24,12 @@ export interface PublicTournamentDetail {
   championId?: string | null;
 }
 
+/** GET /public/explore: unfinished public matches (tournament fixtures and shared friendlies) and matching players. */
+interface ExploreResult {
+  live: { matchId: string; tournamentId: string | null; tournamentName: string | null; teamA: string; teamB: string; scoreA: number; scoreB: number; status: string }[];
+  players: { playerId: string; name: string; matches: number; raidPoints: number; tacklePoints: number; teamName?: string | null }[];
+}
+
 export function TournamentExplorer({ account, online, matches, onPrepareFixture, onScoreMatch, focus = null }: {
   account: AccountSession | null; online: boolean; matches: LocalMatch[]; onPrepareFixture: (fixture: PreparedFixture) => void;
   onScoreMatch?: (id: string) => void; focus?: Focus | null;
@@ -33,6 +39,7 @@ export function TournamentExplorer({ account, online, matches, onPrepareFixture,
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
   const [items, setItems] = useState<TournamentListItem[]>([]);
+  const [explore, setExplore] = useState<ExploreResult>({ live: [], players: [] });
   const [joined, setJoined] = useState<string[]>([]);
   const [own, setOwn] = useState<string[]>([]);
   const [detail, setDetail] = useState<PublicTournamentDetail | null>(null);
@@ -55,7 +62,12 @@ export function TournamentExplorer({ account, online, matches, onPrepareFixture,
     void api<TournamentListItem[]>(`/public/tournaments?search=${encodeURIComponent(query)}`)
       .then((value) => { if (active) { setItems(value); setMessage(''); } })
       .catch(() => { if (active) setMessage('Could not load tournaments. Please try again.'); });
-    return () => { active = false; };
+    // Live matches refresh every 30 s; the player list follows the search.
+    const loadExplore = () => api<ExploreResult>(`/public/explore?search=${encodeURIComponent(query)}`)
+      .then((value) => { if (active) setExplore(value); }).catch(() => undefined);
+    void loadExplore();
+    const timer = setInterval(() => void loadExplore(), 30_000);
+    return () => { active = false; clearInterval(timer); };
   }, [query, online]);
   useEffect(() => {
     let active = true;
@@ -105,9 +117,26 @@ export function TournamentExplorer({ account, online, matches, onPrepareFixture,
       {!detail ? <>
         <header className="list-screen-heading"><h2>Tournaments</h2><p>Find competitions, follow teams, and catch every score.</p></header>
         <form className="tournament-search" onSubmit={(event) => { event.preventDefault(); setQuery(search.trim()); }}>
-          <label><span className="sr-only">Search tournaments</span><input type="search" value={search} maxLength={100} onChange={(event) => setSearch(event.target.value)} placeholder="Tournament name or venue" /></label>
+          <label><span className="sr-only">Search tournaments</span><input type="search" value={search} maxLength={100} onChange={(event) => setSearch(event.target.value)} placeholder="Tournament, venue, team or player" /></label>
           <button type="submit" disabled={!online}>Search</button>
         </form>
+        {explore.live.length > 0 && <section className="home-block" aria-label="Live now">
+          <h2><i className="dot live" aria-hidden="true" /> Live now</h2>
+          {explore.live.map((match) => <article className="home-match" key={match.matchId}>
+            <span className="home-match-meta">{match.tournamentName ?? 'Friendly match'}</span>
+            <span className="home-match-teams"><strong>{match.teamA}</strong><b>{match.scoreA} : {match.scoreB}</b><strong>{match.teamB}</strong></span>
+            <MatchActions matchId={match.matchId} matches={matches} onScore={onScoreMatch} />
+          </article>)}
+        </section>}
+        {explore.players.length > 0 && <section className="home-block" aria-label="Players">
+          <h2>Players</h2>
+          {explore.players.map((player) => <a className="leaderboard-row" key={player.playerId} href={`/players/${player.playerId}`}>
+            <span className="player-avatar">{player.name.slice(0, 1)}</span>
+            <span className="leaderboard-person"><strong>{player.name}</strong><small>{[player.teamName, `${player.matches} ${player.matches === 1 ? 'match' : 'matches'}`].filter(Boolean).join(' · ')}</small></span>
+            <span className="leaderboard-points"><strong>{player.raidPoints + player.tacklePoints}</strong><small>points</small></span>
+          </a>)}
+        </section>}
+        {query && items.length > 0 && <h2 className="explore-results-title">Tournaments</h2>}
         <div className="tournament-list">{items.map((item) => <button className="tournament-list-card" key={item.id} disabled={!online || busy} onClick={() => void open(item.id)}>
           <span className="tournament-card-top"><strong>{item.name}</strong>{own.includes(item.id) ? <em>ORGANIZER</em> : joined.includes(item.id) && <em>JOINED</em>}</span>
           <span className="tournament-card-venue">{item.venue}</span><span className="tournament-card-date">{item.startsOn}</span>

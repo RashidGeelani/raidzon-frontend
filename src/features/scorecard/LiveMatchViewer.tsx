@@ -119,7 +119,7 @@ export function LiveMatchViewer({ matchId, onBack }: { matchId: string; onBack?:
   }
   return <section className="live-match-view" aria-label="Live match viewer">
     <header className="live-view-header">
-      {onBack ? <button className="tournament-back" onClick={onBack} aria-label="Back to matches">←</button> : <a href="/">← Matches</a>}
+      {onBack ? <button className="tournament-back" onClick={onBack} aria-label="Back to matches">←</button> : <a href="/" onClick={(event) => { if (window.history.length > 1 && document.referrer.startsWith(window.location.origin)) { event.preventDefault(); window.history.back(); } }}>← Back</a>}
       <span className="live-status">{state?.status.replaceAll('_', ' ') ?? 'MATCH'}</span>
       {connection === 'live' && state?.status !== 'COMPLETED' && <span className="live-push-dot" title="Updates instantly">● Real-time</span>}
       <button type="button" className="viewer-share" onClick={() => void shareLink()} aria-label="Share this match">{shareNote || 'Share'}</button>
