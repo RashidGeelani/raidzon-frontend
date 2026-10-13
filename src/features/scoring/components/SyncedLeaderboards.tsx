@@ -11,7 +11,8 @@ const LABEL: Record<Category, string> = { raid: 'Raiders', tackle: 'Defenders', 
  * Player rankings for one tournament from synced, completed matches. Players on zero are left
  * out and equal scores share a rank. Refreshes every 15 s while open and online.
  */
-export function TournamentLeaders({ tournamentId, online }: { tournamentId: string; online: boolean }) {
+/** linkPlayers: names link to the public player page (used on the public tournament page). */
+export function TournamentLeaders({ tournamentId, online, linkPlayers = false }: { tournamentId: string; online: boolean; linkPlayers?: boolean }) {
   const [category, setCategory] = useState<Category>('raid');
   const [rows, setRows] = useState<Ranking[]>([]);
   const [message, setMessage] = useState('Loading rankings…');
@@ -38,7 +39,7 @@ export function TournamentLeaders({ tournamentId, online }: { tournamentId: stri
   return <section className="tournament-leaders" aria-label="Tournament leaders">
     <Tabs label="Leaderboard category" value={category} onChange={setCategory} items={(['raid', 'tackle', 'total'] as const).map((item) => ({ value: item, label: LABEL[item] }))} />
     {message && <p role="status">{message}</p>}
-    {shown.map((player, index) => <div className="leaderboard-row" key={player.playerId}><span className="rank">{ranks[index]}</span><span className="player-avatar">{player.name.slice(0, 1)}</span><span className="leaderboard-person"><strong>{player.name}</strong><small>{[player.teamName, `${player.matches} ${player.matches === 1 ? 'match' : 'matches'}`].filter(Boolean).join(' · ')}</small></span><span className="leaderboard-points"><strong>{pointsOf(player)}</strong><small>{pointsOf(player) === 1 ? 'point' : 'points'}</small></span></div>)}
+    {shown.map((player, index) => <div className="leaderboard-row" key={player.playerId}><span className="rank">{ranks[index]}</span><span className="player-avatar">{player.name.slice(0, 1)}</span><span className="leaderboard-person"><strong>{linkPlayers ? <a href={`/players/${player.playerId}`}>{player.name}</a> : player.name}</strong><small>{[player.teamName, `${player.matches} ${player.matches === 1 ? 'match' : 'matches'}`].filter(Boolean).join(' · ')}</small></span><span className="leaderboard-points"><strong>{pointsOf(player)}</strong><small>{pointsOf(player) === 1 ? 'point' : 'points'}</small></span></div>)}
     {!message && !shown.length && <p className="list-empty">Leaders appear after the first completed match is synced.</p>}
   </section>;
 }

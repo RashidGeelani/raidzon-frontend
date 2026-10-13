@@ -1,6 +1,14 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
+    { "source": "/sitemap.xml", "destination": "https://raidzon-backend.onrender.com/api/v1/public/sitemap.xml" },
+    { "source": "/watch/:id", "destination": "/api/page?kind=watch&id=:id" },
+    { "source": "/scorecard/:id", "destination": "/api/page?kind=scorecard&id=:id" },
+    { "source": "/tournaments/:id", "destination": "/api/page?kind=tournaments&id=:id" },
+    { "source": "/players/:id", "destination": "/api/page?kind=players&id=:id" },
     { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    { "source": "/(robots.txt|llms.txt)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=3600" }] }
   ]
 }

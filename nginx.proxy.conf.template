@@ -25,6 +25,13 @@ server {
         proxy_ssl_verify on;
         proxy_ssl_trusted_certificate /etc/ssl/certs/ca-certificates.crt;
     }
+    location = /sitemap.xml {
+        proxy_pass ${BACKEND_ORIGIN}/api/v1/public/sitemap.xml;
+        proxy_read_timeout 20s;
+        proxy_ssl_server_name on;
+        proxy_ssl_verify on;
+        proxy_ssl_trusted_certificate /etc/ssl/certs/ca-certificates.crt;
+    }
     location /api/ {
         proxy_pass ${BACKEND_ORIGIN};
         proxy_set_header Host $host;

@@ -10,11 +10,18 @@ import { watchForNewVersion } from './app/update-on-launch';
 import { PublicScorecard } from './features/scorecard/PublicScorecard';
 import { LiveMatchViewer } from './features/scorecard/LiveMatchViewer';
 import { HelpPage, PrivacyPage } from './features/legal/InfoPages';
+import { setPageMeta } from './app/page-meta';
+import { PublicTournamentPage } from './features/public/PublicTournamentPage';
+import { PublicPlayerPage } from './features/public/PublicPlayerPage';
 const shareId = window.location.pathname.match(/^\/scorecard\/([0-9a-f-]{36})\/?$/i)?.[1];
 const page = window.location.pathname.replace(/\/+$/, '');
 const watchId = window.location.pathname.match(/^\/watch\/([0-9a-f-]{36})\/?$/i)?.[1];
+const tournamentId = window.location.pathname.match(/^\/tournaments\/([0-9a-f-]{36})\/?$/i)?.[1];
+const playerId = window.location.pathname.match(/^\/players\/([0-9a-f-]{36})\/?$/i)?.[1];
 
-watchForNewVersion(page === '/privacy' || page === '/help' || !!watchId || !!shareId);
+watchForNewVersion(page === '/privacy' || page === '/help' || !!watchId || !!shareId || !!tournamentId || !!playerId);
+if (page === '/help') setPageMeta('Help & FAQ · RaidzOn kabaddi scoring app', 'How to score kabaddi matches, share live scores and run tournaments with RaidzOn. Answers to common questions and how to contact support.');
+if (page === '/privacy') setPageMeta('Privacy policy · RaidzOn', 'What data RaidzOn collects to score kabaddi matches, run tournaments and keep player stats, and how it is used.');
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -27,6 +34,10 @@ createRoot(document.getElementById('root')!).render(
       <LiveMatchViewer matchId={watchId} />
     ) : shareId ? (
       <PublicScorecard shareId={shareId} />
+    ) : tournamentId ? (
+      <PublicTournamentPage tournamentId={tournamentId} />
+    ) : playerId ? (
+      <PublicPlayerPage playerId={playerId} />
     ) : (
       <App />
     )}

@@ -8,11 +8,12 @@ import { watchMatch, type LiveConnection, type LiveStateUpdate } from './live-so
 import { ReportMatch } from './ReportMatch';
 import type { ClockState, MatchState, Player, ScoreComponent } from '../scoring/domain/match-types';
 import { HighlightToast } from '../scoring/components/HighlightToast';
+import { matchJsonLd, setPageMeta } from '../../app/page-meta';
 
 type ViewerState = Pick<MatchState, 'scores' | 'tieScores' | 'status' | 'phase' | 'half' | 'raidNumber' | 'turn' | 'currentRaiderId' | 'clock' | 'raidClock' | 'winner'> & {
   teams: { name: string; players: Omit<Player, 'phone'>[] }[];
 };
-interface LiveView { state: ViewerState; serverTime: number; lastSyncedAt: number; version: number; /** Server clock minus the scoring phone's clock (ms). */ clockOffset?: number; events: { id: string; summary: string; raidNumber: number; type: string; components?: ScoreComponent[] | null }[] }
+interface LiveView { state: ViewerState; serverTime: number; lastSyncedAt: number; version: number; /** Server clock minus the scoring phone's clock (ms). */ clockOffset?: number; tournamentId?: string | null; events: { id: string; summary: string; raidNumber: number; type: string; components?: ScoreComponent[] | null }[] }
 export function clockRemaining(clock: ClockState, now: number) {
   return Math.max(0, clock.remainingMs - (clock.startedAt == null ? 0 : Math.max(0, now - clock.startedAt)));
 }
@@ -92,6 +93,13 @@ export function LiveMatchViewer({ matchId, onBack }: { matchId: string; onBack?:
     return () => clearTimeout(timer);
   }, [watching]);
   const state = view?.state;
+  const [teamA, teamB] = [state?.teams[0]?.name, state?.teams[1]?.name];
+  const status = state?.status;
+  useEffect(() => {
+    if (onBack || !teamA || !teamB || !status) return; // in-app viewer keeps the app's title
+    const live = status === 'COMPLETED' ? 'result' : 'live score';
+    setPageMeta(`${teamA} vs ${teamB} ${live} · Kabaddi · RaidzOn`, `Follow ${teamA} vs ${teamB} kabaddi ${live} raid by raid on RaidzOn: score, current raider, top raiders and match events.`, matchJsonLd(teamA, teamB, status, window.location.href));
+  }, [onBack, teamA, teamB, status]);
   // Match clocks are in the scoring phone's time: shift server time by that phone's clock error.
   const now = anchor.server - (view?.clockOffset ?? 0) + Math.max(0, tick - anchor.local);
   const raider = state?.teams[state.turn]?.players.find((player) => player.id === state.currentRaiderId);
@@ -137,6 +145,7 @@ export function LiveMatchViewer({ matchId, onBack }: { matchId: string; onBack?:
       </>}
       <h3 className="live-section-title">Match events</h3>
       <ol className="live-event-list">{view?.events.map((event) => <li key={event.id}><span>{eventLabel(event.summary)}</span><small>R{event.raidNumber}</small></li>)}</ol>
+      {!onBack && view?.tournamentId && <p><a href={`/tournaments/${view.tournamentId}`}>Tournament fixtures, points table and top players ›</a></p>}
       <p className="viewer-footnote">Viewer mode · Read only · Updates follow the scorer’s connection.<br />Last synced {new Date(view!.lastSyncedAt).toLocaleTimeString()}</p>
       <ReportMatch matchId={matchId} />
     </>}

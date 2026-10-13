@@ -95,7 +95,7 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,webp,ico}'],
         globIgnores: ['brand/raidzon-logo.png', 'screenshots/**'],
         navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/api\//],
+        navigateFallbackDenylist: [/^\/api\//, /^\/(robots|llms)\.txt$/, /^\/sitemap\.xml$/],
       },
     }),
   ],

@@ -2413,3 +2413,7 @@ article.home-match { cursor: default; }
 .jersey-pick input { width: 4.2em; padding: 8px; text-align: center; font-size: 1.1rem; font-weight: 800; border-radius: 9px; }
 .jersey-pick button { padding: 8px 14px; }
 .jersey-pick small { flex-basis: 100%; color: var(--text-muted); }
+
+/* Public tournament and player pages (/tournaments/:id, /players/:id). */
+.public-tournament .upcoming-match-card a { display: block; margin-top: 6px; font-size: 0.9rem; }
+.public-tournament .tournament-team-list, .public-player .tournament-team-list { padding-left: 0; }

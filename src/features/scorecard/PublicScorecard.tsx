@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, ApiError } from '../identity/data/auth-client';
+import { matchJsonLd, setPageMeta } from '../../app/page-meta';
 interface Scorecard {
   shareId: string;
   teamA: string;
@@ -15,6 +16,7 @@ interface Scorecard {
   winner: string | null;
   version: number;
   lastSyncedAt: number;
+  tournamentId?: string | null;
 }
 export function PublicScorecard({ shareId }: { shareId: string }) {
   const [score, setScore] = useState<Scorecard | null>(null);
@@ -51,6 +53,11 @@ export function PublicScorecard({ shareId }: { shareId: string }) {
       window.removeEventListener('online', refresh);
     };
   }, [shareId]);
+  const [teamA, teamB, status] = [score?.teamA, score?.teamB, score?.status];
+  useEffect(() => {
+    if (!teamA || !teamB || !status) return;
+    setPageMeta(`${teamA} vs ${teamB} kabaddi scorecard · RaidzOn`, `${teamA} vs ${teamB} kabaddi match scorecard on RaidzOn.`, matchJsonLd(teamA, teamB, status, window.location.href));
+  }, [teamA, teamB, status]);
   return (
     <main className="public-scorecard">
       <img src="/brand/raidzon-logo-256.webp" alt="raidzOn" width="120" />
@@ -88,6 +95,11 @@ export function PublicScorecard({ shareId }: { shareId: string }) {
               {new Date(score.lastSyncedAt).toLocaleString()}
             </time>
           </p>
+          {score.tournamentId && (
+            <p>
+              <a href={`/tournaments/${score.tournamentId}`}>Tournament fixtures, points table and top players ›</a>
+            </p>
+          )}
           <p>
             Scores update after the scorer’s device syncs. During an internet outage, this page
             retains the last synced score.

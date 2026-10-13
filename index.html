@@ -4,7 +4,31 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#0e0e1c" />
-    <meta name="description" content="raidzOn — courtside kabaddi scoring, ready offline." />
+    <meta
+      name="description"
+      content="RaidzOn is a free kabaddi scoring app: score matches raid by raid, run tournaments with fixtures and points tables, track player raid and tackle stats, and share live kabaddi scores. Works offline."
+    />
+    <link rel="canonical" href="https://raidzon.com/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="RaidzOn" />
+    <meta property="og:url" content="https://raidzon.com/" />
+    <meta property="og:title" content="RaidzOn · Kabaddi live scores, tournaments & scoring app" />
+    <meta
+      property="og:description"
+      content="Score kabaddi matches raid by raid, run tournaments with points tables and follow live kabaddi scores. Free and works offline courtside."
+    />
+    <!-- ponytail: square logo until a 1200x630 share card exists at /brand/og-card.png -->
+    <meta property="og:image" content="https://raidzon.com/brand/raidzon-logo-512.png" />
+    <meta property="og:image:width" content="512" />
+    <meta property="og:image:height" content="512" />
+    <meta property="og:image:alt" content="RaidzOn logo" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="RaidzOn · Kabaddi live scores, tournaments & scoring app" />
+    <meta
+      name="twitter:description"
+      content="Score kabaddi matches raid by raid, run tournaments with points tables and follow live kabaddi scores."
+    />
+    <meta name="twitter:image" content="https://raidzon.com/brand/raidzon-logo-512.png" />
     <link rel="icon" href="/brand/raidzon-logo-192.png" type="image/png" />
     <link rel="apple-touch-icon" href="/brand/raidzon-logo-192.png" />
     <!-- Home-screen app on iPhone: full screen, short name, dark status bar. -->
@@ -12,7 +36,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="raidzOn" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black" />
-    <title>raidzOn · Own the court</title>
+    <title>RaidzOn · Kabaddi Live Score, Tournaments & Scoring App</title>
     <link rel="preload" as="image" href="/brand/raidzon-logo-256.webp" />
     <script>
       // Chrome can offer installation before the app's code has loaded; keep the offer for it.
@@ -21,9 +45,58 @@
         window.__raidzonInstallEvent = event;
       });
     </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://raidzon.com/#organization",
+            "name": "RaidzOn",
+            "url": "https://raidzon.com/",
+            "logo": "https://raidzon.com/brand/raidzon-logo-512.png"
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://raidzon.com/#website",
+            "name": "RaidzOn",
+            "url": "https://raidzon.com/",
+            "publisher": { "@id": "https://raidzon.com/#organization" }
+          },
+          {
+            "@type": "WebApplication",
+            "name": "RaidzOn",
+            "url": "https://raidzon.com/",
+            "applicationCategory": "SportsApplication",
+            "operatingSystem": "Android, iOS, Windows, macOS (web app, installable PWA)",
+            "description": "Kabaddi scoring and tournament app: raid-by-raid live scoring that works offline, tournaments with fixtures and points tables, player raid and tackle stats, and shareable live scores.",
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "INR" },
+            "publisher": { "@id": "https://raidzon.com/#organization" }
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <h1>RaidzOn: kabaddi live score, tournaments and scoring app</h1>
+      <p>
+        RaidzOn lets kabaddi organizers and scorers score matches raid by raid from a phone, even
+        offline at the court. Run tournaments with fixtures, groups and points tables, track player
+        raid points, tackle points and leaderboards, and share a live score link so fans can follow
+        every raid in real time. Free to use; install it as an app from your browser.
+      </p>
+      <p>
+        Every tournament has a public page at /tournaments/ with its points table, fixtures,
+        results and top players, and every player has a page at /players/ with career raid and
+        tackle stats. All public pages are listed in the <a href="/sitemap.xml">sitemap</a>.
+      </p>
+      <p>
+        <a href="/">Home</a> · <a href="/help">Help &amp; FAQ</a> · <a href="/privacy">Privacy</a>
+      </p>
+      <p>Enable JavaScript to use RaidzOn.</p>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

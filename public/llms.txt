@@ -1,0 +1,29 @@
+# RaidzOn
+
+> RaidzOn (raidzon.com) is a free kabaddi scoring and tournament app, like CricHeroes for kabaddi. Scorers record matches raid by raid on a phone, even offline at the court; fans follow live kabaddi scores through a shared link; organizers run tournaments with fixtures, groups and points tables; players get raid and tackle stats on their profile.
+
+RaidzOn is a web app (installable PWA) for Android, iPhone and desktop browsers. No download from an app store is needed.
+
+## Features
+
+- Live kabaddi scoring: raid points, tackle points, bonus points, super raids, super tackles, all outs, do-or-die raids, substitutions, revivals, raid and half timers, undo.
+- Offline first: every raid is saved on the phone and syncs when the connection returns.
+- Live score sharing: a /watch link shows the score, current raider and match events in real time; a /scorecard link shows a compact shareable scorecard.
+- Tournaments: host a tournament, register teams and squads, generate fixtures (league, groups, knockouts), automatic points table / standings, team join requests.
+- Player stats: player profiles with raid points, tackle points and leaderboards (top raiders, top defenders).
+- Scoring without an account; sign in with a phone number (OTP) to share live, keep stats or run a tournament.
+
+## Key URLs
+
+- [Home](https://raidzon.com/): start scoring, browse tournaments, your matches
+- [Help & FAQ](https://raidzon.com/help): how scoring, live sharing and tournaments work
+- [Privacy policy](https://raidzon.com/privacy)
+- Tournament: https://raidzon.com/tournaments/{tournamentId} (overview, points table, fixtures and results, bracket, top raiders and defenders, teams)
+- Player: https://raidzon.com/players/{playerId} (career raid and tackle points, tournaments played)
+- Live match: https://raidzon.com/watch/{matchId}
+- Shared scorecard: https://raidzon.com/scorecard/{shareId}
+- [Sitemap](https://raidzon.com/sitemap.xml): every public tournament, player, match and scorecard page
+
+## Contact
+
+support@raidzon.com
