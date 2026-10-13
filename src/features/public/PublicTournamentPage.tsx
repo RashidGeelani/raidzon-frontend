@@ -61,6 +61,7 @@ export function PublicTournamentPage({ tournamentId }: { tournamentId: string })
         <section className="info-section"><h2>Top players</h2><TournamentLeaders tournamentId={tournamentId} online linkPlayers /></section>
         <section className="info-section">
           <h2>Teams</h2>
+          {!detail.teams.length && <p>No teams yet.</p>}
           <ul className="tournament-team-list">{detail.teams.map((team) => <li key={team.id}><span className="tournament-team-text"><strong>{team.name}</strong><small>{team.players.length ? team.players.join(', ') : 'Squad not added yet'}</small></span></li>)}</ul>
         </section>
       </>}

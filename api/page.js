@@ -94,18 +94,20 @@ export async function GET(request) {
   const shell = await fetch(new URL('/index.html', url));
   let html = await shell.text();
   let status = 200;
+  let injected = false;
   if (UUID.test(id)) {
     try {
-      const response = await fetch(`${API}/api/v1/public/${ENDPOINTS[kind]}/${id}`, { signal: AbortSignal.timeout(1500) });
+      const response = await fetch(`${API}/api/v1/public/${ENDPOINTS[kind]}/${id}`, { signal: AbortSignal.timeout(3000) });
       const pageUrl = `https://raidzon.com/${kind}/${id}`;
-      if (response.ok) html = injectPage(html, pageUrl, pageFor(kind, pageUrl, await response.json()));
-      else if (response.status === 404) { html = injectPage(html, '', null); status = 404; }
+      if (response.ok) { html = injectPage(html, pageUrl, pageFor(kind, pageUrl, await response.json())); injected = true; }
+      else if (response.status === 404) { html = injectPage(html, '', null); status = 404; injected = true; }
     } catch {
       // Backend asleep or slow: serve the plain shell.
     }
   }
+  // Only cache real answers at the CDN; a plain-shell fallback must not stick, or crawlers keep getting it.
   return new Response(html, {
     status,
-    headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=0, s-maxage=60, stale-while-revalidate=300' },
+    headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': injected ? 'public, max-age=0, s-maxage=60, stale-while-revalidate=300' : 'no-store' },
   });
 }
