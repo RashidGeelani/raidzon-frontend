@@ -1,0 +1,30 @@
+name: CI
+on:
+  push:
+    branches: [master, develop]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: raidzonfrontend
+      - uses: actions/checkout@v4
+        with:
+          repository: RashidGeelani/raidzon-test-fixtures
+          path: test-fixtures
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: raidzonfrontend/package-lock.json
+      - working-directory: raidzonfrontend
+        run: npm ci
+      - name: Tests
+        working-directory: raidzonfrontend
+        run: npm test
+      - name: Build
+        working-directory: raidzonfrontend
+        run: npm run build
