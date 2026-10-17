@@ -28,7 +28,7 @@ it('prefills a prepared fixture with saved players and tournament timers', () =>
   expect(markup).toContain('value="Raider 1"');
   expect(markup).toContain('value="24"');
   expect(markup).not.toContain('value="35"');
-  expect(markup).toContain('Raid time: <strong>30 seconds</strong> (standard)');
+  expect(markup).toContain('Raid time: <strong>30 seconds</strong></p>');
 });
 
 it('restores a saved setup draft with an option to clear it', () => {
