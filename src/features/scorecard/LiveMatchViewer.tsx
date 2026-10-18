@@ -109,6 +109,7 @@ export function LiveMatchViewer({ matchId, onBack }: { matchId: string; onBack?:
   const raidSeconds = state ? Math.ceil(clockRemaining(state.raidClock, now) / 1000) : 0;
   const halfSeconds = state ? Math.ceil(clockRemaining(state.clock, now) / 1000) : 0;
   const completed = state?.status === 'COMPLETED';
+  const lastRaid = view?.events.find((event) => event.type === 'RAID');
   const finalScores = state ? (state.phase === 'REGULATION' ? state.scores : state.tieScores) : [0, 0];
   async function shareLink() {
     const title = state ? `${state.teams[0].name} vs ${state.teams[1].name}` : 'Kabaddi match';
@@ -120,7 +121,7 @@ export function LiveMatchViewer({ matchId, onBack }: { matchId: string; onBack?:
       if (!(error instanceof DOMException && error.name === 'AbortError')) setShareNote('Copy the address from your browser to share');
     }
   }
-  return <section className="live-match-view" aria-label="Live match viewer">
+  return <section className={`live-match-view ${state && !completed ? 'with-drawers' : ''}`} aria-label="Live match viewer">
     <header className="live-view-header">
       {onBack ? <button className="tournament-back" onClick={onBack} aria-label="Back to matches">←</button> : <a href="/" onClick={(event) => { if (window.history.length > 1 && document.referrer.startsWith(window.location.origin)) { event.preventDefault(); window.history.back(); } }}>← Back</a>}
       <span className="live-status">{state?.status.replaceAll('_', ' ') ?? 'MATCH'}</span>
@@ -141,22 +142,13 @@ export function LiveMatchViewer({ matchId, onBack }: { matchId: string; onBack?:
       {isDoOrDie(state) && (state.status === 'LIVE' || state.status === 'PAUSED') && <div className="viewer-do-or-die" role="status"><strong>DO-OR-DIE RAID</strong><span>{state.teams[state.turn]?.name} must score or the raider is out</span></div>}
       <div className="live-current-raider"><div><strong>{raider ? withJersey(raider) : (state.status === 'COMPLETED' ? 'Match complete' : 'Waiting for the next raider')}</strong><small>{state.teams[state.turn].name} · Raid #{state.raidNumber}</small></div><span className={`live-countdown ${raidSeconds === 0 ? 'expired' : raider && raidSeconds <= 10 ? 'warning' : ''}`} aria-label="Raid time remaining">{raider ? raidSeconds : '—'}<small>seconds</small></span></div>
       {raider && raidSeconds === 0 && <p className="field-note">Time elapsed — waiting for the scorer’s decision.</p>}
-      <LastRaid event={view!.events.find((event) => event.type === 'RAID')} state={state} />
+      {lastRaid && <LastRaid key={lastRaid.id} event={lastRaid} state={state} />}
       <CourtDrawers teams={state.teams.map((team) => ({ ...team, queue: team.queue ?? team.players.filter((player) => player.status === 'OUT').map((player) => player.id) }))} currentRaiderId={state.currentRaiderId} />
       </>}
       <h3 className="live-section-title">Match events</h3>
-      <div className="live-court-team viewer-events">
-        {view!.events.length === 0 ? <p>No events yet.</p> : <ol className="timeline">{view!.events.map((event, index) => <li key={event.id}>
-          <span className="event-number">{String(view!.events.length - index).padStart(2, '0')}</span>
-          <div><strong>{describe(event, state)}</strong><small>Raid {event.raidNumber}{eventPoints(event.components, state.teams) && ` · ${eventPoints(event.components, state.teams)}`}</small></div>
-        </li>)}</ol>}
-      </div>
+      <MatchEvents events={view!.events} state={state} />
       <h3 className="live-section-title">Team scorecards</h3>
-      <PlayerScorecards state={state} />
-      {!completed && <>
-      <h3 className="live-section-title">Substitutes</h3>
-      {state.teams.map((team, side) => <div className="live-court-team" key={side}><strong>{team.name}</strong><p>{team.players.filter((player) => player.status === 'BENCH').map((player) => withJersey(player)).join(', ') || 'No substitutes'}</p></div>)}
-      </>}
+      <PlayerScorecards state={state} events={view!.events} />
       {!onBack && view?.tournamentId && <p><a href={`/tournaments/${view.tournamentId}`}>Tournament fixtures, points table and top players ›</a></p>}
       <p className="viewer-footnote">Viewer mode · Read only · Updates follow the scorer’s connection.<br />Last synced {new Date(view!.lastSyncedAt).toLocaleTimeString()}</p>
       <ReportMatch matchId={matchId} />
@@ -203,9 +195,8 @@ function describe(event: ViewerEvent, state: ViewerState) {
   return raidDetail(event.summary, event.components, (id) => players.find((player) => player.id === id)?.name, event);
 }
 
-/** The latest raid's result, under the current raid. */
-function LastRaid({ event, state }: { event?: ViewerEvent; state: ViewerState }) {
-  if (!event) return null;
+/** The latest raid's result, under the current raid. Keyed by event, so it flashes on each new raid. */
+function LastRaid({ event, state }: { event: ViewerEvent; state: ViewerState }) {
   const detail = describe(event, state);
   const tone = /unsuccessful|self-out|Do-or-Die failed/.test(detail) ? 'fail' : /successful raid/.test(detail) ? 'success' : '';
   return <div className={`viewer-last-raid ${tone}`} role="status" aria-live="polite">
@@ -215,19 +206,50 @@ function LastRaid({ event, state }: { event?: ViewerEvent; state: ViewerState })
   </div>;
 }
 
+/** Every event, newest first, numbered like the scorer's timeline; "Raids" hides half-time, pauses and substitutions. */
+function MatchEvents({ events, state }: { events: ViewerEvent[]; state: ViewerState }) {
+  const [filter, setFilter] = useState<'all' | 'raids'>('all');
+  const shown = events.map((event, index) => ({ event, number: events.length - index })).filter(({ event }) => filter === 'all' || event.type === 'RAID');
+  return <div className="live-court-team viewer-events">
+    <Tabs label="Match events" value={filter} onChange={setFilter} items={[{ value: 'all', label: 'All events' }, { value: 'raids', label: 'Raids only' }]} />
+    {shown.length === 0 ? <p>No {filter === 'raids' ? 'raids' : 'events'} yet.</p> : <ol className="timeline">{shown.map(({ event, number }) => <li key={event.id}>
+      <span className="event-number">{String(number).padStart(2, '0')}</span>
+      <div><strong>{describe(event, state)}</strong><small>Raid {event.raidNumber}{eventPoints(event.components, state.teams) && ` · ${eventPoints(event.components, state.teams)}`}</small></div>
+    </li>)}</ol>}
+  </div>;
+}
+
+/** A team's points by kind and its successful raids, from the event list. */
+export function teamTotals(events: Pick<ViewerEvent, 'type' | 'components'>[], side: number) {
+  const parts = events.flatMap((event) => event.components ?? []).filter((c) => c.side === side);
+  const sum = (...kinds: string[]) => parts.filter((c) => kinds.includes(c.kind)).reduce((total, c) => total + c.points, 0);
+  return {
+    raid: sum('TOUCH', 'BONUS'),
+    tackle: sum('TACKLE', 'SUPER_TACKLE_EXTRA'),
+    allOut: sum('ALL_OUT'),
+    extras: sum('SELF_OUT', 'TECHNICAL'),
+    successfulRaids: events.filter((event) => event.type === 'RAID' && (event.components ?? []).some((c) => c.side === side && (c.kind === 'TOUCH' || c.kind === 'BONUS'))).length,
+  };
+}
+
 /** One team's players at a time (tabs), top scorers first, with High 5 / Super 10 tags after the name. */
-function PlayerScorecards({ state }: { state: ViewerState }) {
+function PlayerScorecards({ state, events }: { state: ViewerState; events: ViewerEvent[] }) {
   const [side, setSide] = useState('0');
   const team = state.teams[Number(side)];
+  const totals = teamTotals(events, Number(side));
+  const live = state.status !== 'COMPLETED';
   const total = (player: ViewerPlayer) => player.raidPoints + player.tacklePoints;
   return <div className="live-court-team viewer-scorecard">
     <Tabs label="Team scorecards" value={side} onChange={setSide} items={state.teams.map((item, index) => ({ value: String(index), label: item.name }))} />
     <table>
       <thead><tr><th scope="col">Player</th><th scope="col">Raid</th><th scope="col">Tackle</th><th scope="col">Total</th></tr></thead>
       <tbody>{[...team.players].sort((a, b) => total(b) - total(a)).map((player) => <tr key={player.id}>
-        <th scope="row">{withJersey(player)} <MilestoneTags player={player} /></th>
+        <th scope="row">{withJersey(player)} <MilestoneTags player={player} />{live && player.status !== 'ACTIVE' && <span className="viewer-player-status">{player.status === 'BENCH' ? 'bench' : 'out'}</span>}</th>
         <td>{player.raidPoints}</td><td>{player.tacklePoints}</td><td><b>{total(player)}</b></td>
       </tr>)}</tbody>
     </table>
+    <dl className="viewer-team-totals">
+      {[['Raid points', totals.raid], ['Tackle points', totals.tackle], ['All out', totals.allOut], ['Extras', totals.extras], ['Successful raids', totals.successfulRaids]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
+    </dl>
   </div>;
 }

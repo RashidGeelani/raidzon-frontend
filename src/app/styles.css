@@ -1774,6 +1774,16 @@ footer { border-color: #30304a; color: #7878a0; }
 .viewer-last-raid strong { font-size:.9rem; color:#f0f0ff; overflow-wrap:anywhere; }
 .viewer-last-raid em { font-style:normal; font-size:.72rem; color:#22d39b; }
 .viewer-events .timeline li { border-bottom-color:#242438; }
+/* Keep page text clear of the side drawer tabs where the page is too narrow to sit between them. */
+@media (max-width: 600px) { .live-match-view.with-drawers { padding-inline:44px; } }
+.viewer-last-raid { animation: viewer-last-raid-in .9s ease-out; }
+@keyframes viewer-last-raid-in { 0% { background:#2a2a52; transform:scale(1.02); } 100% { background:#12121f; transform:none; } }
+@media (prefers-reduced-motion: reduce) { .viewer-last-raid { animation:none; } }
+.viewer-player-status { margin-left:6px; padding:1px 6px; border-radius:999px; background:#24243a; color:#9a9abd; font-size:.6rem; text-transform:uppercase; letter-spacing:.06em; vertical-align:middle; }
+.viewer-team-totals { display:grid; grid-template-columns:repeat(auto-fit, minmax(90px, 1fr)); gap:8px; margin:14px 0 0; }
+.viewer-team-totals div { padding:8px 10px; border-radius:10px; background:#1b1b31; }
+.viewer-team-totals dt { font-size:.6rem; letter-spacing:.06em; text-transform:uppercase; color:#8e8eb6; }
+.viewer-team-totals dd { margin:2px 0 0; font-size:1rem; font-weight:700; color:#f0f0ff; }
 .viewer-events .timeline strong { font-size:.8rem; color:#e4e4fa; overflow-wrap:anywhere; }
 .viewer-events .timeline small, .viewer-events .event-number { color:#8e8eb6; }
 .viewer-scorecard table { width:100%; margin-top:8px; border-collapse:collapse; font-size:.76rem; }
