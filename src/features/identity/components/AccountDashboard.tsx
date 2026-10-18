@@ -4,6 +4,7 @@ import { OPEN_NOTIFICATIONS } from '../../notifications/notification-client';
 import { ShareScorecard } from '../../scorecard/ShareScorecard';
 import { EditPlayerProfile } from './EditPlayerProfile';
 import { AdminReports, AdminStats } from './AdminReports';
+import { APP_RELEASE } from '../../legal/InfoPages';
 
 interface Dashboard {
   accountId: string;
@@ -123,7 +124,7 @@ export function AccountDashboard({
             {profile ? <EditPlayerProfile account={account} phone={data.phone} name={profile.name} online={online} onSaved={() => setRefresh((value) => value + 1)} /> : <span className="profile-later">Link a player first</span>}
           </div>
           <button type="button" className="profile-menu-row profile-menu-link" onClick={() => window.dispatchEvent(new Event(OPEN_NOTIFICATIONS))}><span className="profile-menu-icon" aria-hidden="true">♢</span><div><strong>Notifications</strong><small>Join requests, approvals and team updates</small></div><span className="profile-menu-chevron" aria-hidden="true">›</span></button>
-          <a className="profile-menu-row profile-menu-link" href="/help"><span className="profile-menu-icon" aria-hidden="true">?</span><div><strong>Help & Support</strong><small>How scoring works, FAQs and contact</small></div><span className="profile-menu-chevron" aria-hidden="true">›</span></a>
+          <a className="profile-menu-row profile-menu-link" href="/help"><span className="profile-menu-icon" aria-hidden="true">?</span><div><strong>Help & Support</strong><small>How scoring works, FAQs and contact · {APP_RELEASE}</small></div><span className="profile-menu-chevron" aria-hidden="true">›</span></a>
           <a className="profile-menu-row profile-menu-link" href="/privacy"><span className="profile-menu-icon" aria-hidden="true">⛉</span><div><strong>Privacy policy</strong><small>What we collect and how it is used</small></div><span className="profile-menu-chevron" aria-hidden="true">›</span></a>
         </div>
         <details className="profile-matches">
