@@ -1767,6 +1767,20 @@ footer { border-color: #30304a; color: #7878a0; }
 .live-event-list { padding:0; list-style:none; }
 .live-event-list li { display:flex; gap:10px; align-items:center; justify-content:space-between; border-bottom:1px solid #242438; padding:12px 0; font-size:.78rem; }
 .live-event-list small { flex-shrink:0; color:#8e8eb6; }
+.viewer-last-raid { display:grid; gap:4px; margin:9px 0; padding:13px 15px; border:1px solid #27263c; border-left:4px solid #8e8eb6; border-radius:14px; background:#12121f; }
+.viewer-last-raid.success { border-left-color:#22d39b; }
+.viewer-last-raid.fail { border-left-color:#ff5a6e; }
+.viewer-last-raid small { font-size:.62rem; letter-spacing:.14em; text-transform:uppercase; color:#8e8eb6; }
+.viewer-last-raid strong { font-size:.9rem; color:#f0f0ff; overflow-wrap:anywhere; }
+.viewer-last-raid em { font-style:normal; font-size:.72rem; color:#22d39b; }
+.viewer-events .timeline li { border-bottom-color:#242438; }
+.viewer-events .timeline strong { font-size:.8rem; color:#e4e4fa; overflow-wrap:anywhere; }
+.viewer-events .timeline small, .viewer-events .event-number { color:#8e8eb6; }
+.viewer-scorecard table { width:100%; margin-top:8px; border-collapse:collapse; font-size:.76rem; }
+.viewer-scorecard th, .viewer-scorecard td { padding:7px 4px; border-bottom:1px solid #242438; text-align:right; font-weight:400; }
+.viewer-scorecard thead th { font-size:.62rem; letter-spacing:.08em; text-transform:uppercase; color:#8e8eb6; }
+.viewer-scorecard th:first-child { text-align:left; overflow-wrap:anywhere; }
+.viewer-scorecard .milestone-tag { margin-left:4px; padding:1px 6px; vertical-align:middle; }
 .viewer-footnote { color:#9292b4; text-align:center; font-size:.7rem; line-height:1.7; margin-top:25px; }
 .match-access-actions { display:flex; gap:8px; margin-top:12px; }
 .match-access-actions > * { display:block; flex:1; border-radius:9px; text-align:center; padding:10px 7px; text-decoration:none; font-size:.75rem; }

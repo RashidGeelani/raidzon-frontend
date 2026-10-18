@@ -1,16 +1,20 @@
 import { withJersey } from '../domain/jersey';
 import { useState } from 'react';
-import type { Side, Team } from '../domain/match-types';
+import type { Player, Side, Team } from '../domain/match-types';
+
+/** Scorer teams, or the viewer's public teams (no phone numbers). */
+type DrawerTeam = Pick<Team, 'name' | 'queue'> & { players: Omit<Player, 'phone'>[] };
 
 /**
  * On-court players as two slim tabs on the screen edges (team A left, team B right). A tap opens
  * the team's panel: players on court with a green dot, then the revival queue in return order.
+ * Used on the scorer screen and the live viewer.
  */
 export function CourtDrawers({
   teams,
   currentRaiderId,
 }: {
-  teams: [Team, Team] | Team[];
+  teams: DrawerTeam[];
   currentRaiderId: string | null;
 }) {
   // On wide screens the drawers sit beside the scoring column, so both start open.
@@ -33,7 +37,7 @@ export function CourtDrawers({
         const onCourt = team.players.filter((player) => player.status === 'ACTIVE');
         const queue = team.queue
           .map((id) => team.players.find((player) => player.id === id))
-          .filter((player): player is Team['players'][number] => !!player);
+          .filter((player): player is DrawerTeam['players'][number] => !!player);
         const code = team.name.slice(0, 3).toUpperCase();
         return (
           <aside
