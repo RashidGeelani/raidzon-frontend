@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
+import { Tabs } from '../../ui/Tabs';
 import { requestInstallNudge } from '../../app/install';
-import { eventLabel } from '../scoring/domain/event-label';
+import { eventLabel, raidDetail } from '../scoring/domain/event-label';
 import { milestones } from '../scoring/domain/match-summary';
 import { isDoOrDie } from '../scoring/domain/match-types';
 import { withJersey } from '../scoring/domain/jersey';
@@ -8,12 +9,14 @@ import { watchMatch, type LiveConnection, type LiveStateUpdate } from './live-so
 import { ReportMatch } from './ReportMatch';
 import type { ClockState, MatchState, Player, ScoreComponent } from '../scoring/domain/match-types';
 import { HighlightToast } from '../scoring/components/HighlightToast';
+import { CourtDrawers } from '../scoring/components/CourtDrawers';
 import { matchJsonLd, setPageMeta } from '../../app/page-meta';
 
 type ViewerState = Pick<MatchState, 'scores' | 'tieScores' | 'status' | 'phase' | 'half' | 'raidNumber' | 'turn' | 'currentRaiderId' | 'clock' | 'raidClock' | 'winner'> & {
-  teams: { name: string; players: Omit<Player, 'phone'>[] }[];
+  /** queue: revival order (player IDs); absent from servers older than the viewer's out queue. */
+  teams: { name: string; players: Omit<Player, 'phone'>[]; queue?: string[] }[];
 };
-interface LiveView { state: ViewerState; serverTime: number; lastSyncedAt: number; version: number; /** Server clock minus the scoring phone's clock (ms). */ clockOffset?: number; tournamentId?: string | null; events: { id: string; summary: string; raidNumber: number; type: string; components?: ScoreComponent[] | null }[] }
+interface LiveView { state: ViewerState; serverTime: number; lastSyncedAt: number; version: number; /** Server clock minus the scoring phone's clock (ms). */ clockOffset?: number; tournamentId?: string | null; events: { id: string; summary: string; raidNumber: number; type: string; components?: ScoreComponent[] | null; /** Defenders put out (absent from older servers). */ touchedIds?: string[] | null; selfOutIds?: string[] | null }[] }
 export function clockRemaining(clock: ClockState, now: number) {
   return Math.max(0, clock.remainingMs - (clock.startedAt == null ? 0 : Math.max(0, now - clock.startedAt)));
 }
@@ -138,13 +141,22 @@ export function LiveMatchViewer({ matchId, onBack }: { matchId: string; onBack?:
       {isDoOrDie(state) && (state.status === 'LIVE' || state.status === 'PAUSED') && <div className="viewer-do-or-die" role="status"><strong>DO-OR-DIE RAID</strong><span>{state.teams[state.turn]?.name} must score or the raider is out</span></div>}
       <div className="live-current-raider"><div><strong>{raider ? withJersey(raider) : (state.status === 'COMPLETED' ? 'Match complete' : 'Waiting for the next raider')}</strong><small>{state.teams[state.turn].name} · Raid #{state.raidNumber}</small></div><span className={`live-countdown ${raidSeconds === 0 ? 'expired' : raider && raidSeconds <= 10 ? 'warning' : ''}`} aria-label="Raid time remaining">{raider ? raidSeconds : '—'}<small>seconds</small></span></div>
       {raider && raidSeconds === 0 && <p className="field-note">Time elapsed — waiting for the scorer’s decision.</p>}
-      <h3 className="live-section-title">On court</h3>
-      {state.teams.map((team, side) => <div className="live-court-team" key={side}><strong>{team.name}</strong><div className="live-player-chips">{team.players.map((player) => player.status === 'ACTIVE' && <span className={player.id === state.currentRaiderId ? 'current' : ''} key={player.id}><i className="court-dot" aria-hidden="true" /><small>{withJersey(player)}</small></span>)}</div></div>)}
+      <LastRaid event={view!.events.find((event) => event.type === 'RAID')} state={state} />
+      <CourtDrawers teams={state.teams.map((team) => ({ ...team, queue: team.queue ?? team.players.filter((player) => player.status === 'OUT').map((player) => player.id) }))} currentRaiderId={state.currentRaiderId} />
+      </>}
+      <h3 className="live-section-title">Match events</h3>
+      <div className="live-court-team viewer-events">
+        {view!.events.length === 0 ? <p>No events yet.</p> : <ol className="timeline">{view!.events.map((event, index) => <li key={event.id}>
+          <span className="event-number">{String(view!.events.length - index).padStart(2, '0')}</span>
+          <div><strong>{describe(event, state)}</strong><small>Raid {event.raidNumber}{eventPoints(event.components, state.teams) && ` · ${eventPoints(event.components, state.teams)}`}</small></div>
+        </li>)}</ol>}
+      </div>
+      <h3 className="live-section-title">Team scorecards</h3>
+      <PlayerScorecards state={state} />
+      {!completed && <>
       <h3 className="live-section-title">Substitutes</h3>
       {state.teams.map((team, side) => <div className="live-court-team" key={side}><strong>{team.name}</strong><p>{team.players.filter((player) => player.status === 'BENCH').map((player) => withJersey(player)).join(', ') || 'No substitutes'}</p></div>)}
       </>}
-      <h3 className="live-section-title">Match events</h3>
-      <ol className="live-event-list">{view?.events.map((event) => <li key={event.id}><span>{eventLabel(event.summary)}</span><small>R{event.raidNumber}</small></li>)}</ol>
       {!onBack && view?.tournamentId && <p><a href={`/tournaments/${view.tournamentId}`}>Tournament fixtures, points table and top players ›</a></p>}
       <p className="viewer-footnote">Viewer mode · Read only · Updates follow the scorer’s connection.<br />Last synced {new Date(view!.lastSyncedAt).toLocaleTimeString()}</p>
       <ReportMatch matchId={matchId} />
@@ -168,9 +180,54 @@ function FullTime({ state, scores }: { state: ViewerState; scores: [number, numb
     {rows.length > 0 && <div className="result-standouts">
       {rows.map((row, index) => <div key={row.label} className={`result-standout ${index === 0 ? 'featured' : ''}`}>
         <span className="result-standout-icon" aria-hidden="true">{row.icon}</span>
-        <span className="result-standout-text"><small>{row.label}</small><strong>{row.best!.player.name}</strong><em>{row.best!.team}</em>{milestones(row.best!.player).length > 0 && <span className="milestone-tags">{milestones(row.best!.player).map((tag) => <span key={tag} className={`milestone-tag ${tag === 'Super 10' ? 'super-ten' : 'high-five'}`}>{tag}</span>)}</span>}</span>
+        <span className="result-standout-text"><small>{row.label}</small><strong>{row.best!.player.name}</strong><em>{row.best!.team}</em>{milestones(row.best!.player).length > 0 && <span className="milestone-tags"><MilestoneTags player={row.best!.player} /></span>}</span>
         <b>{pts(row.best!.value, row.unit)}</b>
       </div>)}
     </div>}
   </section>;
+}
+
+const MilestoneTags = ({ player }: { player: ViewerPlayer }) => <>{milestones(player).map((tag) => <span key={tag} className={`milestone-tag ${tag === 'Super 10' ? 'super-ten' : 'high-five'}`}>{tag}</span>)}</>;
+
+/** "Tigers +2 · Lions +1" for an event's points; empty when nobody scored. */
+export function eventPoints(components: ScoreComponent[] | null | undefined, teams: { name: string }[]) {
+  return [0, 1].map((side) => ({ side, points: (components ?? []).filter((c) => c.side === side).reduce((total, c) => total + c.points, 0) }))
+    .filter((row) => row.points > 0).map((row) => `${teams[row.side]?.name} +${row.points}`).join(' · ');
+}
+
+type ViewerEvent = LiveView['events'][number];
+/** Raids in full ("tackled by Jafar"); other events by their usual label. */
+function describe(event: ViewerEvent, state: ViewerState) {
+  if (event.type !== 'RAID') return eventLabel(event.summary);
+  const players = state.teams.flatMap((team) => team.players);
+  return raidDetail(event.summary, event.components, (id) => players.find((player) => player.id === id)?.name, event);
+}
+
+/** The latest raid's result, under the current raid. */
+function LastRaid({ event, state }: { event?: ViewerEvent; state: ViewerState }) {
+  if (!event) return null;
+  const detail = describe(event, state);
+  const tone = /unsuccessful|self-out|Do-or-Die failed/.test(detail) ? 'fail' : /successful raid/.test(detail) ? 'success' : '';
+  return <div className={`viewer-last-raid ${tone}`} role="status" aria-live="polite">
+    <small>Last raid · R{event.raidNumber}</small>
+    <strong>{detail}</strong>
+    {eventPoints(event.components, state.teams) && <em>{eventPoints(event.components, state.teams)}</em>}
+  </div>;
+}
+
+/** One team's players at a time (tabs), top scorers first, with High 5 / Super 10 tags after the name. */
+function PlayerScorecards({ state }: { state: ViewerState }) {
+  const [side, setSide] = useState('0');
+  const team = state.teams[Number(side)];
+  const total = (player: ViewerPlayer) => player.raidPoints + player.tacklePoints;
+  return <div className="live-court-team viewer-scorecard">
+    <Tabs label="Team scorecards" value={side} onChange={setSide} items={state.teams.map((item, index) => ({ value: String(index), label: item.name }))} />
+    <table>
+      <thead><tr><th scope="col">Player</th><th scope="col">Raid</th><th scope="col">Tackle</th><th scope="col">Total</th></tr></thead>
+      <tbody>{[...team.players].sort((a, b) => total(b) - total(a)).map((player) => <tr key={player.id}>
+        <th scope="row">{withJersey(player)} <MilestoneTags player={player} /></th>
+        <td>{player.raidPoints}</td><td>{player.tacklePoints}</td><td><b>{total(player)}</b></td>
+      </tr>)}</tbody>
+    </table>
+  </div>;
 }
