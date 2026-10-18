@@ -2122,6 +2122,7 @@ footer { border-color: #30304a; color: #7878a0; }
 .info-faq p { padding-bottom: 12px; }
 .info-page-footer { display: flex; flex-wrap: wrap; gap: 8px 16px; justify-content: center; margin-top: 22px; font-size: .74rem; }
 .info-page-footer a { color: #8d8db3; }
+.info-page-footer small { flex-basis: 100%; text-align: center; color: #6c6c8a; }
 
 /* Sign-in card: same look on the start screen, Profile, Teams and Tournaments */
 .signin-card { width: min(100%, 420px); box-sizing: border-box; margin: 18px auto; padding: 20px 18px 16px; border-radius: 20px; border: 1px solid #2f2f4c; background: radial-gradient(120% 120% at 100% 0%, #ff5a1f1f 0%, transparent 50%), #15152a; box-shadow: 0 14px 34px rgba(0,0,0,.35); text-align: left; }

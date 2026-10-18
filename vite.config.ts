@@ -1,7 +1,13 @@
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import pkg from './package.json';
 
 export default defineConfig({
+  // Shown in the app so a user can tell which release they are on. Bump "version" in package.json per release.
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+    __BUILD_DATE__: JSON.stringify(new Date().toISOString().slice(0, 10)),
+  },
   plugins: [
     VitePWA({
       registerType: 'prompt',

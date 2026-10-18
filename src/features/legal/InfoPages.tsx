@@ -4,6 +4,11 @@ import type { ReactNode } from 'react';
 export const SUPPORT_EMAIL = (import.meta.env.VITE_SUPPORT_EMAIL as string | undefined)?.trim() || 'support@raidzon.com';
 const UPDATED = '2 October 2026';
 
+declare const __APP_VERSION__: string;
+declare const __BUILD_DATE__: string;
+/** Release shown to users, e.g. "v0.1.0 · 2026-10-19". Set in vite.config.ts. */
+export const APP_RELEASE = `v${__APP_VERSION__} · ${__BUILD_DATE__}`;
+
 function InfoLayout({ eyebrow, title, intro, children }: { eyebrow: string; title: string; intro: string; children: ReactNode }) {
   return (
     <main className="info-page">
@@ -21,6 +26,7 @@ function InfoLayout({ eyebrow, title, intro, children }: { eyebrow: string; titl
         <a href="/help">Help & Support</a>
         <a href="/privacy">Privacy policy</a>
         <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>
+        <small>raidzOn {APP_RELEASE}</small>
       </footer>
     </main>
   );
