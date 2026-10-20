@@ -51,6 +51,13 @@ assert.match(watch('LIVE', 40), /content="noindex, follow"/);
 assert.match(html, /content="noindex, follow"/, 'scorecard not indexed');
 assert.equal(watch('COMPLETED', 20).match(/<h1>/g).length, 1, 'one H1');
 
+// Match date and venue: in the summary and the JSON-LD (startDate, location) when the server sends them.
+const dated = injectPage(shell, url, pageFor('watch', url, { startedAt: Date.UTC(2026, 9, 20, 10), venue: 'Srinagar', state: { teams: [{ name: 'A' }, { name: 'B' }], scores: [9, 7], status: 'COMPLETED', raidNumber: 30 } }));
+assert.match(dated, /"startDate":"2026-10-20T10:00:00.000Z"/);
+assert.match(dated, /"location":\{"@type":"Place","name":"Srinagar"/);
+assert.match(dated, /20 Oct 2026, Srinagar/);
+assert.ok(!watch('COMPLETED', 20).includes('startDate'), 'no date sent: no startDate');
+
 // Help: FAQ in the HTML and as FAQPage JSON-LD, same questions as the app's Help page.
 const appQuestions = [...readFileSync(new URL('../src/features/legal/InfoPages.tsx', import.meta.url), 'utf8')
   .split('const FAQ')[1].split('];')[0].matchAll(/\[\s*'([^']+)',/g)].map((m) => m[1]);

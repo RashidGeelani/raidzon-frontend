@@ -10,7 +10,7 @@ RaidzOn is a web app (installable PWA) for Android, iPhone and desktop browsers.
 - Offline first: every raid is saved on the phone and syncs when the connection returns.
 - Live score sharing: a /watch link shows the score, current raider and match events in real time; a /scorecard link shows a compact shareable scorecard.
 - Tournaments: host a tournament, register teams and squads, generate fixtures (league, groups, knockouts), automatic points table / standings, team join requests.
-- Player stats: player profiles with raid points, tackle points and leaderboards (top raiders, top defenders).
+- Player stats: player profiles with raid points, tackle points and leaderboards (top raiders, top defenders). Stats count completed matches in tournaments with at least 4 teams and 3 completed matches; friendly matches don't count.
 - Scoring without an account; sign in with a phone number (OTP) to share live, keep stats or run a tournament.
 
 ## Guides (plain-language answers)
@@ -29,7 +29,8 @@ RaidzOn is a web app (installable PWA) for Android, iPhone and desktop browsers.
 - Player: https://raidzon.com/players/{playerId} (career raid and tackle points, tournaments played)
 - Live match: https://raidzon.com/watch/{matchId}
 - Shared scorecard: https://raidzon.com/scorecard/{shareId}
-- [Sitemap](https://raidzon.com/sitemap.xml): every public tournament, player, match and scorecard page
+- [Sitemap](https://raidzon.com/sitemap.xml): public tournament, player and match pages
+- [Full text](https://raidzon.com/llms-full.txt): every guide and the Help FAQ in one file
 
 ## Contact
 

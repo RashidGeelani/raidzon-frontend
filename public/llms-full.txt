@@ -1,0 +1,306 @@
+# RaidzOn
+
+> RaidzOn (raidzon.com) is a free kabaddi scoring and tournament app, like CricHeroes for kabaddi. Scorers record matches raid by raid on a phone, even offline at the court; fans follow live kabaddi scores through a shared link; organizers run tournaments with fixtures, groups and points tables; players get raid and tackle stats on their profile.
+
+RaidzOn is a web app (installable PWA) for Android, iPhone and desktop browsers. No download from an app store is needed.
+
+## Features
+
+- Live kabaddi scoring: raid points, tackle points, bonus points, super raids, super tackles, all outs, do-or-die raids, substitutions, revivals, raid and half timers, undo.
+- Offline first: every raid is saved on the phone and syncs when the connection returns.
+- Live score sharing: a /watch link shows the score, current raider and match events in real time; a /scorecard link shows a compact shareable scorecard.
+- Tournaments: host a tournament, register teams and squads, generate fixtures (league, groups, knockouts), automatic points table / standings, team join requests.
+- Player stats: player profiles with raid points, tackle points and leaderboards (top raiders, top defenders). Stats count completed matches in tournaments with at least 4 teams and 3 completed matches; friendly matches don't count.
+- Scoring without an account; sign in with a phone number (OTP) to share live, keep stats or run a tournament.
+
+## Guides (plain-language answers)
+
+- [Kabaddi rules and points explained](https://raidzon.com/guide/kabaddi-rules): touch, bonus, tackle, super tackle, all out, super raid, do-or-die, tie-breaks
+- [How to score a kabaddi match on your phone](https://raidzon.com/guide/how-to-score-kabaddi)
+- [How a kabaddi points table works](https://raidzon.com/guide/kabaddi-points-table): win 3, draw 1, loss 0, point difference
+- [How to run a kabaddi tournament](https://raidzon.com/guide/run-a-kabaddi-tournament)
+
+## Key URLs
+
+- [Home](https://raidzon.com/): start scoring, browse tournaments, your matches
+- [Help & FAQ](https://raidzon.com/help): how scoring, live sharing and tournaments work
+- [Privacy policy](https://raidzon.com/privacy)
+- Tournament: https://raidzon.com/tournaments/{tournamentId} (overview, points table, fixtures and results, bracket, top raiders and defenders, teams)
+- Player: https://raidzon.com/players/{playerId} (career raid and tackle points, tournaments played)
+- Live match: https://raidzon.com/watch/{matchId}
+- Shared scorecard: https://raidzon.com/scorecard/{shareId}
+- [Sitemap](https://raidzon.com/sitemap.xml): public tournament, player and match pages
+- [Full text](https://raidzon.com/llms-full.txt): every guide and the Help FAQ in one file
+
+## Contact
+
+- Email: support@raidzon.com
+- Instagram: https://www.instagram.com/raidzon_/
+- Facebook: https://www.facebook.com/people/Raidzon/61595155612899/
+- Wikidata: https://www.wikidata.org/wiki/Q141795183
+
+---
+
+# Full guide text
+
+The complete text of the RaidzOn guides and Help FAQ, so assistants can answer questions about kabaddi scoring and RaidzOn without visiting each page.
+
+---
+
+## Kabaddi rules and points, explained simply
+
+Every point in kabaddi comes from a raid. One raider crosses into the other half, tries to touch defenders and get back, while the defenders try to stop them. Here is how each kind of point works. These are the rules RaidzOn scores automatically.
+
+### The basics
+
+- Seven players on court per team, with up to five substitutes.
+
+- A raid lasts 30 seconds. Teams take turns to raid.
+
+- Two halves of 20 minutes. In the second half, the team that defended first raids first.
+
+- Players who are out sit in a queue and come back (are revived) in the order they went out.
+
+### Points for the raiding team
+
+#### Touch point
+
+One point for every defender the raider touches and gets back safely. Each touched defender is out, and each point revives one of the raider's out teammates.
+
+#### Bonus point
+
+One point when the raider crosses the bonus line, but only while six or seven defenders are on court. A bonus does not put anyone out and does not revive anyone. It can be scored in the same raid as a touch, or even if the raider is then tackled.
+
+#### Super raid
+
+A raid worth three or more points for the raider (touch and bonus points together). It is a highlight label; it does not add extra points.
+
+### Points for the defending team
+
+#### Tackle point
+
+One point when the defenders stop the raider from getting back. The raider is out and one defender is revived.
+
+#### Super tackle
+
+A tackle made when the defending side has three or fewer players on court is worth two points instead of one, and still revives one defender. In RaidzOn, a raider who steps out (self-out) against three or fewer defenders, without touching anyone, also counts as a super tackle.
+
+#### Self-out
+
+If the raider steps out of the court (or the raid time runs out), the raider is out and the defending team gets one point. A defender who steps out is out too, and the raiding team gets the point.
+
+### Bigger moments
+
+#### All out
+
+When every player of a team is out, the other team gets two extra points and the whole team comes back on court.
+
+#### Do-or-die raid
+
+After a team makes two empty raids in a row, its next raid is do-or-die. The raider must score a touch or bonus; otherwise the raider is out and the defending team gets one point.
+
+#### Technical point
+
+Officials can award one technical point for a rule breach. It does not put anyone out.
+
+### If the match is tied
+
+At full time the teams can accept a draw, or play a tie-break: each team picks five raiders and gets five raids. If it is still level, the teams play pairs of golden raids until one pair has a winner.
+
+### Points summary
+
+| Action | Points | Who gets them |
+
+| Touch | 1 per defender out | Raiding team |
+
+| Bonus (6–7 defenders) | 1 | Raiding team |
+
+| Tackle | 1 | Defending team |
+
+| Super tackle (3 or fewer defenders) | 2 | Defending team |
+
+| Raider self-out / empty do-or-die raid | 1 | Defending team |
+
+| All out | 2 extra | The other team |
+
+| Technical point | 1 | Awarded team |
+
+Source: https://raidzon.com/guide/kabaddi-rules
+
+
+---
+
+## How to score a kabaddi match on your phone
+
+Paper scoresheets miss points and nobody outside the ground can follow the match. With RaidzOn you score every raid with a few taps, the app works out outs, revivals, all outs and do-or-die raids for you, and fans can follow live. It works without internet, too.
+
+### 1. Start a match
+
+Open raidzon.com (https://raidzon.com/) on your phone and tap Score. You don't need an account to score. Tip: add RaidzOn to your home screen so it opens like an app, even offline.
+
+### 2. Add the two teams
+
+Enter both team names and the seven starters for each side, with their jersey numbers, plus up to five substitutes. Choose the half length (20 minutes by default) and which team raids first. In a hurry? Quick match fills in blank names for you; it is then saved as a practice match that does not count towards player stats.
+
+### 3. Pick the raider
+
+Tap the player who is raiding. The 30-second raid clock starts, and it turns red with a beep in the last 10 seconds. The half clock starts with the first raid of each half.
+
+### 4. Record what happened in the raid
+
+- Successful: the raider touched defenders and got back. Pick each defender who is out; the raiding team gets a point for each and revives the same number of players.
+
+- Empty / bonus only: no touch. Tick Bonus if the raider crossed the bonus line with six or seven defenders on court.
+
+- Tackled: the defenders stopped the raider. Pick the defender who gets the tackle point. With three or fewer defenders on court it is a super tackle (2 points), and RaidzOn adds the extra point itself.
+
+- Self-Out: the raider stepped out of the court.
+
+Then tap Confirm raid. If the raid clock runs out, RaidzOn asks the officials' decision before you continue.
+
+### 5. Fix a mistake
+
+Tap Undo last event. It reverses the latest event and restores the score, players and revival queue exactly as they were.
+
+### 6. Half time and full time
+
+Tap End first half, then Start second half; the other team raids first. At the end tap End regulation. If the scores are level you can accept a draw or play a tie-break (five raids per team, then golden raids).
+
+### 7. Share the live score
+
+Sign in with your phone number before the match and you get a live link to share on WhatsApp. Anyone who opens it sees the score, the current raider and every event as it happens. If the internet drops, keep scoring: every raid is saved on your phone and uploads when you're back online.
+
+Source: https://raidzon.com/guide/how-to-score-kabaddi
+
+
+---
+
+## How a kabaddi points table works
+
+A points table (standings) ranks the teams in a league or group. Teams earn table points from results, and ties are broken by how many match points they scored and conceded. This is how RaidzOn calculates it, updated automatically after every completed match.
+
+### Table points for each result
+
+| Result | Table points |
+
+| Win | 3 |
+
+| Draw | 1 each |
+
+| Loss | 0 |
+
+### The columns
+
+- P: matches played
+
+- W / D / L: wins, draws, losses
+
+- PD: point difference, meaning total match points scored minus total conceded
+
+- Pts: table points
+
+### How teams are ranked
+
+- Most table points.
+
+- If level, better point difference.
+
+- If still level, better scoring ratio (points scored compared with points conceded).
+
+Teams that are still equal share the same rank.
+
+### Example
+
+Valley Raiders beat City Warriors 34–29, then draw 25–25 with Lake Stars. They have 2 played, 1 win, 1 draw: 4 table points and a point difference of +5.
+
+### Tournament formats
+
+- League: every team in one table.
+
+- Groups + knockout: a table per group; the top teams qualify for the knockout rounds (and an optional third-place match).
+
+- Knockout: no table, just a bracket from the first round to the final.
+
+Source: https://raidzon.com/guide/kabaddi-points-table
+
+
+---
+
+## How to run a kabaddi tournament from your phone
+
+Fixture lists on paper, score updates in WhatsApp groups and a points table worked out by hand: RaidzOn replaces all of it. Here is how to set up and run a kabaddi tournament, from the first team to the final.
+
+### 1. Create the tournament
+
+Sign in with your phone number, open Tournaments → My tournaments and tap Host your own tournament. Enter the name, venue, start date and half length.
+
+### 2. Add teams and squads
+
+Add each team with a squad of 7 to 20 players (name, mobile number and jersey number). Phone numbers stay private: they link each player to their own stats and are never shown on public pages. Teams can also find your tournament in Explore and tap Play in this tournament to send their saved squad; you approve or reject each request.
+
+### 3. Choose a format and fixtures
+
+- League: one points table with every team.
+
+- Groups + knockout: group tables, then knockout rounds for the top teams up to the final, with an optional third-place match.
+
+- Knockout: a straight bracket.
+
+Generate the fixtures or add them yourself, and set or change match times. A team can only play one live match at a time in a tournament, so clashing fixtures wait.
+
+### 4. Score each fixture
+
+On match day, open the fixture and tap Score this match. The squads are filled in already. Score raid by raid (see how to score a kabaddi match (https://raidzon.com/guide/how-to-score-kabaddi)); it works offline and uploads when you're back online.
+
+### 5. Standings and leaderboards update themselves
+
+Every completed match updates the points table (https://raidzon.com/guide/kabaddi-points-table) (win 3, draw 1, loss 0), the bracket and the leaderboards of top raiders, top defenders and total points.
+
+### 6. Let fans follow
+
+Your tournament gets a public page with the points table, fixtures and results, the bracket and the top players. Each match has a live link that shows the score raid by raid. Share them in your WhatsApp groups; fans don't need to sign in. People can also join (follow) the tournament to see its live matches on their home screen.
+
+Source: https://raidzon.com/guide/run-a-kabaddi-tournament
+
+
+---
+
+## Help: frequently asked questions
+
+### Do I need an account to score?
+
+No. Anyone can score a match on their phone without signing in, even with no internet. Sign in with your phone number when you want to share the match live, keep stats on your player profile, or run a tournament.
+
+### What happens if the internet drops during a match?
+
+Keep scoring. Every raid is saved on your phone first and uploads automatically when you reconnect. The badge above the scoreboard shows whether watchers are seeing the latest score.
+
+### How do people watch the match live?
+
+When you start a match while signed in, you get a live link to copy or share on WhatsApp. Anyone with the link sees the score raid by raid. You can find it again with "Share live link" on the scoring screen.
+
+### When does the match clock start?
+
+Each half’s clock starts with that half’s first raid. The raid timer turns red with a beep in the last 10 seconds of a raid.
+
+### How do I undo a mistake?
+
+Tap "Undo last event" below the raid panel. It reverses the latest event and restores the score, players and revival queue.
+
+### How do the on-court tabs work?
+
+The slim tabs at the screen edges show each team’s players on court (green dot) and the revival queue in the order players return. Tap a tab to open or close it.
+
+### How do I run a tournament?
+
+Open Tournaments → My tournaments and tap Host your own tournament. Add teams, schedule fixtures, then score each fixture. Standings update automatically.
+
+### How does a team join someone else’s tournament?
+
+Open the tournament from Explore and use "Play in this tournament" to send a request with your saved squad. The organizer approves or rejects it, and you get a notification either way.
+
+### Why does my name look different in some matches?
+
+The name you set on your profile replaces the name a team typed for you in every match linked to your verified number. You can change your profile name once every 30 days.
+
+Source: https://raidzon.com/help
