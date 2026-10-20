@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Tabs } from '../../../ui/Tabs';
-import { api } from '../../identity/data/auth-client';
+import { api } from '../../identity/data/api';
 import { sharedRanks } from '../domain/rank';
 
 interface Ranking { playerId: string; name: string; matches: number; raidPoints: number; tacklePoints: number; teamName?: string | null }

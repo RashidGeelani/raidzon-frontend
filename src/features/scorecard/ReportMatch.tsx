@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Sheet } from '../../ui/Sheet';
-import { api, type AccountSession } from '../identity/data/auth-client';
+import { api, type AccountSession } from '../identity/data/api';
 import { restoreSession } from '../identity/data/session-store';
 
 export const REPORT_REASONS = [

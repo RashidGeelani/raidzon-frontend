@@ -1,6 +1,6 @@
 import Dexie from 'dexie';
-import { db } from '../../matches/data/match-repository';
-import { api, ApiError, type AccountSession } from './auth-client';
+import { db } from '../../matches/data/match-db';
+import { api, ApiError, type AccountSession } from './api';
 const sessionKey = 'account-session';
 export async function saveSession(session: AccountSession) {
   await db.metadata.bulkPut([
