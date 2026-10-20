@@ -1,4 +1,4 @@
-import { api, ApiError, apiBaseUrl } from '../identity/data/auth-client';
+import { api, ApiError, apiBaseUrl } from '../identity/data/api';
 
 export type LiveConnection = 'connecting' | 'live' | 'reconnecting';
 /** Sent the moment an event is accepted, before the full view (event list, own names) follows. */

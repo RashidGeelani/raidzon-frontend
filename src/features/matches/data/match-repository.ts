@@ -1,4 +1,4 @@
-import Dexie, { type Table } from 'dexie';
+import Dexie from 'dexie';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { applyRecordedEvent } from '../../scoring/domain/apply-recorded-event';
 export { undoTarget } from '../../scoring/domain/apply-recorded-event';
@@ -16,36 +16,8 @@ import {
 import type { TeamDetail } from '../../teams/data/team-types';
 import { matchNow, notBefore } from '../../scoring/match-clock';
 
-export interface CachedTeam {
-  id: string;
-  accountId: string;
-  detail: TeamDetail;
-  savedAt: number;
-}
-interface LocalPlayer {
-  id: string;
-  phone: string;
-  name: string;
-}
-export class RaidzOnDatabase extends Dexie {
-  matches!: Table<LocalMatch, string>;
-  events!: Table<MatchEvent, string>;
-  players!: Table<LocalPlayer, string>;
-  metadata!: Table<{ key: string; value: string }, string>;
-  teams!: Table<CachedTeam, string>;
-  constructor(name = 'raidzon') {
-    super(name);
-    this.version(1).stores({
-      matches: 'id, updatedAt',
-      events: 'id, matchId, &[matchId+sequence]',
-      players: 'id, &phone',
-      metadata: 'key',
-    });
-    // Saved squads cached per account so a lineup can be picked offline.
-    this.version(2).stores({ teams: 'id, accountId' });
-  }
-}
-export const db = new RaidzOnDatabase();
+import { db, type LocalPlayer } from './match-db';
+export { db, RaidzOnDatabase, type CachedTeam } from './match-db';
 
 export interface TeamInput {
   name: string;

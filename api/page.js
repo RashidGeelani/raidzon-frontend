@@ -130,7 +130,8 @@ export async function GET(request) {
   const url = new URL(request.url);
   const requested = url.searchParams.get('kind');
   const shell = await fetch(new URL('/index.html', url));
-  let html = await shell.text();
+  // Public pages don't open the scoring app: drop its preload hints (see preloadApp in vite.config.ts).
+  let html = (await shell.text()).replace(/\s*<link rel="modulepreload"[^>]*data-app-preload>/g, '');
   if (STATIC_PAGES[requested]) {
     return new Response(injectPage(html, `https://raidzon.com/${requested}`, STATIC_PAGES[requested]), {
       headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400' },

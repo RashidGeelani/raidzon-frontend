@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, ApiError } from '../identity/data/auth-client';
+import { api, ApiError } from '../identity/data/api';
 import { matchJsonLd, setPageMeta } from '../../app/page-meta';
 interface Scorecard {
   shareId: string;

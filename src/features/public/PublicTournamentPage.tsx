@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, ApiError } from '../identity/data/auth-client';
+import { api, ApiError } from '../identity/data/api';
 import { setPageMeta, tournamentJsonLd } from '../../app/page-meta';
 import { TournamentLeaders } from '../scoring/components/SyncedLeaderboards';
 import { BracketView, GroupTables, StagedFixtures } from '../tournaments/FormatViews';
