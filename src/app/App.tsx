@@ -9,6 +9,7 @@ import { restoreSession } from '../features/identity/data/session-store';
 import { liveQuery } from 'dexie';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { useNewVersionReady } from './update-on-launch';
+import { APP_RELEASE } from '../features/legal/InfoPages';
 import { db, deleteLocalMatch, recordEvent, sessionId } from '../features/matches/data/match-repository';
 import { api, ApiError } from '../features/identity/data/auth-client';
 import { MatchSetup } from '../features/matches/components/MatchSetup';
@@ -626,7 +627,7 @@ export function App() {
           <span>
             raidzOn <b>·</b> Every raid has a story.
           </span>
-          <span>Testing · v0.1</span>
+          <span>{APP_RELEASE}</span>
         </footer>
         {needRefresh && (
           <div className="update-banner">
