@@ -2,7 +2,7 @@
 // (Underscore prefix: Vercel does not deploy this as a function.)
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { injectPage, pageFor } from './page.js';
+import { FAQ, MIN_RAIDS, injectPage, pageFor } from './page.js';
 
 const shell = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 
@@ -42,4 +42,17 @@ assert.match(player, /"@type":"Person"/);
 assert.match(player, /<a href="\/tournaments\/t1">Kashmir Cup<\/a>/);
 
 assert.match(injectPage(shell, '', null), /<meta name="robots" content="noindex" \/>/);
+
+// Watch pages: only completed matches with enough raids are indexed; scorecards never (duplicate of /watch).
+const watch = (status, raidNumber) => injectPage(shell, url, pageFor('watch', url, { state: { teams: [{ name: 'A' }, { name: 'B' }], scores: [9, 7], status, raidNumber } }));
+assert.ok(!watch('COMPLETED', MIN_RAIDS).includes('noindex'), 'full match indexed');
+assert.match(watch('COMPLETED', 3), /content="noindex, follow"/);
+assert.match(watch('LIVE', 40), /content="noindex, follow"/);
+assert.match(html, /content="noindex, follow"/, 'scorecard not indexed');
+assert.equal(watch('COMPLETED', 20).match(/<h1>/g).length, 1, 'one H1');
+
+// Help: FAQ in the HTML and as FAQPage JSON-LD, same questions as the app's Help page.
+const appQuestions = [...readFileSync(new URL('../src/features/legal/InfoPages.tsx', import.meta.url), 'utf8')
+  .split('const FAQ')[1].split('];')[0].matchAll(/\[\s*'([^']+)',/g)].map((m) => m[1]);
+assert.deepEqual(FAQ.map(([q]) => q), appQuestions, 'api/page.js FAQ matches InfoPages.tsx');
 console.log('page meta injection ok');

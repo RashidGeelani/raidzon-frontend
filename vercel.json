@@ -1,12 +1,15 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "trailingSlash": false,
   "rewrites": [
     { "source": "/sitemap.xml", "destination": "https://raidzon-backend-live.onrender.com/api/v1/public/sitemap.xml" },
     { "source": "/watch/:id", "destination": "/api/page?kind=watch&id=:id" },
     { "source": "/scorecard/:id", "destination": "/api/page?kind=scorecard&id=:id" },
     { "source": "/tournaments/:id", "destination": "/api/page?kind=tournaments&id=:id" },
     { "source": "/players/:id", "destination": "/api/page?kind=players&id=:id" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/help", "destination": "/api/page?kind=help" },
+    { "source": "/privacy", "destination": "/api/page?kind=privacy" },
+    { "source": "/favicon.ico", "destination": "/brand/raidzon-logo-192.png" }
   ],
   "headers": [
     { "source": "/(robots.txt|llms.txt)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=3600" }] }
