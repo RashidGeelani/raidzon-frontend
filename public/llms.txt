@@ -36,3 +36,4 @@ RaidzOn is a web app (installable PWA) for Android, iPhone and desktop browsers.
 - Email: support@raidzon.com
 - Instagram: https://www.instagram.com/raidzon_/
 - Facebook: https://www.facebook.com/people/Raidzon/61595155612899/
+- Wikidata: https://www.wikidata.org/wiki/Q141795183
