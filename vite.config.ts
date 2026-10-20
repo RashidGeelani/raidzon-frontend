@@ -1,6 +1,14 @@
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import pkg from './package.json';
+import type { Connect } from 'vite';
+
+// Vercel serves /guide/x from public/guide/x.html ("cleanUrls" in vercel.json); do the same in dev and preview.
+const guideUrls: Connect.NextHandleFunction = (req, _res, next) => {
+  const [path, query] = (req.url ?? '').split('?');
+  if (/^\/guide(\/[a-z0-9-]+)?\/?$/.test(path)) req.url = `${path === '/guide' || path === '/guide/' ? '/guide/index' : path.replace(/\/$/, '')}.html${query ? `?${query}` : ''}`;
+  next();
+};
 
 export default defineConfig({
   // Shown in the app so a user can tell which release they are on. Bump "version" in package.json per release.
@@ -9,6 +17,7 @@ export default defineConfig({
     __BUILD_DATE__: JSON.stringify(new Date().toISOString().slice(0, 10)),
   },
   plugins: [
+    { name: 'guide-clean-urls', configureServer: (server) => { server.middlewares.use(guideUrls); }, configurePreviewServer: (server) => { server.middlewares.use(guideUrls); } },
     VitePWA({
       registerType: 'prompt',
       includeAssets: ['brand/raidzon-logo-256.webp', 'brand/raidzon-logo-192.png'],

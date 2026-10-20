@@ -1,6 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "trailingSlash": false,
+  "cleanUrls": true,
   "rewrites": [
     { "source": "/sitemap.xml", "destination": "https://raidzon-backend-live.onrender.com/api/v1/public/sitemap.xml" },
     { "source": "/watch/:id", "destination": "/api/page?kind=watch&id=:id" },

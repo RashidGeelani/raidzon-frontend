@@ -1,0 +1,24 @@
+/* Static guide pages (/guide/*): plain HTML, no app code, so they load instantly and crawlers see everything. */
+:root { color-scheme: dark; --bg: #0e0e1c; --card: #14142a; --line: #25253d; --text: #e8e8f5; --muted: #b9b9d8; --accent: #ff6a36; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.65 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+.wrap { max-width: 760px; margin: 0 auto; padding: 16px 16px 48px; }
+header.top { display: flex; align-items: center; gap: 10px; padding: 8px 0 20px; }
+header.top img { width: 36px; height: 36px; }
+header.top a { color: var(--text); font-weight: 700; text-decoration: none; }
+nav.crumbs { font-size: 0.85rem; color: var(--muted); margin-bottom: 8px; }
+nav.crumbs a { color: var(--muted); }
+h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 12px; }
+h2 { font-size: 1.3rem; margin: 32px 0 8px; }
+h3 { font-size: 1.05rem; margin: 20px 0 4px; }
+p, li { color: var(--muted); }
+strong { color: var(--text); }
+a { color: var(--accent); }
+.lead { font-size: 1.1rem; color: var(--text); }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; margin: 16px 0; }
+table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.95rem; }
+th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--line); color: var(--muted); }
+th { color: var(--text); }
+.cta { display: inline-block; background: var(--accent); color: #fff; font-weight: 700; text-decoration: none; padding: 12px 18px; border-radius: 12px; margin: 8px 0; }
+footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 0.9rem; }
+footer a { margin-right: 14px; }

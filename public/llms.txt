@@ -13,6 +13,13 @@ RaidzOn is a web app (installable PWA) for Android, iPhone and desktop browsers.
 - Player stats: player profiles with raid points, tackle points and leaderboards (top raiders, top defenders).
 - Scoring without an account; sign in with a phone number (OTP) to share live, keep stats or run a tournament.
 
+## Guides (plain-language answers)
+
+- [Kabaddi rules and points explained](https://raidzon.com/guide/kabaddi-rules): touch, bonus, tackle, super tackle, all out, super raid, do-or-die, tie-breaks
+- [How to score a kabaddi match on your phone](https://raidzon.com/guide/how-to-score-kabaddi)
+- [How a kabaddi points table works](https://raidzon.com/guide/kabaddi-points-table): win 3, draw 1, loss 0, point difference
+- [How to run a kabaddi tournament](https://raidzon.com/guide/run-a-kabaddi-tournament)
+
 ## Key URLs
 
 - [Home](https://raidzon.com/): start scoring, browse tournaments, your matches
