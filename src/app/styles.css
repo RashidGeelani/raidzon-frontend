@@ -2446,3 +2446,12 @@ article.home-match { cursor: default; }
 a.leaderboard-row { color: inherit; text-decoration: none; }
 .explore-results-title { margin: 16px 0 8px; font-size: 1rem; }
 .tournament-screen > .home-block { margin: 4px 0 14px; }
+
+/* Welcome screen: what RaidzOn is, for first-time visitors and search engines. */
+.signin-about { margin: 24px 0 8px; padding: 18px; border: 1px solid #25253d; border-radius: 18px; background: #12121f; text-align: left; }
+.signin-about h2 { margin: 0 0 6px; font-size: 1rem; color: #fff; }
+.signin-about p, .signin-about li { color: #b9b9d8; font-size: .86rem; line-height: 1.55; }
+.signin-about ul { margin: 8px 0; padding-left: 18px; }
+.signin-about strong { color: #e8e8f5; }
+.signin-about-links { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 10px 0 0; }
+.signin-about-links a { color: #ff6a36; font-weight: 600; }

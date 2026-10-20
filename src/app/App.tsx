@@ -399,6 +399,24 @@ export function App() {
                 <p>No account needed to score. Sign in later from Profile.</p>
               </div>
             )}
+            {startup === 'signin' && (
+              <section className="signin-about" aria-labelledby="signin-about-title">
+                <h2 id="signin-about-title">Kabaddi scoring, live scores and tournaments</h2>
+                <p>RaidzOn is a free kabaddi app for scorers, organizers, players and fans.</p>
+                <ul>
+                  <li><strong>Score raid by raid</strong>: touch points, bonus, tackles, super tackles, all outs and do-or-die raids are worked out for you, even offline.</li>
+                  <li><strong>Share a live score</strong>: fans follow every raid from a link, no app or sign-in needed.</li>
+                  <li><strong>Run tournaments</strong>: fixtures, points table, knockout bracket and top raiders and defenders, updated after every match.</li>
+                  <li><strong>Player stats</strong>: raid and tackle points on every player's profile.</li>
+                </ul>
+                <p className="signin-about-links">
+                  <a href="/guide/kabaddi-rules">Kabaddi rules explained</a>
+                  <a href="/guide/how-to-score-kabaddi">How to score a match</a>
+                  <a href="/guide/run-a-kabaddi-tournament">Run a tournament</a>
+                  <a href="/help">Help &amp; FAQ</a>
+                </p>
+              </section>
+            )}
           </div>
           {error && (
             <div className="error" role="alert">
