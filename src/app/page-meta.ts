@@ -22,7 +22,7 @@ export function setPageMeta(title: string, description: string, jsonLd?: object)
 }
 
 /** schema.org SportsEvent for one kabaddi match; also built by the server-side page renderer (api/page.js). */
-export function matchJsonLd(teamA: string, teamB: string, status: string, url: string) {
+export function matchJsonLd(teamA: string, teamB: string, status: string, url: string, startedAt?: number | null, venue?: string | null) {
   return {
     '@context': 'https://schema.org',
     '@type': 'SportsEvent',
@@ -33,6 +33,8 @@ export function matchJsonLd(teamA: string, teamB: string, status: string, url: s
     eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
     competitor: [{ '@type': 'SportsTeam', name: teamA }, { '@type': 'SportsTeam', name: teamB }],
     description: `${teamA} vs ${teamB} kabaddi match, ${status.toLowerCase().replaceAll('_', ' ')}. Live score on RaidzOn.`,
+    ...(startedAt ? { startDate: new Date(startedAt).toISOString() } : {}),
+    ...(venue ? { location: { '@type': 'Place', name: venue, address: venue } } : {}),
   };
 }
 

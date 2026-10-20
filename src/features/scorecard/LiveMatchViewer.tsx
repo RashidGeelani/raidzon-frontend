@@ -16,7 +16,7 @@ type ViewerState = Pick<MatchState, 'scores' | 'tieScores' | 'status' | 'phase' 
   /** queue: revival order (player IDs); absent from servers older than the viewer's out queue. */
   teams: { name: string; players: Omit<Player, 'phone'>[]; queue?: string[] }[];
 };
-interface LiveView { state: ViewerState; serverTime: number; lastSyncedAt: number; version: number; /** Server clock minus the scoring phone's clock (ms). */ clockOffset?: number; tournamentId?: string | null; events: { id: string; summary: string; raidNumber: number; type: string; components?: ScoreComponent[] | null; /** Defenders put out (absent from older servers). */ touchedIds?: string[] | null; selfOutIds?: string[] | null }[] }
+interface LiveView { state: ViewerState; serverTime: number; lastSyncedAt: number; version: number; /** Server clock minus the scoring phone's clock (ms). */ clockOffset?: number; tournamentId?: string | null; /** Absent from older servers. */ startedAt?: number | null; venue?: string | null; events: { id: string; summary: string; raidNumber: number; type: string; components?: ScoreComponent[] | null; /** Defenders put out (absent from older servers). */ touchedIds?: string[] | null; selfOutIds?: string[] | null }[] }
 export function clockRemaining(clock: ClockState, now: number) {
   return Math.max(0, clock.remainingMs - (clock.startedAt == null ? 0 : Math.max(0, now - clock.startedAt)));
 }
@@ -101,8 +101,8 @@ export function LiveMatchViewer({ matchId, onBack }: { matchId: string; onBack?:
   useEffect(() => {
     if (onBack || !teamA || !teamB || !status) return; // in-app viewer keeps the app's title
     const live = status === 'COMPLETED' ? 'result' : 'live score';
-    setPageMeta(`${teamA} vs ${teamB} ${live} · Kabaddi · RaidzOn`, `Follow ${teamA} vs ${teamB} kabaddi ${live} raid by raid on RaidzOn: score, current raider, top raiders and match events.`, matchJsonLd(teamA, teamB, status, window.location.href));
-  }, [onBack, teamA, teamB, status]);
+    setPageMeta(`${teamA} vs ${teamB} ${live} · Kabaddi · RaidzOn`, `Follow ${teamA} vs ${teamB} kabaddi ${live} raid by raid on RaidzOn: score, current raider, top raiders and match events.`, matchJsonLd(teamA, teamB, status, window.location.href, view?.startedAt, view?.venue));
+  }, [onBack, teamA, teamB, status, view?.startedAt, view?.venue]);
   // Match clocks are in the scoring phone's time: shift server time by that phone's clock error.
   const now = anchor.server - (view?.clockOffset ?? 0) + Math.max(0, tick - anchor.local);
   const raider = state?.teams[state.turn]?.players.find((player) => player.id === state.currentRaiderId);

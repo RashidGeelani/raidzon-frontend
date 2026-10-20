@@ -45,9 +45,13 @@ const STATIC_PAGES = {
   },
 };
 
-function matchPage(url, { teamA, teamB, scoreA, scoreB, status, tournamentId }) {
+/** The match's date, e.g. "20 Oct 2026", in India time. */
+const matchDate = (ms) => new Date(ms).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
+
+function matchPage(url, { teamA, teamB, scoreA, scoreB, status, tournamentId, startedAt, venue }) {
   const done = status === 'COMPLETED';
-  const description = `${teamA} ${scoreA} – ${scoreB} ${teamB}${done ? ' (final)' : ', live'}. Follow this kabaddi match raid by raid on RaidzOn.`;
+  const when = [startedAt ? matchDate(startedAt) : '', venue ?? ''].filter(Boolean).join(', ');
+  const description = `${teamA} ${scoreA} – ${scoreB} ${teamB}${done ? ' (final)' : ', live'}${when ? ` · ${when}` : ''}. Follow this kabaddi match raid by raid on RaidzOn.`;
   return {
     title: `${teamA} vs ${teamB} ${done ? 'result' : 'live score'} · Kabaddi · RaidzOn`,
     description,
@@ -57,6 +61,9 @@ function matchPage(url, { teamA, teamB, scoreA, scoreB, status, tournamentId }) 
       '@context': 'https://schema.org', '@type': 'SportsEvent', name: `${teamA} vs ${teamB}`, sport: 'Kabaddi', url,
       eventStatus: 'https://schema.org/EventScheduled', eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
       competitor: [{ '@type': 'SportsTeam', name: teamA }, { '@type': 'SportsTeam', name: teamB }], description,
+      // Date and place make the match eligible for Google's event results; friendlies have no venue.
+      ...(startedAt ? { startDate: new Date(startedAt).toISOString() } : {}),
+      ...(venue ? { location: { '@type': 'Place', name: venue, address: venue } } : {}),
     },
   };
 }
@@ -102,7 +109,7 @@ export function pageFor(kind, url, data) {
   // A scorecard repeats its match's /watch page, so only the /watch page is indexed.
   if (kind === 'scorecard') return { ...matchPage(url, data), noindex: true };
   const { teams = [], scores = [], status, raidNumber = 0 } = data.state ?? {};
-  const page = matchPage(url, { teamA: teams[0]?.name, teamB: teams[1]?.name, scoreA: scores[0], scoreB: scores[1], status, tournamentId: data.tournamentId });
+  const page = matchPage(url, { teamA: teams[0]?.name, teamB: teams[1]?.name, scoreA: scores[0], scoreB: scores[1], status, tournamentId: data.tournamentId, startedAt: data.startedAt, venue: data.venue });
   // Short or unfinished matches (often tests) stay out of search; keep in step with SitemapController.MIN_RAIDS.
   return { ...page, noindex: status !== 'COMPLETED' || raidNumber < MIN_RAIDS };
 }
