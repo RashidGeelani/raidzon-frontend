@@ -8,7 +8,7 @@
     { "source": "/scorecard/:id", "destination": "/api/page?kind=scorecard&id=:id" },
     { "source": "/tournaments/:id", "destination": "/api/page?kind=tournaments&id=:id" },
     { "source": "/players/:id", "destination": "/api/page?kind=players&id=:id" },
-    { "source": "/overlay/:id", "destination": "/index.html" },
+    { "source": "/overlay/:id", "destination": "/" },
     { "source": "/help", "destination": "/api/page?kind=help" },
     { "source": "/privacy", "destination": "/api/page?kind=privacy" },
     { "source": "/favicon.ico", "destination": "/brand/raidzon-logo-192.png" }
