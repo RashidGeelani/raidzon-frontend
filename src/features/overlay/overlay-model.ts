@@ -56,3 +56,18 @@ export const clockText = (seconds: number) => `${Math.floor(seconds / 60)}:${Str
 
 /** Short team code for the bar, like the TV graphics: "Bandipora Bulls" → "BAN". */
 export const teamCode = (name: string) => name.replace(/[^\p{L}\p{N}]/gu, '').slice(0, 3).toUpperCase() || 'TBC';
+
+/** "Sopore Lions" → "SLI": word initials, padded from the last word. */
+function initialsCode(name: string) {
+  const words = name.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  const initials = words.map((word) => word[0]).join('');
+  return (initials + (words.at(-1)?.slice(1) ?? '')).slice(0, 3).toUpperCase() || 'TBC';
+}
+
+/** Both codes for the bar; when they would clash ("Sopore Lions" v "Sopore Tigers") use initials instead. */
+export function teamCodes(a: string, b: string): [string, string] {
+  const plain: [string, string] = [teamCode(a), teamCode(b)];
+  if (plain[0] !== plain[1]) return plain;
+  const initials: [string, string] = [initialsCode(a), initialsCode(b)];
+  return initials[0] !== initials[1] ? initials : plain;
+}
