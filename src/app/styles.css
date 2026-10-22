@@ -2455,3 +2455,53 @@ a.leaderboard-row { color: inherit; text-decoration: none; }
 /* No layout jump while a public page loads: the footer starts below the first screen, and the leaders box keeps its space. */
 .public-tournament, .public-player { min-height: 100dvh; }
 .public-tournament .tournament-leaders { min-height: 180px; }
+/* Stream overlay (/overlay/:id): transparent page laid over a video stream. Sized in vw so it fits any Browser Source size. */
+html[data-overlay], html[data-overlay] body { background: transparent; }
+.overlay-root { position: fixed; inset: 0; overflow: hidden; pointer-events: none; font-family: Rajdhani, Inter, sans-serif; color: var(--text-strong); --overlay-panel: color-mix(in srgb, var(--bg) 88%, transparent); }
+.overlay-root .overlay-side-0 { --side: var(--team-a); }
+.overlay-root .overlay-side-1 { --side: var(--team-b); }
+.overlay-dock { position: absolute; left: 50%; bottom: 3.2vw; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: .8vw; }
+.overlay-bar { position: relative; display: flex; align-items: stretch; height: 4.4vw; border-radius: .5vw; overflow: hidden; background: var(--overlay-panel); box-shadow: 0 .4vw 1.6vw color-mix(in srgb, var(--bg) 60%, transparent); animation: overlay-rise .5s ease-out; }
+.overlay-brand { display: flex; align-items: center; padding: 0 1.1vw; font-size: 1.35vw; font-weight: 700; letter-spacing: .02em; color: var(--text-muted); background: color-mix(in srgb, var(--surface) 92%, transparent); }
+.overlay-brand b { color: var(--accent); }
+.overlay-team { display: flex; flex-direction: column; justify-content: center; gap: .35vw; min-width: 9vw; padding: 0 1.2vw; background: color-mix(in srgb, var(--side) 85%, var(--bg)); }
+.overlay-team.overlay-side-1 { align-items: flex-end; }
+.overlay-team strong { font-size: 2vw; line-height: 1; letter-spacing: .04em; }
+.overlay-team.raiding strong::after { content: ' ▲'; font-size: 1vw; vertical-align: middle; color: var(--text-strong); }
+.overlay-dots { display: flex; gap: .3vw; }
+.overlay-dots i { width: .62vw; height: .62vw; border-radius: 50%; background: color-mix(in srgb, var(--text-strong) 25%, transparent); }
+.overlay-dots i.on { background: var(--text-strong); }
+.overlay-score { display: flex; align-items: center; justify-content: center; min-width: 5.4vw; padding: 0 .8vw; font-size: 3vw; font-weight: 700; font-variant-numeric: tabular-nums; border-bottom: .3vw solid var(--side); }
+.overlay-centre { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 8vw; padding: 0 1vw; background: color-mix(in srgb, var(--surface) 95%, transparent); }
+.overlay-centre b { font-size: 1.9vw; line-height: 1; font-variant-numeric: tabular-nums; }
+.overlay-centre small { font-size: .85vw; font-weight: 600; letter-spacing: .14em; color: var(--text-muted); }
+.overlay-root[data-phase='starting'] .overlay-centre b, .overlay-root[data-phase='final'] .overlay-centre b { color: var(--accent); }
+.overlay-tournament { margin: 0 0 -.8vw; padding: .25vw .9vw; border-radius: .4vw .4vw 0 0; font-size: .95vw; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; color: var(--text-muted); background: var(--overlay-panel); }
+.overlay-raider { display: flex; align-items: center; gap: .9vw; padding: .5vw .6vw .5vw 1vw; border-radius: .5vw; background: var(--overlay-panel); border-left: .35vw solid var(--side); animation: overlay-rise .35s ease-out; }
+.overlay-raider.overlay-side-0 { align-self: flex-start; margin-left: 9vw; }
+.overlay-raider.overlay-side-1 { align-self: flex-end; margin-right: 9vw; }
+.overlay-raider-label { font-size: .85vw; font-weight: 700; letter-spacing: .14em; color: var(--side); }
+.overlay-raider-label.do-or-die { padding: .2vw .5vw; border-radius: .3vw; color: var(--text-strong); background: var(--live); }
+.overlay-raider strong { font-size: 1.6vw; }
+.overlay-raid-clock { display: grid; place-items: center; width: 2.8vw; height: 2.8vw; border-radius: 50%; font-size: 1.4vw; font-weight: 700; font-variant-numeric: tabular-nums; background: color-mix(in srgb, var(--side) 30%, var(--bg)); }
+.overlay-raid-clock.warning { background: var(--live); }
+.overlay-popups { display: flex; gap: 1vw; }
+.overlay-popups:empty { display: none; }
+.overlay-popup { display: flex; flex-direction: column; align-items: center; padding: .7vw 2.2vw; border-radius: .5vw; background: color-mix(in srgb, var(--side) 90%, var(--bg)); box-shadow: 0 .4vw 1.6vw color-mix(in srgb, var(--bg) 60%, transparent); animation: overlay-pop .45s cubic-bezier(.2, 1.4, .4, 1); }
+.overlay-popup strong { font-size: 2.6vw; line-height: 1; letter-spacing: .04em; text-transform: uppercase; }
+.overlay-popup span { font-size: 1.1vw; font-weight: 600; }
+.overlay-result { min-width: 34vw; padding: 1.2vw 2.4vw; border-radius: .6vw; text-align: center; background: var(--overlay-panel); border-top: .3vw solid var(--accent); animation: overlay-rise .5s ease-out; }
+.overlay-result small { font-size: .95vw; font-weight: 700; letter-spacing: .18em; color: var(--accent); }
+.overlay-result p { display: flex; align-items: center; justify-content: center; gap: 1.4vw; margin: .5vw 0; font-size: 1.5vw; font-weight: 600; }
+.overlay-result p b { font-size: 3vw; font-variant-numeric: tabular-nums; }
+.overlay-result strong { font-size: 1.6vw; }
+.overlay-notice { position: absolute; left: 50%; bottom: 3.2vw; transform: translateX(-50%); margin: 0; padding: .6vw 1.2vw; border-radius: .5vw; font-size: 1.2vw; background: var(--overlay-panel); }
+@keyframes overlay-rise { from { opacity: 0; translate: 0 1vw; } to { opacity: 1; translate: 0 0; } }
+@keyframes overlay-pop { from { opacity: 0; scale: .7; } to { opacity: 1; scale: 1; } }
+@media (prefers-reduced-motion: reduce) { .overlay-bar, .overlay-raider, .overlay-popup, .overlay-result { animation: none; } }
+.viewer-overlay-button { display: block; margin: 18px auto 0; }
+.overlay-sheet-intro { margin-top: 0; font-size: var(--text-sm); color: var(--text-muted); line-height: 1.5; }
+.overlay-sheet-delay { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-weight: 600; }
+.overlay-sheet-delay select { width: auto; }
+.overlay-sheet-steps { margin-top: 14px; color: var(--text-muted); font-size: var(--text-sm); line-height: 1.5; }
+.overlay-sheet-steps summary { cursor: pointer; font-weight: 600; color: var(--text); }

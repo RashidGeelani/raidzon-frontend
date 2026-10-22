@@ -45,7 +45,8 @@ function apply(settings: DisplaySettings) {
   const root = document.documentElement;
   if (settings.sideline) root.dataset.sideline = 'on';
   else delete root.dataset.sideline;
-  const theme = resolveTheme(settings.theme, systemLight?.matches ?? false);
+  // The stream overlay keeps the dark broadcast look whatever this computer's setting is.
+  const theme = root.dataset.overlay ? 'dark' : resolveTheme(settings.theme, systemLight?.matches ?? false);
   root.dataset.theme = theme;
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', THEME_COLOR[theme]);
 }

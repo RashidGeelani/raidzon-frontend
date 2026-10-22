@@ -5,21 +5,16 @@ import { eventLabel, raidDetail } from '../scoring/domain/event-label';
 import { milestones } from '../scoring/domain/match-summary';
 import { isDoOrDie } from '../scoring/domain/match-types';
 import { withJersey } from '../scoring/domain/jersey';
-import { watchMatch, type LiveConnection, type LiveStateUpdate } from './live-socket';
 import { ReportMatch } from './ReportMatch';
-import type { ClockState, MatchState, Player, ScoreComponent } from '../scoring/domain/match-types';
+import type { ScoreComponent } from '../scoring/domain/match-types';
+import { clockRemaining, winnerSide, type LiveView, type ViewerState } from './viewer-state';
+import { useLiveView } from './use-live-view';
+import { OverlayLinkSheet } from '../overlay/OverlayLinkSheet';
 import { HighlightToast } from '../scoring/components/HighlightToast';
 import { CourtDrawers } from '../scoring/components/CourtDrawers';
 import { matchJsonLd, setPageMeta } from '../../app/page-meta';
 
-type ViewerState = Pick<MatchState, 'scores' | 'tieScores' | 'status' | 'phase' | 'half' | 'raidNumber' | 'turn' | 'currentRaiderId' | 'clock' | 'raidClock' | 'winner'> & {
-  /** queue: revival order (player IDs); absent from servers older than the viewer's out queue. */
-  teams: { name: string; players: Omit<Player, 'phone'>[]; queue?: string[] }[];
-};
-interface LiveView { state: ViewerState; serverTime: number; lastSyncedAt: number; version: number; /** Server clock minus the scoring phone's clock (ms). */ clockOffset?: number; tournamentId?: string | null; /** Absent from older servers. */ startedAt?: number | null; venue?: string | null; events: { id: string; summary: string; raidNumber: number; type: string; components?: ScoreComponent[] | null; /** Defenders put out (absent from older servers). */ touchedIds?: string[] | null; selfOutIds?: string[] | null }[] }
-export function clockRemaining(clock: ClockState, now: number) {
-  return Math.max(0, clock.remainingMs - (clock.startedAt == null ? 0 : Math.max(0, now - clock.startedAt)));
-}
+export { clockRemaining, winnerSide } from './viewer-state';
 type ViewerPlayer = ViewerState['teams'][number]['players'][number];
 /** Best player by a score, ignoring zeros; ties keep the first found. */
 function standout(state: ViewerState, score: (player: ViewerPlayer) => number) {
@@ -30,64 +25,13 @@ function standout(state: ViewerState, score: (player: ViewerPlayer) => number) {
   }));
   return best as { player: ViewerPlayer; team: string; value: number } | null;
 }
-/** The server reports the winner as 'TEAM_A' / 'TEAM_B' / 'DRAW'; the scorer's phone uses 0 / 1 / 'DRAW'. */
-export function winnerSide(winner: unknown): 0 | 1 | 'DRAW' | null {
-  if (winner === 0 || winner === 'TEAM_A') return 0;
-  if (winner === 1 || winner === 'TEAM_B') return 1;
-  return winner === 'DRAW' ? 'DRAW' : null;
-}
 const pts = (n: number, unit: string) => `${n} ${unit}${n === 1 ? '' : 's'}`;
 
 export function LiveMatchViewer({ matchId, onBack }: { matchId: string; onBack?: () => void }) {
-  const [view, setView] = useState<LiveView | null>(null);
-  const [message, setMessage] = useState('Connecting to the match…');
-  const [anchor, setAnchor] = useState({ server: 0, local: performance.now() });
-  const [tick, setTick] = useState(performance.now());
-  const [connection, setConnection] = useState<LiveConnection>('connecting');
+  const { view, now, connection, unavailable } = useLiveView(matchId);
   const [shareNote, setShareNote] = useState('');
-  useEffect(() => {
-    setView(null);
-    let latest = -1;
-    // Live push over WebSocket; falls back to polling every 10s while the socket reconnects.
-    const stop = watchMatch<LiveView>(matchId, {
-      onView: (result) => {
-        if (result.version < latest) return; // ignore an older poll that arrives after a newer push
-        latest = result.version;
-        setView(result); setAnchor({ server: result.serverTime, local: performance.now() }); setMessage('');
-      },
-      // Instant update from the scorer's tap; keeps the event list and players' own names until
-      // the full view arrives a moment later.
-      onState: (update: LiveStateUpdate) => {
-        if (update.version <= latest) return;
-        latest = update.version;
-        const incoming = update.state as ViewerState;
-        setView((current) => current && {
-          ...current,
-          version: update.version,
-          serverTime: update.serverTime,
-          state: {
-            ...incoming,
-            teams: incoming.teams.map((team, side) => ({
-              ...team,
-              players: team.players.map((player) => ({
-                ...player,
-                name: current.state.teams[side]?.players.find((known) => known.id === player.id)?.name ?? player.name,
-              })),
-            })),
-          },
-        });
-        setAnchor({ server: update.serverTime, local: performance.now() });
-      },
-      onUnavailable: () => { setView(null); setMessage('This match is not available to watch.'); },
-      onConnection: setConnection,
-    });
-    const clock = setInterval(() => setTick(performance.now()), 200);
-    return () => { stop(); clearInterval(clock); };
-  }, [matchId]);
-  useEffect(() => {
-    if (connection === 'reconnecting') setMessage((current) => current || 'Reconnecting… showing the latest update.');
-    if (connection === 'live') setMessage((current) => (current.startsWith('Reconnecting') ? '' : current));
-  }, [connection]);
+  const [overlayOpen, setOverlayOpen] = useState(false);
+  const message = unavailable ? 'This match is not available to watch.' : connection === 'reconnecting' ? 'Reconnecting… showing the latest update.' : view ? '' : 'Connecting to the match…';
   // After half a minute of watching, suggest installing for quicker live scores next time.
   const watching = !!view;
   useEffect(() => {
@@ -103,8 +47,6 @@ export function LiveMatchViewer({ matchId, onBack }: { matchId: string; onBack?:
     const live = status === 'COMPLETED' ? 'result' : 'live score';
     setPageMeta(`${teamA} vs ${teamB} ${live} · Kabaddi · RaidzOn`, `Follow ${teamA} vs ${teamB} kabaddi ${live} raid by raid on RaidzOn: score, current raider, top raiders and match events.`, matchJsonLd(teamA, teamB, status, window.location.href, view?.startedAt, view?.venue));
   }, [onBack, teamA, teamB, status, view?.startedAt, view?.venue]);
-  // Match clocks are in the scoring phone's time: shift server time by that phone's clock error.
-  const now = anchor.server - (view?.clockOffset ?? 0) + Math.max(0, tick - anchor.local);
   const raider = state?.teams[state.turn]?.players.find((player) => player.id === state.currentRaiderId);
   const raidSeconds = state ? Math.ceil(clockRemaining(state.raidClock, now) / 1000) : 0;
   const halfSeconds = state ? Math.ceil(clockRemaining(state.clock, now) / 1000) : 0;
@@ -150,6 +92,8 @@ export function LiveMatchViewer({ matchId, onBack }: { matchId: string; onBack?:
       <h3 className="live-section-title">Team scorecards</h3>
       <PlayerScorecards state={state} events={view!.events} />
       {!onBack && view?.tournamentId && <p><a href={`/tournaments/${view.tournamentId}`}>Tournament fixtures, points table and top players ›</a></p>}
+      {!completed && <button type="button" className="quiet viewer-overlay-button" onClick={() => setOverlayOpen(true)}>Streaming this match? Add the score overlay ›</button>}
+      {overlayOpen && <OverlayLinkSheet matchId={matchId} onClose={() => setOverlayOpen(false)} />}
       <p className="viewer-footnote">Viewer mode · Read only · Updates follow the scorer’s connection.<br />Last synced {new Date(view!.lastSyncedAt).toLocaleTimeString()}</p>
       <ReportMatch matchId={matchId} />
     </>}

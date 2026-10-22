@@ -3,6 +3,7 @@ import { Sheet } from '../../ui/Sheet';
 import { api, type AccountSession } from '../identity/data/auth-client';
 import { restoreSession } from '../identity/data/session-store';
 import { liveSyncState, subscribeLiveSync, type LiveSyncState } from '../sync/data/live-sync';
+import { OverlayLinkSheet } from '../overlay/OverlayLinkSheet';
 
 export function watchLink(matchId: string) {
   return `${window.location.origin}/watch/${matchId}`;
@@ -29,6 +30,7 @@ export function ShareMatchPopup({
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const [overlay, setOverlay] = useState(false);
   const attempted = useRef(false);
   const close = useRef(onClose);
   close.current = onClose;
@@ -119,6 +121,7 @@ export function ShareMatchPopup({
               ? 'Anyone with this link sees the score update live, raid by raid.'
               : 'Preparing the link…';
 
+  if (overlay) return <OverlayLinkSheet matchId={matchId} onClose={onClose} />;
   return (
     <Sheet eyebrow="MATCH STARTED" title="Share the live scorecard" onClose={onClose}>
       {phase !== 'guest' && (
@@ -155,6 +158,11 @@ export function ShareMatchPopup({
             }}
           >
             Try again
+          </button>
+        )}
+        {ready && (
+          <button className="secondary" onClick={() => setOverlay(true)}>
+            Stream overlay
           </button>
         )}
         <button className="quiet" onClick={onClose}>
