@@ -1,11 +1,31 @@
-import { updateDisplaySettings, useDisplaySettings } from './display-settings';
+import { type ThemeChoice, updateDisplaySettings, useDisplaySettings } from './display-settings';
 
-/** Profile → Display: sideline mode for scoring outdoors. Saved on this phone only. */
+const THEMES: { value: ThemeChoice; label: string }[] = [
+  { value: 'system', label: 'Auto' },
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+];
+
+/** Profile → Display: theme and sideline mode. Saved on this phone only, works signed out. */
 export function DisplaySettingsCard() {
-  const { sideline } = useDisplaySettings();
+  const { sideline, theme } = useDisplaySettings();
   return (
     <section className="ui-card display-settings" aria-label="Display">
       <h3>Display</h3>
+      <div className="theme-choice" role="group" aria-label="Theme">
+        {THEMES.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            className={theme === option.value ? 'on' : ''}
+            aria-pressed={theme === option.value}
+            onClick={() => updateDisplaySettings({ theme: option.value })}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+      <small className="theme-note">Auto follows your phone's light or dark setting. Saved on this phone.</small>
       <label className="display-toggle">
         <input
           type="checkbox"

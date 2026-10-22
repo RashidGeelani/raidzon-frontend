@@ -2,5 +2,6 @@ User-agent: *
 Allow: /
 Disallow: /api/
 Disallow: /ws/
+Disallow: /overlay/
 
 Sitemap: https://raidzon.com/sitemap.xml

@@ -137,7 +137,7 @@ export default defineConfig({
         globIgnores: ['brand/raidzon-logo.png', 'screenshots/**'],
         navigateFallback: '/index.html',
         // Offline, only the app's own pages open from the cache; any other address goes to the server (a real 404).
-        navigateFallbackAllowlist: [/^\/(\?.*)?$/, /^\/(help|privacy)(\?.*)?$/, /^\/(watch|scorecard|tournaments|players)\/[0-9a-f-]{36}(\?.*)?$/i],
+        navigateFallbackAllowlist: [/^\/(\?.*)?$/, /^\/(help|privacy)(\?.*)?$/, /^\/(watch|scorecard|tournaments|players|overlay)\/[0-9a-f-]{36}(\?.*)?$/i],
         navigateFallbackDenylist: [/^\/api\//, /^\/(robots|llms)\.txt$/, /^\/sitemap\.xml$/],
       },
     }),

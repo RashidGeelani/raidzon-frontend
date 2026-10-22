@@ -43,6 +43,16 @@
     <title>RaidzOn · Kabaddi Live Score, Tournaments & Scoring App</title>
     <link rel="preload" as="image" href="/brand/raidzon-logo-256.webp" />
     <script>
+      // Light or dark theme before the first paint, so there is no flash (same rule as display-settings.ts).
+      try {
+        var theme = JSON.parse(localStorage.getItem('raidzon.display') || '{}').theme;
+        if (theme !== 'light' && theme !== 'dark') {
+          theme = window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        }
+        document.documentElement.dataset.theme = theme;
+      } catch (error) {}
+    </script>
+    <script>
       // Chrome can offer installation before the app's code has loaded; keep the offer for it.
       window.addEventListener('beforeinstallprompt', function (event) {
         event.preventDefault();
