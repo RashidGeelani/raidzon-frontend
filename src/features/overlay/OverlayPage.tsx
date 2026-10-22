@@ -5,7 +5,7 @@ import { isDoOrDie } from '../scoring/domain/match-types';
 import { withJersey } from '../scoring/domain/jersey';
 import { useLiveView } from '../scorecard/use-live-view';
 import { clockRemaining, winnerSide, type LiveView, type ViewerState } from '../scorecard/viewer-state';
-import { clockText, matCount, MAT_SIZE, overlayPhase, teamCode, type OverlayPhase } from './overlay-model';
+import { clockText, matCount, MAT_SIZE, overlayPhase, teamCodes, type OverlayPhase } from './overlay-model';
 
 /**
  * Broadcast score bar at /overlay/:matchId, Pro Kabaddi style: team codes in team colours, players
@@ -20,6 +20,7 @@ export function OverlayPage({ matchId, delayMs }: { matchId: string; delayMs: nu
   const state = view.state;
   const phase = overlayPhase(state, view.events.length);
   const scores = state.phase === 'REGULATION' ? state.scores : state.tieScores;
+  const codes = teamCodes(state.teams[0].name, state.teams[1].name);
   const raider = state.teams[state.turn]?.players.find((player) => player.id === state.currentRaiderId);
   const raidSeconds = Math.ceil(clockRemaining(state.raidClock, now) / 1000);
   const halfSeconds = Math.ceil(clockRemaining(state.clock, now) / 1000);
@@ -38,11 +39,11 @@ export function OverlayPage({ matchId, delayMs }: { matchId: string; delayMs: nu
         {tournament && <p className="overlay-tournament">{tournament}</p>}
         <div className="overlay-bar">
           <span className="overlay-brand">raidz<b>On</b></span>
-          <OverlayTeam team={state.teams[0]} side={0} raiding={phase === 'live' && state.turn === 0} />
+          <OverlayTeam team={state.teams[0]} code={codes[0]} side={0} raiding={phase === 'live' && state.turn === 0} />
           <span className="overlay-score overlay-side-0">{scores[0]}</span>
           <Centre phase={phase} state={state} halfSeconds={halfSeconds} />
           <span className="overlay-score overlay-side-1">{scores[1]}</span>
-          <OverlayTeam team={state.teams[1]} side={1} raiding={phase === 'live' && state.turn === 1} />
+          <OverlayTeam team={state.teams[1]} code={codes[1]} side={1} raiding={phase === 'live' && state.turn === 1} />
         </div>
       </div>
     </div>
@@ -62,11 +63,11 @@ function useTournamentName(tournamentId: string | null | undefined) {
   return name;
 }
 
-function OverlayTeam({ team, side, raiding }: { team: ViewerState['teams'][number]; side: 0 | 1; raiding: boolean }) {
+function OverlayTeam({ team, code, side, raiding }: { team: ViewerState['teams'][number]; code: string; side: 0 | 1; raiding: boolean }) {
   const onMat = matCount(team.players);
   return (
     <div className={`overlay-team overlay-side-${side} ${raiding ? 'raiding' : ''}`}>
-      <strong title={team.name}>{teamCode(team.name)}</strong>
+      <strong title={team.name}>{code}</strong>
       <span className="overlay-dots" aria-label={`${onMat} players on mat`}>
         {Array.from({ length: MAT_SIZE }, (_, index) => <i key={index} className={index < onMat ? 'on' : ''} />)}
       </span>

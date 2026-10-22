@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { clockText, delayQueue, matCount, overlayDelayMs, overlayLink, overlayPhase, teamCode } from './overlay-model';
+import { clockText, delayQueue, matCount, overlayDelayMs, overlayLink, overlayPhase, teamCode, teamCodes } from './overlay-model';
 
 describe('overlayDelayMs', () => {
   it('reads ?delay in seconds, capped at a minute', () => {
@@ -80,5 +80,11 @@ describe('bar helpers', () => {
     expect(teamCode('Bandipora Bulls')).toBe('BAN');
     expect(teamCode('S.K. Tigers')).toBe('SKT');
     expect(teamCode('...')).toBe('TBC');
+  });
+  it('keeps the two team codes apart when they would clash', () => {
+    expect(teamCodes('Bandipora Bulls', 'Sopore Lions')).toEqual(['BAN', 'SOP']);
+    expect(teamCodes('Sopore Lions', 'Sopore Tigers')).toEqual(['SLI', 'STI']);
+    expect(teamCodes('TEST Overlay Home', 'TEST Overlay Away')).toEqual(['TOH', 'TOA']);
+    expect(teamCodes('Lions', 'Lions')).toEqual(['LIO', 'LIO']);
   });
 });
