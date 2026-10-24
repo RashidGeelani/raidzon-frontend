@@ -44,6 +44,24 @@ describe('live match socket', () => {
     expect(views.at(-1)).toBe(-1);
     stop();
   });
+  it('polls instead of reconnecting after the server says unavailable, then reconnects once the match is public', async () => {
+    vi.useFakeTimers();
+    let isPublic = false;
+    const fetchView = vi.fn(async () => { if (!isPublic) throw new Error('private'); return { version: 5 }; });
+    const stop = watchMatch<{ version: number }>('m3', { onView: () => {}, onUnavailable: () => {}, onConnection: () => {} },
+      { WebSocketImpl: FakeSocket as unknown as typeof WebSocket, fetchView });
+    const first = FakeSocket.last;
+    first.onopen?.();
+    first.onmessage?.({ data: JSON.stringify({ type: 'unavailable' }) });
+    first.close(); // the server closes after 'unavailable'
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(FakeSocket.last).toBe(first); // no reconnect loop
+    expect(fetchView).toHaveBeenCalled();
+    isPublic = true;
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(FakeSocket.last).not.toBe(first);
+    stop();
+  });
   it('reconnects when the connection goes silent', async () => {
     vi.useFakeTimers();
     const stop = watchMatch('m2', { onView: () => {}, onUnavailable: () => {}, onConnection: () => {} },

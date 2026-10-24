@@ -18,7 +18,7 @@ export function RequestToJoin({ account, online, tournamentId, registrationOpen 
     if (!account) return;
     let active = true;
     void (async () => {
-      const load = async () => (await cachedTeams(account.accountId)).filter((team) => team.myRole !== 'COACH');
+      const load = async () => (await cachedTeams(account.accountId)).filter((team) => team.myRole === 'OWNER' || team.myRole === 'MANAGER');
       let eligible = await load();
       if (online) {
         await refreshTeamCache(account).catch(() => undefined);

@@ -33,8 +33,14 @@ export function watchMatch<V>(
   let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
   let watchdog: ReturnType<typeof setTimeout> | undefined;
   let poller: ReturnType<typeof setInterval> | undefined;
+  // After 'unavailable' the server closes the socket; poll instead of reconnecting until the match is public again.
+  let unavailable = false;
 
-  const poll = () => fetchView().then((view) => { if (!stopped) handlers.onView(view); }).catch((error) => {
+  const poll = () => fetchView().then((view) => {
+    if (stopped) return;
+    handlers.onView(view);
+    if (unavailable && !socket) { unavailable = false; attempt = 0; connect(); }
+  }).catch((error) => {
     if (!stopped && error instanceof ApiError && error.status === 404) handlers.onUnavailable();
   });
   const startPolling = () => { if (!poller) { void poll(); poller = setInterval(() => void poll(), FALLBACK_POLL_MS); } };
@@ -54,10 +60,10 @@ export function watchMatch<V>(
         if (message.type === 'view' && message.view) handlers.onView(message.view);
         else if (message.type === 'state' && message.state && typeof message.version === 'number')
           handlers.onState?.({ version: message.version, serverTime: message.serverTime ?? Date.now(), state: message.state });
-        else if (message.type === 'unavailable') handlers.onUnavailable();
+        else if (message.type === 'unavailable') { unavailable = true; handlers.onUnavailable(); }
       } catch { /* ignore malformed frames */ }
     };
-    socket.onclose = () => { if (watchdog) clearTimeout(watchdog); socket = null; if (!stopped) { startPolling(); scheduleReconnect(); } };
+    socket.onclose = () => { if (watchdog) clearTimeout(watchdog); socket = null; if (!stopped) { startPolling(); if (!unavailable) scheduleReconnect(); } };
     socket.onerror = () => socket?.close();
   }
   function scheduleReconnect() {

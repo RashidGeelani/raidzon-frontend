@@ -268,7 +268,7 @@ export function App() {
     setSetup(false);
     setSelectedId(null);
     setError('');
-    setTab(next.teamId ? 'teams' : 'tournaments');
+    setTab(next.teamId || next.view === 'invitations' ? 'teams' : 'tournaments');
     setFocus(next);
   }
   function prepareFixture(fixture: PreparedFixture) {

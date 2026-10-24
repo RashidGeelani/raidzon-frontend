@@ -139,7 +139,7 @@ export function TournamentDashboard({
   useEffect(() => {
     if (!selected) return;
     let active = true;
-    const show = () => cachedTeams(account.accountId).then((rows) => { if (active) setSavedTeams(rows.filter((team) => team.myRole !== 'COACH')); });
+    const show = () => cachedTeams(account.accountId).then((rows) => { if (active) setSavedTeams(rows.filter((team) => team.myRole === 'OWNER' || team.myRole === 'MANAGER')); });
     void show().then(() => (online ? refreshTeamCache(account).then(show) : undefined)).catch(() => undefined);
     return () => { active = false; };
   }, [account, online, selected]);
