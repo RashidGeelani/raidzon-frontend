@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { afterEach, expect, it, vi } from 'vitest';
-import { db, createMatch, type SetupInput } from '../../matches/data/match-repository';
+import { db, createMatch, recentPlayers, type SetupInput } from '../../matches/data/match-repository';
 import { claimDeviceGuestMatches, claimGuestMatches } from './claim-guest-matches';
 import { saveSession, restoreSession, clearSession, flushLogouts } from './session-store';
 const session = {
@@ -13,6 +13,7 @@ afterEach(async () => {
   await db.metadata.clear();
   await db.matches.clear();
   await db.events.clear();
+  await db.players.clear();
   vi.unstubAllGlobals();
 });
 async function guest() {
@@ -84,4 +85,34 @@ it('signs out locally offline and retries server revocation without losing it', 
   await flushLogouts();
   expect(await db.metadata.count()).toBe(0);
   expect(fetch.mock.calls[1][1].headers.Authorization).toBe(`Bearer ${session.token}`);
+});
+
+it('saved player suggestions do not survive sign-out (A then guest)', async () => {
+  await saveSession(session);
+  const match = await guest();
+  expect(await recentPlayers()).toHaveLength(14);
+  await clearSession(session);
+  expect(await recentPlayers()).toEqual([]);
+  expect(await db.players.count()).toBe(0);
+  // Unsynced match data stays on the device.
+  expect((await db.matches.get(match.id))?.state.teams[0].players).toHaveLength(7);
+});
+it('another account sees neither the suggestions nor the saved names (A then B)', async () => {
+  await saveSession(session);
+  await guest();
+  // Even if A never signed out (e.g. the session was replaced), B gets nothing of A's.
+  const other = { ...session, accountId: 'account-b', token: 'b'.repeat(43) };
+  await saveSession(other);
+  expect(await recentPlayers()).toEqual([]);
+  const teams = [0, 1].map((side) => ({
+    name: `B ${side}`,
+    players: Array.from({ length: 7 }, (_, i) => ({ name: `Typed ${side}${i}`, phone: `+9198765432${side}${i}`, jersey: String(i + 1) })),
+  })) as SetupInput['teams'];
+  const match = await createMatch({ teams, firstTurn: 0, halfMinutes: 20, raidSeconds: 30 }, session.deviceId);
+  expect(match.state.teams[0].players[0].name).toBe('Typed 00');
+  expect(match.state.teams[0].players[0]).not.toHaveProperty('owner');
+  expect((await recentPlayers()).map((p) => p.name)).toContain('Typed 00');
+  await clearSession(other);
+  expect(await db.players.where('owner').equals('account').count()).toBe(14);
+  expect(await recentPlayers()).toEqual([]);
 });

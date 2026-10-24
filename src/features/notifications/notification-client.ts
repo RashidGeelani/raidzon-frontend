@@ -5,7 +5,9 @@ export type NotificationKind =
   | 'JOIN_REQUEST_WITHDRAWN'
   | 'JOIN_REQUEST_APPROVED'
   | 'JOIN_REQUEST_REJECTED'
-  | 'MATCH_REMOVED';
+  | 'MATCH_REMOVED'
+  | 'TEAM_INVITE'
+  | 'TEAM_INVITE_DECLINED';
 export interface AppNotification {
   id: string;
   kind: NotificationKind;
@@ -23,8 +25,8 @@ export interface Inbox {
 /** Where a tapped notification should take the user. nonce makes repeated taps re-trigger. */
 export interface Focus {
   tournamentId?: string;
-  /** 'public' opens the read-only tournament page instead of the organizer dashboard. */
-  view?: 'public';
+  /** 'public' opens the read-only tournament page instead of the organizer dashboard; 'invitations' opens the Teams list. */
+  view?: 'public' | 'invitations';
   teamId?: string;
   nonce: number;
 }
@@ -35,8 +37,10 @@ export const markRead = (account: AccountSession, ids: string[]) =>
 export const markAllRead = (account: AccountSession) =>
   api<Inbox>('/account/notifications/read', { ids: [], all: true }, account.token);
 
-/** Organizer alerts open the tournament; team decisions open the team. */
+/** Organizer alerts open the tournament; team decisions open the team; invitations open the Teams list. */
 export function focusFor(item: AppNotification, nonce: number): Focus | null {
+  if (item.kind === 'TEAM_INVITE') return { view: 'invitations', nonce };
+  if (item.kind === 'TEAM_INVITE_DECLINED' && item.teamId) return { teamId: item.teamId, nonce };
   if ((item.kind === 'JOIN_REQUEST_APPROVED' || item.kind === 'JOIN_REQUEST_REJECTED') && item.teamId) return { teamId: item.teamId, nonce };
   if (item.tournamentId) return { tournamentId: item.tournamentId, nonce };
   return null;

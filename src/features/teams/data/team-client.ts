@@ -5,9 +5,12 @@ import {
   MAX_SQUAD,
   RECOMMENDED_PLAYERS,
   REQUIRED_PLAYERS,
+  type Leadership,
   type PlayingRole,
   type TeamDetail,
+  type TeamInvitation,
   type TeamMember,
+  type TeamRole,
   type TeamSummary,
 } from './team-types';
 
@@ -63,8 +66,26 @@ export const setLeadership = (
 ) => saved(account, api<TeamDetail>(`/teams/${id}/leadership`, { captainMemberId, viceCaptainMemberId }, account.token));
 export const addStaff = (account: AccountSession, id: string, staff: { name: string; phone: string; role: 'MANAGER' | 'COACH' }) =>
   saved(account, api<TeamDetail>(`/teams/${id}/staff`, staff, account.token));
-export const removeStaff = (account: AccountSession, id: string, profileId: string, role: 'MANAGER' | 'COACH') =>
-  saved(account, api<TeamDetail>(`/teams/${id}/staff/remove`, { profileId, role }, account.token));
+export const removeStaff = (account: AccountSession, id: string, staffId: string) =>
+  saved(account, api<TeamDetail>(`/teams/${id}/staff/remove`, { id: staffId }, account.token));
+
+export const listInvitations = (account: AccountSession) => api<TeamInvitation[]>('/teams/invitations', undefined, account.token);
+export const acceptInvitation = (account: AccountSession, id: string) =>
+  saved(account, api<TeamDetail>(`/teams/${id}/invitations/accept`, {}, account.token));
+export const declineInvitation = (account: AccountSession, id: string) =>
+  api<TeamInvitation[]>(`/teams/${id}/invitations/decline`, {}, account.token);
+export async function leaveTeam(account: AccountSession, id: string, database: RaidzOnDatabase = db) {
+  const teams = await api<TeamSummary[]>(`/teams/${id}/leave`, {}, account.token);
+  await database.teams.delete(id);
+  return teams;
+}
+/** The viewer's tag on a team: Owner, Manager, Coach, or Player / Captain / Vice-captain. */
+export function roleTag(role: TeamRole, leadership?: Leadership | null) {
+  if (role === 'PLAYER' && leadership) return leadership === 'CAPTAIN' ? 'Captain' : 'Vice-captain';
+  return role[0] + role.slice(1).toLowerCase();
+}
+/** Only owners, managers and coaches pick lineups or register the team; players see the squad without phones. */
+export const canPickLineup = (team: TeamDetail) => team.myRole !== 'PLAYER';
 
 /** Refreshes every active squad this account can use, so match setup works offline later. */
 export async function refreshTeamCache(account: AccountSession, database: RaidzOnDatabase = db) {
@@ -132,6 +153,6 @@ export function lineupToTeamInput(team: { name: string; members: LineupMember[] 
   const pick = (slot: LineupSlot) =>
     team.members
       .filter((member) => lineup[member.id] === slot)
-      .map((member) => ({ name: member.name, phone: member.phone, jersey: member.jersey == null ? '' : String(member.jersey) }));
+      .map((member) => ({ name: member.name, phone: member.phone ?? '', jersey: member.jersey == null ? '' : String(member.jersey) }));
   return { name: team.name, players: [...pick('STARTER'), ...pick('SUB')] };
 }

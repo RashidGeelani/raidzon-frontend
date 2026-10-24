@@ -11,6 +11,8 @@ describe('notifications', () => {
     expect(focusFor(item('JOIN_REQUEST_WITHDRAWN'), 2)).toEqual({ tournamentId: 'cup', nonce: 2 });
     expect(focusFor(item('JOIN_REQUEST_APPROVED'), 3)).toEqual({ teamId: 'tigers', nonce: 3 });
     expect(focusFor(item('JOIN_REQUEST_REJECTED'), 4)).toEqual({ teamId: 'tigers', nonce: 4 });
+    expect(focusFor(item('TEAM_INVITE'), 5)).toEqual({ view: 'invitations', nonce: 5 });
+    expect(focusFor(item('TEAM_INVITE_DECLINED'), 6)).toEqual({ teamId: 'tigers', nonce: 6 });
   });
   it('ignores malformed inbox responses', () => {
     expect(isInbox({})).toBe(false);

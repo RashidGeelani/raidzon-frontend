@@ -1,4 +1,5 @@
 import 'fake-indexeddb/auto';
+import Dexie from 'dexie';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   RaidzOnDatabase,
@@ -311,5 +312,21 @@ describe('durable local events', () => {
     database.matches.hook('updating').unsubscribe(fail);
     expect(await database.events.count()).toBe(0);
     expect((await database.matches.get(match.id))?.state.scores).toEqual([0, 0]);
+  });
+});
+
+describe('saved players upgrade', () => {
+  it('gives players saved before v3 to the signed-in account, or the guest', async () => {
+    for (const signedIn of [true, false]) {
+      const name = `upgrade-${crypto.randomUUID()}`;
+      const old = new Dexie(name);
+      old.version(2).stores({ matches: 'id, updatedAt', events: 'id, matchId, &[matchId+sequence]', players: 'id, &phone', metadata: 'key', teams: 'id, accountId' });
+      await old.table('players').add({ id: 'p1', phone: '+919876543210', name: 'Old' });
+      await old.table('metadata').bulkAdd([{ key: 'scoring-account', value: 'acc' }, ...(signedIn ? [{ key: 'account-session', value: '{}' }] : [])]);
+      old.close();
+      const upgraded = new RaidzOnDatabase(name);
+      expect((await upgraded.players.get('p1'))?.owner).toBe(signedIn ? 'acc' : 'guest');
+      upgraded.close();
+    }
   });
 });

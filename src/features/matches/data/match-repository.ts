@@ -16,7 +16,7 @@ import {
 import type { TeamDetail } from '../../teams/data/team-types';
 import { matchNow, notBefore } from '../../scoring/match-clock';
 
-import { db, type LocalPlayer } from './match-db';
+import { db, playerOwner, type LocalPlayer } from './match-db';
 export { db, RaidzOnDatabase, type CachedTeam } from './match-db';
 
 export interface TeamInput {
@@ -50,9 +50,9 @@ export function normalizePhone(value: string) {
   return phone.number;
 }
 
-/** Players already saved on this phone (name + canonical number), for setup suggestions. */
+/** Players this account (or the guest) saved on this phone (name + canonical number), for setup suggestions. */
 export async function recentPlayers(database = db): Promise<{ name: string; phone: string }[]> {
-  const rows = await database.players.toArray();
+  const rows = await database.players.where('owner').equals(await playerOwner(database)).toArray();
   return rows
     .filter((player) => player.phone && player.name)
     .map(({ name, phone }) => ({ name, phone }))
@@ -118,7 +118,9 @@ export async function createMatch(
   // too early"), which made Start match fail.
   const build = async () => {
     const localAccountId = (await database.metadata.get('scoring-account'))?.value;
-    const known = await database.players.where('phone').anyOf(phones).toArray();
+    // Only this account's saved players are reused, so typing a number never reveals another account's name for it.
+    const owner = await playerOwner(database);
+    const known = await database.players.where('[owner+phone]').anyOf(phones.map((phone) => [owner, phone])).toArray();
     const byPhone = new Map(known.map((player) => [player.phone, player]));
     const added: LocalPlayer[] = [];
     const teams: Team[] = normalized.map((team) => ({
@@ -133,12 +135,12 @@ export async function createMatch(
         let identity = byPhone.get(candidate.phone);
         if (!identity) {
           // The number belongs to this match's team, not to the player, so it isn't stored with them.
-          identity = { name: candidate.name, phone: candidate.phone, id: crypto.randomUUID() };
+          identity = { name: candidate.name, phone: candidate.phone, id: crypto.randomUUID(), owner };
           byPhone.set(candidate.phone, identity);
           added.push(identity);
         }
         // Reuse identity without allowing setup to overwrite protected personal data.
-        return { ...identity, status: index < 7 ? 'ACTIVE' : 'BENCH', raidPoints: 0, tacklePoints: 0, jersey } as Player;
+        return { id: identity.id, name: identity.name, phone: identity.phone, status: index < 7 ? 'ACTIVE' : 'BENCH', raidPoints: 0, tacklePoints: 0, jersey } as Player;
       }),
     }));
     const now = matchNow();

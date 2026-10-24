@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { TeamInput } from '../matches/data/match-repository';
 import { restoreSession } from '../identity/data/session-store';
-import { cachedTeams, refreshTeamCache, type TeamDetail } from './data/team-client';
+import { cachedTeams, canPickLineup, refreshTeamCache, type TeamDetail } from './data/team-client';
 import { LineupPicker } from './LineupPicker';
 
 /** Fills one side of match setup from a saved squad. Works offline from the device cache. */
@@ -14,7 +14,7 @@ export function SavedTeamPicker({ label, onApply }: { label: string; onApply: (t
     void (async () => {
       const account = await restoreSession().catch(() => null);
       if (!account) return;
-      const show = async () => { const rows = await cachedTeams(account.accountId); if (active) setTeams(rows); };
+      const show = async () => { const rows = (await cachedTeams(account.accountId)).filter(canPickLineup); if (active) setTeams(rows); };
       await show();
       if (navigator.onLine) await refreshTeamCache(account).then(show).catch(() => undefined);
     })();

@@ -29,7 +29,7 @@ export async function restoreSession(): Promise<AccountSession | null> {
   return null;
 }
 export async function clearSession(session?: AccountSession) {
-  await db.transaction('rw', db.metadata, db.teams, () =>
+  await db.transaction('rw', db.metadata, db.teams, db.players, () =>
     Dexie.Promise.all([
       session ? db.metadata.put({ key: `logout:${session.token}`, value: JSON.stringify(session) }) : undefined,
       db.metadata.delete(sessionKey),
@@ -37,6 +37,8 @@ export async function clearSession(session?: AccountSession) {
       session ? db.metadata.delete(`upcoming-fixtures:${session.accountId}`) : undefined,
       // Cached squads include players' phone numbers; do not leave them on a shared device.
       session ? db.teams.where('accountId').equals(session.accountId).delete() : undefined,
+      // Saved player names and numbers (setup suggestions) belong to the account too. Matches are kept.
+      session ? db.players.where('owner').equals(session.accountId).delete() : undefined,
     ]),
   );
 }

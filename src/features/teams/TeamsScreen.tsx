@@ -2,23 +2,31 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { ApiError, type AccountSession } from '../identity/data/auth-client';
 import { normalizePhone } from '../matches/data/match-repository';
 import {
+  acceptInvitation,
   addMember,
   addStaff,
   archiveTeam,
   cachedTeams,
   createTeam,
+  declineInvitation,
   editMember,
   getTeam,
+  leaveTeam,
+  listInvitations,
   refreshTeamCache,
   removeMember,
   removeStaff,
+  roleTag,
   setLeadership,
   squadStatus,
   updateTeamDetails,
   MAX_SQUAD,
+  type Leadership,
   type PlayingRole,
   type TeamDetail,
+  type TeamInvitation,
   type TeamMember,
+  type TeamRole,
   type TeamSummary,
 } from './data/team-client';
 import {
@@ -52,9 +60,11 @@ export function TeamsScreen({
   const [city, setCity] = useState('');
   const [reload, setReload] = useState(0);
   const [showCreate, setShowCreate] = useState(false);
+  const [invitations, setInvitations] = useState<TeamInvitation[]>([]);
   // focusTeamId is "<teamId>#<nonce>" so tapping the same notification twice still opens it.
+  // An empty team ID (an invitation alert) opens the list, where invitations are shown first.
   useEffect(() => {
-    if (focusTeamId) setSelected(focusTeamId.split('#')[0]);
+    if (focusTeamId) setSelected(focusTeamId.split('#')[0] || null);
   }, [focusTeamId]);
 
   useEffect(() => {
@@ -67,6 +77,9 @@ export function TeamsScreen({
         () =>
           active && setMessage('Unable to load your teams. Saved squads remain on this device.'),
       );
+    listInvitations(account)
+      .then((rows) => active && Array.isArray(rows) && setInvitations(rows))
+      .catch(() => undefined);
     return () => {
       active = false;
     };
@@ -85,6 +98,25 @@ export function TeamsScreen({
       setReload((value) => value + 1);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Unable to create the team.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function answer(invitation: TeamInvitation, accept: boolean) {
+    setBusy(true);
+    setMessage('');
+    try {
+      if (accept) {
+        await acceptInvitation(account, invitation.teamId);
+        setInvitations((rows) => rows.filter((row) => row.teamId !== invitation.teamId));
+        setSelected(invitation.teamId);
+      } else {
+        setInvitations(await declineInvitation(account, invitation.teamId));
+      }
+      setReload((value) => value + 1);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to answer the invitation.');
     } finally {
       setBusy(false);
     }
@@ -110,6 +142,7 @@ export function TeamsScreen({
     name: string;
     city: string | null;
     role: string;
+    leadership?: Leadership | null;
     size: number;
     captain: string | null;
     archived: boolean;
@@ -119,6 +152,7 @@ export function TeamsScreen({
         name: t.name,
         city: t.city,
         role: t.myRole,
+        leadership: t.myLeadership,
         size: t.squadSize,
         captain: t.captainName,
         archived: t.archived,
@@ -192,6 +226,48 @@ export function TeamsScreen({
           {message}
         </p>
       )}
+      {invitations.length > 0 && (
+        <section className="panel team-invitations" aria-label="Team invitations">
+          <div className="profile-section-title">
+            <h3>Team invitations</h3>
+            <span>Accept to show your name and Verified tag in the squad</span>
+          </div>
+          <div className="team-members">
+            {invitations.map((invitation) => (
+              <div className="join-request-row" key={invitation.teamId + invitation.role}>
+                <span>
+                  <strong>{invitation.teamName}</strong>
+                  <small>
+                    {[
+                      `As ${roleTag(invitation.role).toLowerCase()} “${invitation.squadName}”`,
+                      invitation.ownerName ? `by ${invitation.ownerName}` : null,
+                      invitation.city,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </small>
+                </span>
+                <span className="team-member-actions">
+                  <button
+                    className="primary"
+                    disabled={!online || busy}
+                    onClick={() => void answer(invitation, true)}
+                  >
+                    Accept
+                  </button>
+                  <button
+                    className="quiet"
+                    disabled={!online || busy}
+                    onClick={() => void answer(invitation, false)}
+                  >
+                    Decline
+                  </button>
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
       {showCreate && list.length > 0 && createForm}
       {teams === null && online && !message ? (
         <p>Loading your teams…</p>
@@ -217,9 +293,7 @@ export function TeamsScreen({
                 </small>
               </span>
               <span className="team-card-meta">
-                <em>
-                  {team.archived ? 'Archived' : team.role[0] + team.role.slice(1).toLowerCase()}
-                </em>
+                <em>{team.archived ? 'Archived' : roleTag(team.role as TeamRole, team.leadership)}</em>
                 <small>
                   {team.size}/{MAX_SQUAD}
                 </small>
@@ -251,6 +325,7 @@ function TeamDetailView({
   const [busy, setBusy] = useState(false);
   const [editingDetails, setEditingDetails] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(false);
+  const [confirmLeave, setConfirmLeave] = useState(false);
 
   useEffect(() => {
     if (!online) return;
@@ -292,7 +367,8 @@ function TeamDetailView({
       </section>
     );
 
-  const canEdit = online && !team.archived && team.myRole !== 'COACH';
+  const manages = team.myRole === 'OWNER' || team.myRole === 'MANAGER';
+  const canEdit = online && !team.archived && manages;
   const isOwner = online && !team.archived && team.myRole === 'OWNER';
   const status = squadStatus(team.members.length);
   const captain = team.members.find((m) => m.leadership === 'CAPTAIN')?.id ?? '';
@@ -315,9 +391,7 @@ function TeamDetailView({
               .join(' · ')}
           </small>
         </div>
-        <em className="team-role">
-          {team.archived ? 'Archived' : team.myRole[0] + team.myRole.slice(1).toLowerCase()}
-        </em>
+        <em className="team-role">{team.archived ? 'Archived' : roleTag(team.myRole)}</em>
       </div>
       {!online && (
         <p className="field-note">
@@ -328,6 +402,9 @@ function TeamDetailView({
         <p className="field-note">
           As coach you can view the squad and pick match-day lineups when starting a match.
         </p>
+      )}
+      {team.myRole === 'PLAYER' && (
+        <p className="field-note">You’re in this squad. Only the owner and managers can change it.</p>
       )}
       {message && (
         <p role="alert" className="error">
@@ -417,13 +494,19 @@ function TeamDetailView({
             </span>
           </div>
           {team.staff.map((staff) => (
-            <div className="team-member" key={staff.profileId + staff.role}>
+            <div className="team-member" key={staff.id}>
               <span className="player-avatar">{initials(staff.name)}</span>
               <span className="team-member-name">
                 <strong>{staff.name}</strong>
                 <small>
-                  {staff.role === 'MANAGER' ? 'Manager' : 'Coach'} ·{' '}
-                  <MaskedPhone phone={staff.phone} />
+                  {staff.role === 'MANAGER' ? 'Manager' : 'Coach'}
+                  {staff.invited && <b className="invite-tag">Invited</b>}
+                  {staff.phone && (
+                    <>
+                      {' · '}
+                      <MaskedPhone phone={staff.phone} />
+                    </>
+                  )}
                 </small>
               </span>
               {isOwner && (
@@ -432,7 +515,7 @@ function TeamDetailView({
                   disabled={busy}
                   aria-label={`Remove ${staff.name}`}
                   onClick={() =>
-                    void run(() => removeStaff(account, team.id, staff.profileId, staff.role))
+                    void run(() => removeStaff(account, team.id, staff.id))
                   }
                 >
                   ×
@@ -446,7 +529,7 @@ function TeamDetailView({
         )}
         {isOwner && (
           <p className="field-note">
-            Staff get access when they sign in with the phone number you add.
+            Staff get access after they sign in with the phone number you add and accept.
           </p>
         )}
       </section>
@@ -456,8 +539,40 @@ function TeamDetailView({
         account={account}
         online={online}
         teamId={team.id}
-        canEdit={online && team.myRole !== 'COACH'}
+        canEdit={online && manages}
       />
+
+      {online && team.myRole !== 'OWNER' && (
+        <div className="team-danger">
+          {confirmLeave ? (
+            <>
+              <span>Leave {team.name}? The owner can add you again later.</span>
+              <button className="secondary" disabled={busy} onClick={() => setConfirmLeave(false)}>
+                Cancel
+              </button>
+              <button
+                className="danger"
+                disabled={busy}
+                onClick={() => {
+                  setBusy(true);
+                  leaveTeam(account, team.id)
+                    .then(onBack)
+                    .catch((error) => {
+                      setMessage(error instanceof Error ? error.message : 'Unable to leave the team.');
+                      setBusy(false);
+                    });
+                }}
+              >
+                Leave team
+              </button>
+            </>
+          ) : (
+            <button className="quiet" onClick={() => setConfirmLeave(true)}>
+              Leave team…
+            </button>
+          )}
+        </div>
+      )}
 
       {isOwner && (
         <div className="team-danger">
@@ -694,6 +809,7 @@ function MemberRow({
           ]
             .filter(Boolean)
             .join(' · ')}
+          {member.invited && <b className="invite-tag">Invited</b>}
           {member.phone && (
             <>
               {member.playingRole || member.claimed ? ' · ' : ''}
@@ -825,8 +941,8 @@ function AddMemberForm({
         + Add to squad
       </button>
       <p className="field-note">
-        Indian numbers can omit +91. No OTP is sent; the player verifies later to claim their
-        profile.
+        Indian numbers can omit +91. No OTP is sent; the player gets an invitation and shows as
+        Verified with their own name once they accept.
       </p>
     </form>
   );
@@ -974,7 +1090,7 @@ function RoleSelect({
 }
 
 /** Shows only the last four digits until tapped, so a squad list can be shown around without exposing numbers. */
-function MaskedPhone({ phone }: { phone: string }) {
+function MaskedPhone({ phone }: { phone: string | null }) {
   const [shown, setShown] = useState(false);
   if (!phone) return null;
   return (

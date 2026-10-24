@@ -1,9 +1,12 @@
 import 'fake-indexeddb/auto';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RaidzOnDatabase, createMatch } from '../../matches/data/match-repository';
 import {
   cacheTeam,
   cachedTeams,
+  canPickLineup,
+  leaveTeam,
+  roleTag,
   defaultLineup,
   forgetTeams,
   lineupProblem,
@@ -16,7 +19,6 @@ import {
 
 const member = (i: number, leadership: TeamMember['leadership'] = null): TeamMember => ({
   id: `m${i}`,
-  profileId: `p${i}`,
   name: `Player ${i}`,
   squadName: `Player ${i}`,
   phone: `+9191000000${String(i).padStart(2, '0')}`,
@@ -117,5 +119,29 @@ describe('offline squad cache', () => {
     const match = await createMatch({ teams: [a, b], firstTurn: 0, halfMinutes: 20, raidSeconds: 30 }, 'session-1', database);
     expect(match.state.teams[0].players.filter((p) => p.status === 'ACTIVE')).toHaveLength(7);
     expect(match.state.teams[0].players.filter((p) => p.status === 'BENCH')).toHaveLength(5);
+  });
+});
+
+describe('team invitations and players', () => {
+  it('tags the viewer by role and leadership', () => {
+    expect(roleTag('PLAYER')).toBe('Player');
+    expect(roleTag('PLAYER', 'CAPTAIN')).toBe('Captain');
+    expect(roleTag('PLAYER', 'VICE_CAPTAIN')).toBe('Vice-captain');
+    expect(roleTag('MANAGER')).toBe('Manager');
+    expect(roleTag('COACH', 'CAPTAIN')).toBe('Coach');
+  });
+  it('keeps player-only teams (no phones) out of lineup pickers', () => {
+    expect(canPickLineup({ ...team(7), myRole: 'PLAYER' })).toBe(false);
+    expect(canPickLineup({ ...team(7), myRole: 'COACH' })).toBe(true);
+  });
+  it('leaving a team forgets its cached squad', async () => {
+    const database = new RaidzOnDatabase(`leave-${crypto.randomUUID()}`);
+    await cacheTeam('a1', { ...team(7, 'gone'), myRole: 'PLAYER' }, database);
+    const fetch = vi.fn().mockResolvedValue(new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    vi.stubGlobal('fetch', fetch);
+    await leaveTeam({ token: 't'.repeat(43), accountId: 'a1', deviceId: 'd', expiresAt: Date.now() + 1000 }, 'gone', database);
+    expect(String(fetch.mock.calls[0][0])).toContain('/teams/gone/leave');
+    expect(await cachedTeams('a1', database)).toEqual([]);
+    vi.unstubAllGlobals();
   });
 });
