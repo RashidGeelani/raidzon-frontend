@@ -4,6 +4,8 @@ import { api, type AccountSession } from '../identity/data/auth-client';
 import { restoreSession } from '../identity/data/session-store';
 import { liveSyncState, subscribeLiveSync, type LiveSyncState } from '../sync/data/live-sync';
 import { OverlayLinkSheet } from '../overlay/OverlayLinkSheet';
+import { useTournamentName } from '../overlay/OverlayPage';
+import { LivePosterButton } from '../posters/PosterShareButton';
 
 export function watchLink(matchId: string) {
   return `${window.location.origin}/watch/${matchId}`;
@@ -19,10 +21,13 @@ export function ShareMatchPopup({
   matchId,
   online,
   onClose,
+  live,
 }: {
   matchId: string;
   online: boolean;
   onClose: () => void;
+  /** Teams and tournament of a match still being played, for the Live now poster. */
+  live?: { teams: string[]; tournamentId?: string | null };
 }) {
   const [account, setAccount] = useState<AccountSession | null | undefined>(undefined);
   const [sync, setSync] = useState<LiveSyncState | undefined>(() => liveSyncState(matchId));
@@ -35,6 +40,8 @@ export function ShareMatchPopup({
   const close = useRef(onClose);
   close.current = onClose;
   const link = watchLink(matchId);
+  const tournamentName = useTournamentName(live?.tournamentId);
+  const [today] = useState(() => Date.now());
 
   useEffect(() => {
     let active = true;
@@ -169,6 +176,7 @@ export function ShareMatchPopup({
           {ready ? 'Done' : 'Start scoring'}
         </button>
       </div>
+      {ready && live && <LivePosterButton teams={live.teams} meta={{ tournamentName, date: today }} link={link} />}
     </Sheet>
   );
 }

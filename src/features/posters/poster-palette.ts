@@ -11,6 +11,7 @@ export const POSTER = {
   accent: '#ff4500',
   accentSoft: '#ff8a4c',
   success: '#22d39b',
+  live: '#ff2857',
   teamA: '#ff5a1f',
   teamB: '#4c7dff',
 } as const;

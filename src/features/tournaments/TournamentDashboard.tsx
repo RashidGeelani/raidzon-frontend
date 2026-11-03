@@ -12,6 +12,7 @@ import { JoinRequestsPanel } from './JoinRequestsPanel';
 import type { Focus } from '../notifications/notification-client';
 import { FormatSetup } from './FormatSetup';
 import { BracketView, GroupTables, StagedFixtures } from './FormatViews';
+import { TournamentPosterButton, tournamentLink } from '../posters/PosterShareButton';
 import { FORMAT_LABELS, isKnockout, sideName, type FormatFixture, type FormatStanding, type TournamentFormat, type TournamentGroup } from './data/format-types';
 
 /** Today's date on this phone (YYYY-MM-DD), so a tournament starting today is active after midnight local time. */
@@ -546,10 +547,12 @@ export function TournamentDashboard({
             </div>
           ); }} />
           {!detail.fixtures.length && <p>No fixtures scheduled yet.</p>}
+          <TournamentPosterButton detail={detail} kind="fixtures" link={tournamentLink(detail.tournament.id)} />
           </div>}
           {detailTab === 'standings' && <div className="tournament-tab-content">
             <GroupTables standings={detail.standings ?? []} groups={detail.groups ?? []} format={detail.format} />
             <p className="field-note">Completed, synced matches only.</p>
+            <TournamentPosterButton detail={detail} kind="table" link={tournamentLink(detail.tournament.id)} />
           </div>}
           {detailTab === 'bracket' && <div className="tournament-tab-content">
             <BracketView fixtures={detail.fixtures} teamName={teamName} championId={detail.championId} />

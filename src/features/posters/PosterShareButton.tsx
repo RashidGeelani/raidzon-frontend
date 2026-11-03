@@ -1,34 +1,69 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Sheet } from '../../ui/Sheet';
 import { Tabs } from '../../ui/Tabs';
-import { playerPoster, posterCaption, posterFileName, resultPoster, type PosterMatch, type PosterMeta } from './poster-model';
+import {
+  fixturesPoster, livePoster, playerPoster, posterCaption, posterFileName, resultPoster, tablePoster,
+  type Poster, type PosterMatch, type PosterMeta, type PosterTournament,
+} from './poster-model';
 import { renderPoster, type PosterSize } from './render-poster';
 
-type Kind = 'result' | 'player';
+/** One poster the sheet offers, with its tab label. */
+interface PosterChoice { label: string; poster: Poster }
 
 /**
- * "Share a poster" for a finished match: result or player of the match, feed (square) or status /
- * story size, shared as an image with a one-line caption and the match link where the phone allows
- * it, downloaded otherwise. link is the public match page (also in the poster's QR code).
+ * "Share a poster" for a finished match: result or player of the match. link is the public match
+ * page (also in the poster's QR code).
  */
 export function PosterShareButton({ match, meta, link }: { match: PosterMatch; meta: PosterMeta; link: string }) {
+  // The live viewer re-renders several times a second; only rebuild when the poster's data changes.
+  const { tournamentName, date, venue } = meta;
+  const choices = useMemo(() => {
+    const player = playerPoster(match, { tournamentName, date, venue });
+    return [
+      { label: 'Result', poster: resultPoster(match, { tournamentName, date, venue }) },
+      ...(player ? [{ label: 'Player of the match', poster: player }] : []),
+    ];
+  }, [match, tournamentName, date, venue]);
+  return <PosterButton eyebrow="FULL TIME" choices={choices} link={link} />;
+}
+
+/** "Live now" poster for a match that has started: teams, LIVE badge and a large QR code to watch. */
+export function LivePosterButton({ teams, meta, link }: { teams: readonly string[]; meta: PosterMeta; link: string }) {
+  const [teamA, teamB] = teams;
+  const { tournamentName, date, venue } = meta;
+  const choices = useMemo(() => [{ label: 'Live now', poster: livePoster([teamA, teamB], { tournamentName, date, venue }) }], [teamA, teamB, tournamentName, date, venue]);
+  return <PosterButton eyebrow="MATCH STARTED" label="Share a Live now poster" choices={choices} link={link} />;
+}
+
+/** Next matches or the points table of a tournament; hidden when there is nothing to show. link is the tournament page. */
+export function TournamentPosterButton({ detail, kind, link }: { detail: PosterTournament; kind: 'fixtures' | 'table'; link: string }) {
+  const poster = useMemo(() => (kind === 'fixtures' ? fixturesPoster(detail) : tablePoster(detail)), [detail, kind]);
+  const choices = useMemo(() => (poster ? [{ label: kind === 'fixtures' ? 'Next matches' : 'Points table', poster }] : []), [poster, kind]);
+  if (!poster) return null;
+  return <PosterButton eyebrow={kind === 'fixtures' ? 'FIXTURES' : 'POINTS TABLE'} label={kind === 'fixtures' ? 'Share fixtures poster' : 'Share points table poster'} choices={choices} link={link} />;
+}
+
+export const tournamentLink = (tournamentId: string) => `${window.location.origin}/tournaments/${tournamentId}`;
+
+function PosterButton({ eyebrow, label = 'Share a poster', choices, link }: { eyebrow: string; label?: string; choices: PosterChoice[]; link: string }) {
   const [open, setOpen] = useState(false);
   return <>
-    <button type="button" className="secondary poster-share-button" onClick={() => setOpen(true)}>Share a poster</button>
-    {open && <PosterSheet match={match} meta={meta} link={link} onClose={() => setOpen(false)} />}
+    <button type="button" className="secondary poster-share-button" onClick={() => setOpen(true)}>{label}</button>
+    {open && <PosterSheet eyebrow={eyebrow} choices={choices} link={link} onClose={() => setOpen(false)} />}
   </>;
 }
 
-function PosterSheet({ match, meta, link, onClose }: { match: PosterMatch; meta: PosterMeta; link: string; onClose: () => void }) {
-  const [kind, setKind] = useState<Kind>('result');
+/**
+ * Picks the poster and its size (feed square or status / story), shows a preview, then shares it as
+ * an image with a one-line caption and the link where the phone allows it, downloads it otherwise.
+ */
+function PosterSheet({ eyebrow, choices, link, onClose }: { eyebrow: string; choices: PosterChoice[]; link: string; onClose: () => void }) {
+  const [choice, setChoice] = useState('0');
   const [size, setSize] = useState<PosterSize>('square');
   const [image, setImage] = useState<{ blob: Blob; url: string } | null>(null);
   const [note, setNote] = useState('');
-  // The live viewer re-renders several times a second; only redraw when the poster's data changes.
-  const { tournamentName, date, venue } = meta;
-  const result = useMemo(() => resultPoster(match, { tournamentName, date, venue }), [match, tournamentName, date, venue]);
-  const player = useMemo(() => playerPoster(match, { tournamentName, date, venue }), [match, tournamentName, date, venue]);
-  const poster = kind === 'player' && player ? player : result;
+  const picked = choices[Number(choice)] ?? choices[0];
+  const poster = picked.poster;
 
   useEffect(() => {
     let active = true;
@@ -52,7 +87,7 @@ function PosterSheet({ match, meta, link, onClose }: { match: PosterMatch; meta:
     try {
       // The link goes inside text: some apps drop a separate url when a file is attached.
       if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file], title: kind === 'result' ? result.headline : 'Player of the match', text: caption });
+        await navigator.share({ files: [file], title: poster.kind === 'result' ? poster.headline : picked.label, text: caption });
         return;
       }
     } catch (error) {
@@ -72,12 +107,12 @@ function PosterSheet({ match, meta, link, onClose }: { match: PosterMatch; meta:
   }
 
   return (
-    <Sheet eyebrow="FULL TIME" title="Share a poster" onClose={onClose}>
-      <Tabs label="Poster" value={kind} onChange={setKind} items={[{ value: 'result', label: 'Result' }, ...(player ? [{ value: 'player' as const, label: 'Player of the match' }] : [])]} />
+    <Sheet eyebrow={eyebrow} title="Share a poster" onClose={onClose}>
+      {choices.length > 1 && <Tabs label="Poster" value={choice} onChange={setChoice} items={choices.map((item, index) => ({ value: String(index), label: item.label }))} />}
       <Tabs label="Size" value={size} onChange={setSize} items={[{ value: 'square', label: 'Square post' }, { value: 'story', label: 'Status / story' }]} />
-      {image ? <img className="poster-preview" src={image.url} alt={`${kind === 'result' ? 'Result' : 'Player of the match'} poster preview`} /> : !note && <p role="status">Making the poster…</p>}
+      {image ? <img className="poster-preview" src={image.url} alt={`${picked.label} poster preview`} /> : !note && <p role="status">Making the poster…</p>}
       {note && <p className="field-note" role="status">{note}</p>}
-      {size === 'story' && <p className="field-note">Instagram story? Add a Link sticker with the scorecard link so people can tap through.</p>}
+      {size === 'story' && <p className="field-note">Instagram story? Add a Link sticker with the link so people can tap through.</p>}
       <div className="share-popup-actions">
         <button type="button" className="primary" disabled={!image} onClick={() => void share()}>Share poster</button>
         <button type="button" className="secondary" onClick={() => void copyLink()}>Copy link</button>
