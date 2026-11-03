@@ -466,7 +466,12 @@ export function App() {
                 saving={saving}
               />
               {shareId === match.id && (
-                <ShareMatchPopup matchId={match.id} online={online} onClose={closeShare} />
+                <ShareMatchPopup
+                  matchId={match.id}
+                  online={online}
+                  onClose={closeShare}
+                  live={match.state.status === 'COMPLETED' ? undefined : { teams: match.state.teams.map((team) => team.name), tournamentId: match.fixtureRef?.tournamentId }}
+                />
               )}
             </>
           ) : tab === 'home' ? (

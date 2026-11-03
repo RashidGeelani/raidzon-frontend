@@ -5,6 +5,7 @@ import { TournamentLeaders } from '../scoring/components/SyncedLeaderboards';
 import { BracketView, GroupTables, StagedFixtures } from '../tournaments/FormatViews';
 import { FORMAT_LABELS, sideName } from '../tournaments/data/format-types';
 import type { PublicTournamentDetail } from '../tournaments/TournamentExplorer';
+import { TournamentPosterButton, tournamentLink } from '../posters/PosterShareButton';
 
 /** Signed-out tournament page at /tournaments/:id: overview, points table, fixtures and results, bracket, leaders, teams. */
 export function PublicTournamentPage({ tournamentId }: { tournamentId: string }) {
@@ -45,7 +46,7 @@ export function PublicTournamentPage({ tournamentId }: { tournamentId: string })
           <p>{detail.tournament.venue} · {detail.tournament.startsOn} · {detail.teams.length} teams</p>
         </section>
         {detail.championId && <div className="champion-banner"><span aria-hidden="true">🏆</span><div><small>CHAMPIONS</small><strong>{teamName(detail.championId)}</strong></div></div>}
-        {detail.format?.type !== 'KNOCKOUT' && <section className="info-section" aria-label="Points table"><GroupTables standings={detail.standings} groups={detail.groups ?? []} format={detail.format} /></section>}
+        {detail.format?.type !== 'KNOCKOUT' && <section className="info-section" aria-label="Points table"><GroupTables standings={detail.standings} groups={detail.groups ?? []} format={detail.format} /><TournamentPosterButton detail={detail} kind="table" link={tournamentLink(tournamentId)} /></section>}
         <section className="info-section">
           <h2>Fixtures & results</h2>
           <StagedFixtures fixtures={detail.fixtures} groups={detail.groups ?? []} renderFixture={(fixture) => <article className="upcoming-match-card">
@@ -56,6 +57,7 @@ export function PublicTournamentPage({ tournamentId }: { tournamentId: string })
             {fixture.matchId && <a href={`/watch/${fixture.matchId}`}>{fixture.status === 'COMPLETED' ? 'Match details' : 'Watch live'} ›</a>}
           </article>} />
           {!detail.fixtures.length && <p>No fixtures yet.</p>}
+          <TournamentPosterButton detail={detail} kind="fixtures" link={tournamentLink(tournamentId)} />
         </section>
         {detail.format && detail.format.type !== 'LEAGUE' && <section className="info-section"><h2>Bracket</h2><BracketView fixtures={detail.fixtures} teamName={teamName} championId={detail.championId} /></section>}
         <section className="info-section"><h2>Top players</h2><TournamentLeaders tournamentId={tournamentId} online linkPlayers /></section>

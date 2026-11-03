@@ -1,6 +1,6 @@
 import QRCode from 'qrcode';
 import { POSTER } from './poster-palette';
-import type { PlayerPoster, Poster, PosterStar, ResultPoster } from './poster-model';
+import { fitRows, fitTables, type FixturesPoster, type LivePoster, type PlayerPoster, type Poster, type PosterStar, type ResultPoster, type TablePoster } from './poster-model';
 
 export type PosterSize = 'square' | 'story';
 export const POSTER_SIZES: Record<PosterSize, { width: number; height: number }> = {
@@ -29,16 +29,24 @@ export async function drawPoster(poster: Poster, size: PosterSize, link: string)
   await document.fonts?.ready;
 
   const story = size === 'story';
-  const footerTop = footer(g, link, H, story, false);
+  // The Live now poster carries its own large QR code; the others a small one in the footer.
+  const qrText: [string, string] | null = poster.kind === 'live' ? null
+    : poster.kind === 'fixtures' || poster.kind === 'table' ? ['Fixtures, table and live scores', 'Scan to follow the tournament']
+      : ['Full scorecard', 'Scan to see every raid'];
+  const footerTop = footer(g, link, H, story, false, qrText);
   // Draw once to measure, then again with the body centred between the header and the QR footer.
   const draw = (shift: number) => {
     background(g, H);
     const top = header(g, poster, story ? 150 : 100);
     g.save();
     g.translate(0, shift);
-    const end = poster.kind === 'result' ? resultBody(g, poster, top, story, H) : playerBody(g, poster, top, story, H);
+    const end = poster.kind === 'result' ? resultBody(g, poster, top, story, H)
+      : poster.kind === 'player' ? playerBody(g, poster, top, story, H)
+        : poster.kind === 'fixtures' ? fixturesBody(g, poster, top, story, footerTop)
+          : poster.kind === 'table' ? tableBody(g, poster, top, story, footerTop)
+            : liveBody(g, poster, top, story, link);
     g.restore();
-    footer(g, link, H, story, true);
+    footer(g, link, H, story, true, qrText);
     return end;
   };
   const end = draw(0);
@@ -166,21 +174,144 @@ function playerBody(g: G, poster: PlayerPoster, top: number, story: boolean, H: 
   return y;
 }
 
-/** QR code to the public match page, and the raidzon.com mark. */
-function footer(g: G, link: string, H: number, story: boolean, paint: boolean) {
+const FIXTURE_TITLE = 'NEXT MATCHES';
+
+function fixturesBody(g: G, poster: FixturesPoster, top: number, story: boolean, footerTop: number) {
+  let y = top + (story ? 110 : 70);
+  text(g, FIXTURE_TITLE, W / 2, y, font(700, story ? 34 : 30), POSTER.textFaint, 6);
+  y += story ? 80 : 64;
+  text(g, poster.label.toUpperCase(), W / 2, y, fit(g, poster.label.toUpperCase(), W - 2 * PAD, 700, story ? 76 : 60, DISPLAY), POSTER.textStrong);
+  y += story ? 60 : 40;
+  const h = story ? 128 : 108, gap = story ? 18 : 14;
+  const { shown, more } = fitRows(poster.rows, Math.max(1, Math.floor((footerTop - 50 - y) / (h + gap))));
+  const timeWidth = 190;
+  shown.forEach((row) => {
+    round(g, PAD, y, W - 2 * PAD, h, 24, alpha(POSTER.textStrong, 0.06), POSTER.line);
+    const live = row.time === 'LIVE';
+    round(g, PAD + 18, y + 18, timeWidth - 36, h - 36, 16, live ? POSTER.live : alpha(POSTER.accent, 0.16));
+    text(g, row.time, PAD + timeWidth / 2, y + h / 2 + 11, fit(g, row.time, timeWidth - 56, 700, 30), live ? POSTER.textStrong : POSTER.accentSoft, 0, timeWidth - 56);
+    const x = PAD + timeWidth + 10, inner = W - PAD - 28 - x;
+    g.textAlign = 'left';
+    g.font = font(700, story ? 36 : 32, DISPLAY); g.fillStyle = POSTER.textStrong;
+    g.fillText(clip(g, row.teamA, inner), x, y + h / 2 - 6);
+    g.font = font(600, story ? 24 : 21); g.fillStyle = POSTER.textFaint;
+    const vs = 'vs  ';
+    g.fillText(vs, x, y + h / 2 + (story ? 38 : 32));
+    const vsWidth = g.measureText(vs).width;
+    g.font = font(700, story ? 36 : 32, DISPLAY); g.fillStyle = POSTER.textStrong;
+    if (row.stage) {
+      g.font = font(600, story ? 22 : 20); g.fillStyle = POSTER.textMuted; g.textAlign = 'right';
+      g.fillText(clip(g, row.stage, 220), W - PAD - 28, y + (story ? 40 : 34));
+      g.textAlign = 'left';
+      g.font = font(700, story ? 36 : 32, DISPLAY); g.fillStyle = POSTER.textStrong;
+    }
+    g.fillText(clip(g, row.teamB, inner - vsWidth), x + vsWidth, y + h / 2 + (story ? 40 : 34));
+    y += h + gap;
+  });
+  if (more) {
+    text(g, `+${more} more match${more === 1 ? '' : 'es'} · see all on raidzon.com`, W / 2, y + 28, font(600, story ? 28 : 24), POSTER.textMuted);
+    y += 50;
+  }
+  return y;
+}
+
+function tableBody(g: G, poster: TablePoster, top: number, story: boolean, footerTop: number) {
+  let y = top + (story ? 110 : 70);
+  text(g, 'POINTS TABLE', W / 2, y, font(700, story ? 34 : 30), POSTER.textFaint, 6);
+  y += story ? 50 : 42;
+  text(g, poster.progress, W / 2, y, font(600, story ? 28 : 24), POSTER.textMuted);
+  y += story ? 50 : 36;
+  const titled = poster.tables.some((table) => table.title);
+  const rowH = story ? 62 : 46, headH = titled ? (story ? 96 : 76) : (story ? 56 : 48), gap = story ? 28 : 16;
+  const budget = Math.floor((footerTop - 20 - y - poster.tables.length * (headH + 12) - (poster.tables.length - 1) * gap) / rowH);
+  const tables = fitTables(poster.tables, Math.max(poster.tables.length * 2, budget));
+  // Columns from the right edge: P W D L Pts.
+  const cols = ['P', 'W', 'D', 'L', 'PTS'];
+  const colW = story ? 86 : 78;
+  const colX = (i: number) => W - PAD - 24 - (cols.length - 1 - i) * colW - colW / 2;
+  const teamX = PAD + 88, teamMax = colX(0) - colW / 2 - teamX - 12;
+  for (const table of tables) {
+    const lines = table.rows.length + (table.hidden ? 1 : 0);
+    round(g, PAD, y, W - 2 * PAD, headH + lines * rowH + 12, 24, alpha(POSTER.textStrong, 0.05), POSTER.line);
+    g.textAlign = 'left';
+    g.font = font(700, story ? 34 : 30, DISPLAY); g.fillStyle = POSTER.textStrong;
+    if (table.title) g.fillText(table.title.toUpperCase(), PAD + 28, y + (story ? 46 : 38));
+    if (table.note) {
+      g.textAlign = 'right'; g.font = font(600, story ? 22 : 19); g.fillStyle = POSTER.success;
+      g.fillText(table.note, W - PAD - 28, y + (story ? 44 : 36));
+    }
+    const hy = y + headH - (story ? 18 : 14);
+    g.font = font(700, story ? 20 : 18); g.fillStyle = POSTER.textFaint;
+    g.textAlign = 'left'; g.fillText('#', PAD + 32, hy); g.fillText('TEAM', teamX, hy);
+    g.textAlign = 'center'; cols.forEach((col, i) => g.fillText(col, colX(i), hy));
+    let ry = y + headH;
+    for (const row of table.rows) {
+      if (row.qualifies) {
+        g.fillStyle = alpha(POSTER.success, 0.12); g.fillRect(PAD + 3, ry, W - 2 * PAD - 6, rowH);
+        g.fillStyle = POSTER.success; g.fillRect(PAD + 3, ry + 8, 6, rowH - 16);
+      }
+      const base = ry + rowH / 2 + (story ? 10 : 8);
+      g.font = font(700, story ? 26 : 22); g.fillStyle = POSTER.textMuted; g.textAlign = 'left';
+      g.fillText(String(row.rank), PAD + 32, base);
+      g.font = font(700, story ? 30 : 26, DISPLAY); g.fillStyle = POSTER.textStrong;
+      g.fillText(clip(g, row.team, teamMax), teamX, base);
+      g.textAlign = 'center';
+      [row.played, row.won, row.drawn, row.lost, row.points].forEach((value, i) => {
+        g.font = font(700, story ? 26 : 22); g.fillStyle = i === 4 ? POSTER.accentSoft : POSTER.text;
+        g.fillText(String(value), colX(i), base);
+      });
+      ry += rowH;
+    }
+    if (table.hidden) {
+      g.textAlign = 'left'; g.font = font(600, story ? 22 : 19); g.fillStyle = POSTER.textMuted;
+      g.fillText(`+${table.hidden} more team${table.hidden === 1 ? '' : 's'}`, teamX, ry + rowH / 2 + 7);
+      ry += rowH;
+    }
+    y = ry + 12 + gap;
+  }
+  return y - gap;
+}
+
+function liveBody(g: G, poster: LivePoster, top: number, story: boolean, link: string) {
+  let y = top + (story ? 130 : 60);
+  // LIVE badge with a dot.
+  const badgeW = story ? 260 : 210, badgeH = story ? 72 : 58;
+  round(g, W / 2 - badgeW / 2, y, badgeW, badgeH, badgeH / 2, POSTER.live);
+  g.beginPath(); g.arc(W / 2 - badgeW / 2 + (story ? 40 : 32), y + badgeH / 2, story ? 10 : 8, 0, Math.PI * 2); g.fillStyle = POSTER.textStrong; g.fill();
+  text(g, 'LIVE NOW', W / 2 + (story ? 24 : 20), y + badgeH / 2 + (story ? 12 : 10), font(700, story ? 36 : 30, DISPLAY), POSTER.textStrong, 3);
+  y += badgeH + (story ? 130 : 80);
+  const teamFont = (name: string) => fit(g, name.toUpperCase(), W - 2 * PAD, 700, story ? 96 : 72, DISPLAY);
+  text(g, poster.teams[0].toUpperCase(), W / 2, y, teamFont(poster.teams[0]), POSTER.textStrong);
+  y += story ? 90 : 62;
+  text(g, 'VS', W / 2, y, font(700, story ? 40 : 32, DISPLAY), POSTER.accentSoft, 4);
+  y += story ? 110 : 78;
+  text(g, poster.teams[1].toUpperCase(), W / 2, y, teamFont(poster.teams[1]), POSTER.textStrong);
+  y += story ? 110 : 50;
+  const size = story ? 380 : 230;
+  qr(g, link, W / 2 - size / 2, y, size);
+  y += size + (story ? 64 : 46);
+  text(g, 'Scan to watch raid by raid', W / 2, y, font(700, story ? 36 : 28), POSTER.text);
+  return y;
+}
+
+/** Small QR code to the match or tournament page (when qrText is given), and the raidzon.com mark. */
+function footer(g: G, link: string, H: number, story: boolean, paint: boolean, qrText: [string, string] | null) {
   // Kept small: the tappable link travels in the share caption; the QR helps printed posters and screens at the ground.
   const size = story ? 160 : 110;
-  const x = PAD, y = H - PAD - size + (story ? 0 : 20);
+  const x = PAD, y = qrText ? H - PAD - size + (story ? 0 : 20) : H - PAD - 40;
   if (!paint) return y;
-  qr(g, link, x, y, size);
-  g.textAlign = 'left';
-  g.font = font(600, story ? 28 : 24); g.fillStyle = POSTER.textMuted;
-  g.fillText('Full scorecard', x + size + 24, y + size / 2 - 6);
-  g.font = font(600, story ? 22 : 19); g.fillStyle = POSTER.textFaint;
-  g.fillText('Scan to see every raid', x + size + 24, y + size / 2 + 26);
-  g.textAlign = 'right';
+  if (qrText) {
+    qr(g, link, x, y, size);
+    g.textAlign = 'left';
+    g.font = font(600, story ? 28 : 24); g.fillStyle = POSTER.textMuted;
+    g.fillText(qrText[0], x + size + 24, y + size / 2 - 6);
+    g.font = font(600, story ? 22 : 19); g.fillStyle = POSTER.textFaint;
+    g.fillText(qrText[1], x + size + 24, y + size / 2 + 26);
+  }
+  const markY = qrText ? y + size - 4 : y + 30;
+  g.textAlign = qrText ? 'right' : 'center';
   g.font = font(700, story ? 40 : 34, DISPLAY); g.fillStyle = POSTER.accent;
-  g.fillText('raidzon.com', W - PAD, y + size - 4);
+  g.fillText('raidzon.com', qrText ? W - PAD : W / 2, markY);
   return y;
 }
 

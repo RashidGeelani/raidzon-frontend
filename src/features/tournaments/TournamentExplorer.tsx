@@ -11,6 +11,7 @@ import type { TournamentListItem } from './data/upcoming-fixtures';
 import { RequestToJoin } from './RequestToJoin';
 import type { Focus } from '../notifications/notification-client';
 import { BracketView, GroupTables, StagedFixtures } from './FormatViews';
+import { TournamentPosterButton, tournamentLink } from '../posters/PosterShareButton';
 import { FORMAT_LABELS, sideName, type FormatFixture, type FormatStanding, type TournamentFormat, type TournamentGroup } from './data/format-types';
 
 export interface PublicTournamentDetail {
@@ -168,8 +169,9 @@ export function TournamentExplorer({ account, online, matches, onPrepareFixture,
         {detailTab === 'matches' && <>
         <StagedFixtures fixtures={detail.fixtures} groups={detail.groups ?? []} renderFixture={(fixture) => <article className="upcoming-match-card">{fixture.roundName && <small className="fixture-stage">{fixture.roundName}</small>}<strong>{sideName(fixture, 'A', teamName)} vs {sideName(fixture, 'B', teamName)}</strong><p>{fixture.status ? `${fixture.scoreA ?? 0} : ${fixture.scoreB ?? 0} · ${fixture.status.replaceAll('_', ' ')}` : 'Upcoming'}</p><small>{fixture.scheduledAt ? new Date(fixture.scheduledAt).toLocaleString() : 'Time to be confirmed'}</small>{fixture.matchId && <MatchActions matchId={fixture.matchId} matches={matches} onScore={onScoreMatch} completed={fixture.status === 'COMPLETED'} />}</article>} />
         {!detail.fixtures.length && <p>No fixtures yet.</p>}
+        <TournamentPosterButton detail={detail} kind="fixtures" link={tournamentLink(detail.tournament.id)} />
         </>}
-        {detailTab === 'standings' && <GroupTables standings={detail.standings} groups={detail.groups ?? []} format={detail.format} />}
+        {detailTab === 'standings' && <><GroupTables standings={detail.standings} groups={detail.groups ?? []} format={detail.format} /><TournamentPosterButton detail={detail} kind="table" link={tournamentLink(detail.tournament.id)} /></>}
         {detailTab === 'leaders' && <TournamentLeaders tournamentId={detail.tournament.id} online={online} />}
         {detailTab === 'bracket' && <BracketView fixtures={detail.fixtures} teamName={teamName} championId={detail.championId} />}
       </>}

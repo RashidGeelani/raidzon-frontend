@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { playerPoster, posterCaption, posterFileName, resultPoster, shorten, type PosterMatch } from './poster-model';
+import { fitRows, fitTables, fixturesPoster, livePoster, playerPoster, posterCaption, posterFileName, resultPoster, shorten, tablePoster, type PosterMatch, type PosterTournament } from './poster-model';
+import type { FormatFixture, FormatStanding } from '../tournaments/data/format-types';
 
 const p = (name: string, raidPoints: number, tacklePoints: number) => ({ name, raidPoints, tacklePoints });
 const match = (over: Partial<PosterMatch> = {}): PosterMatch => ({
@@ -127,5 +128,152 @@ describe('posterCaption', () => {
     expect(posterCaption(playerPoster(match())!, link)).toBe('Aamir Dar (Bandipora Bulls) is Player of the Match with 10 points | Full scorecard: https://raidzon.com/watch/abc');
     const one = match({ teams: [{ name: 'A', players: [p('Solo', 1, 0)] }, { name: 'B', players: [] }] });
     expect(posterCaption(playerPoster(one)!, link)).toBe('Solo (A) is Player of the Match with 1 point | Full scorecard: https://raidzon.com/watch/abc');
+  });
+});
+
+describe('livePoster', () => {
+  it('has both teams and the header, shortening long names', () => {
+    expect(livePoster(['Bandipora Bulls', 'Royal Challengers of North Kashmir'], meta)).toEqual({
+      kind: 'live', tournament: 'Kashmir Kabaddi Cup 2026', date: '3 Nov 2026', venue: 'Sher-i-Kashmir Stadium', teams: ['Bandipora Bulls', 'Royal Challengers of…'],
+    });
+    expect(livePoster([], {}).teams).toEqual(['Team A', 'Team B']);
+  });
+  it('captions the match link', () => {
+    expect(posterCaption(livePoster(['A', 'B'], meta), 'https://raidzon.com/watch/x')).toBe('LIVE now: A vs B (Kashmir Kabaddi Cup 2026) | Watch raid by raid: https://raidzon.com/watch/x');
+    expect(posterCaption(livePoster(['A', 'B']), 'L')).toBe('LIVE now: A vs B | Watch raid by raid: L');
+  });
+});
+
+const fx = (id: string, teamAId: string | null, teamBId: string | null, scheduledAt: string | null, extra: Partial<FormatFixture> = {}): FormatFixture => ({
+  id, teamAId, teamBId, scheduledAt, matchId: null, status: null, scoreA: null, scoreB: null, phase: null, tieScoreA: null, tieScoreB: null, winner: null, ...extra,
+});
+const at = (day: number, hour: number, minute = 0) => new Date(2026, 10, day, hour, minute).toISOString();
+const tournament = (over: Partial<PosterTournament> = {}): PosterTournament => ({
+  tournament: { name: 'Kashmir Kabaddi Cup 2026', venue: 'Sopore Stadium' },
+  teams: [{ id: 'a', name: 'Bandipora Bulls' }, { id: 'b', name: 'Sopore Lions' }, { id: 'c', name: 'Baramulla Tigers' }, { id: 'd', name: 'Kupwara Kings' }],
+  fixtures: [],
+  standings: [],
+  ...over,
+});
+
+describe('fixturesPoster', () => {
+  it('lists the unfinished matches on the day of the next scheduled one, earliest first', () => {
+    const poster = fixturesPoster(tournament({ fixtures: [
+      fx('1', 'a', 'b', at(3, 16), { status: 'COMPLETED' }),
+      fx('2', 'c', 'd', at(4, 17, 30)),
+      fx('3', 'a', 'c', at(4, 16)),
+      fx('4', 'b', 'd', at(5, 16)),
+      fx('5', 'a', 'd', null),
+    ] }))!;
+    expect(poster.label).toBe('Wed, 4 Nov');
+    expect(poster.rows).toEqual([
+      { teamA: 'Bandipora Bulls', teamB: 'Baramulla Tigers', time: '4:00 pm', stage: null },
+      { teamA: 'Baramulla Tigers', teamB: 'Kupwara Kings', time: '5:30 pm', stage: null },
+    ]);
+    expect(poster.venue).toBe('Sopore Stadium');
+  });
+  it('shows a match under way as LIVE', () => {
+    expect(fixturesPoster(tournament({ fixtures: [fx('1', 'a', 'b', at(4, 16), { status: 'LIVE' })] }))!.rows[0].time).toBe('LIVE');
+  });
+  it('falls back to the first round still to play when nothing has a time', () => {
+    const poster = fixturesPoster(tournament({ fixtures: [fx('1', 'a', 'b', null, { stage: 'LEAGUE', round: 2 }), fx('2', 'c', 'd', null, { stage: 'LEAGUE', round: 2 }), fx('3', 'a', 'c', null, { stage: 'LEAGUE', round: 3 })] }))!;
+    expect(poster.label).toBe('Round 2');
+    expect(poster.rows.map((row) => row.time)).toEqual(['Time TBC', 'Time TBC']);
+  });
+  it('takes the whole next round across groups when nothing has a time', () => {
+    const poster = fixturesPoster(tournament({
+      groups: [{ id: 'g1', name: 'A', teamIds: ['a', 'b'] }, { id: 'g2', name: 'B', teamIds: ['c', 'd'] }],
+      fixtures: [fx('1', 'a', 'b', null, { stage: 'GROUP', groupId: 'g1', round: 2 }), fx('2', 'c', 'd', null, { stage: 'GROUP', groupId: 'g2', round: 2 }), fx('3', 'a', 'c', null, { stage: 'GROUP', groupId: 'g1', round: 3 })],
+    }))!;
+    expect(poster.label).toBe('Round 2');
+    expect(poster.rows.map((row) => row.stage)).toEqual(['Group A', 'Group B']);
+  });
+  it('leaves out a stage that repeats the heading', () => {
+    const poster = fixturesPoster(tournament({ fixtures: [fx('1', null, null, null, { stage: 'KNOCKOUT', round: 1, roundName: 'Final', labelA: 'Winner SF1', labelB: 'Winner SF2' })] }))!;
+    expect([poster.label, poster.rows[0].stage]).toEqual(['Final', null]);
+  });
+  it('names groups and knockout places still to be decided', () => {
+    const poster = fixturesPoster(tournament({
+      groups: [{ id: 'g1', name: 'A', teamIds: ['a', 'b'] }],
+      fixtures: [fx('1', 'a', 'b', at(4, 16), { stage: 'GROUP', groupId: 'g1' }), fx('2', null, null, at(4, 18), { stage: 'KNOCKOUT', labelA: 'Winner Group A', labelB: 'Winner Group B', roundName: 'Final' })],
+    }))!;
+    expect(poster.rows).toEqual([
+      { teamA: 'Bandipora Bulls', teamB: 'Sopore Lions', time: '4:00 pm', stage: 'Group A' },
+      { teamA: 'Winner Group A', teamB: 'Winner Group B', time: '6:00 pm', stage: 'Final' },
+    ]);
+  });
+  it('is null when every fixture is played, or there are none', () => {
+    expect(fixturesPoster(tournament({ fixtures: [fx('1', 'a', 'b', at(3, 16), { status: 'COMPLETED' })] }))).toBeNull();
+    expect(fixturesPoster(tournament())).toBeNull();
+  });
+  it('captions the first three matches and how many more', () => {
+    const many = tournament({ fixtures: [1, 2, 3, 4, 5].map((n) => fx(String(n), 'a', 'b', at(4, 10 + n))) });
+    expect(posterCaption(fixturesPoster(many)!, 'L')).toBe('Kashmir Kabaddi Cup 2026: next matches, Wed, 4 Nov: Bandipora Bulls vs Sopore Lions (11:00 am), Bandipora Bulls vs Sopore Lions (12:00 pm), Bandipora Bulls vs Sopore Lions (1:00 pm) and 2 more | Fixtures and live scores: L');
+  });
+});
+
+describe('fitRows', () => {
+  it('keeps every row that fits, otherwise leaves the last line for "+N more"', () => {
+    expect(fitRows([1, 2, 3], 3)).toEqual({ shown: [1, 2, 3], more: 0 });
+    expect(fitRows([1, 2, 3, 4, 5], 3)).toEqual({ shown: [1, 2], more: 3 });
+  });
+});
+
+const st = (teamId: string, teamName: string, rank: number, tablePoints: number, extra: Partial<FormatStanding> = {}): FormatStanding => ({
+  teamId, teamName, rank, tablePoints, played: 3, won: tablePoints / 3, drawn: 0, lost: 3 - tablePoints / 3, scoreDifference: 0, ...extra,
+});
+
+describe('tablePoster', () => {
+  it('makes one league table with progress', () => {
+    const poster = tablePoster(tournament({
+      standings: [st('a', 'Bandipora Bulls', 1, 9), st('b', 'Sopore Lions', 2, 6, { drawn: 1, won: 2, lost: 0 })],
+      fixtures: [fx('1', 'a', 'b', null, { status: 'COMPLETED' }), fx('2', 'a', 'b', null)],
+    }))!;
+    expect(poster.progress).toBe('1 of 2 matches played');
+    expect(poster.tables).toEqual([{ title: '', note: null, hidden: 0, rows: [
+      { rank: 1, team: 'Bandipora Bulls', played: 3, won: 3, drawn: 0, lost: 0, points: 9, qualifies: false },
+      { rank: 2, team: 'Sopore Lions', played: 3, won: 2, drawn: 1, lost: 0, points: 6, qualifies: false },
+    ] }]);
+    expect(posterCaption(poster, 'L')).toBe('Kashmir Kabaddi Cup 2026: points table, Bandipora Bulls top with 9 pts | Full table: L');
+  });
+  it('makes one table per group with who goes through', () => {
+    const poster = tablePoster(tournament({
+      format: { type: 'GROUPS_KNOCKOUT', groupCount: 2, advancePerGroup: 1, thirdPlace: false, locked: true, generated: true },
+      groups: [{ id: 'g1', name: 'A', teamIds: ['a', 'b'] }, { id: 'g2', name: 'B', teamIds: ['c', 'd'] }],
+      standings: [st('a', 'Bandipora Bulls', 1, 3, { groupId: 'g1', qualifies: true }), st('b', 'Sopore Lions', 2, 0, { groupId: 'g1' }), st('c', 'Baramulla Tigers', 1, 3, { groupId: 'g2', qualifies: true }), st('d', 'Kupwara Kings', 2, 0, { groupId: 'g2' })],
+    }))!;
+    expect(poster.tables.map((table) => [table.title, table.note, table.rows.map((row) => [row.team, row.qualifies])])).toEqual([
+      ['Group A', 'Top 1 go through', [['Bandipora Bulls', true], ['Sopore Lions', false]]],
+      ['Group B', 'Top 1 go through', [['Baramulla Tigers', true], ['Kupwara Kings', false]]],
+    ]);
+    expect(posterCaption(poster, 'L')).toBe('Kashmir Kabaddi Cup 2026: points table, Group A Bandipora Bulls top with 3 pts, Group B Baramulla Tigers top with 3 pts | Full table: L');
+  });
+  it('is null for a knockout or before teams are added', () => {
+    expect(tablePoster(tournament({ format: { type: 'KNOCKOUT', groupCount: 0, advancePerGroup: 0, thirdPlace: false, locked: true, generated: true }, standings: [st('a', 'A', 1, 0)] }))).toBeNull();
+    expect(tablePoster(tournament())).toBeNull();
+  });
+  it('shortens long team names', () => {
+    expect(tablePoster(tournament({ standings: [st('a', 'Royal Challengers of North Kashmir', 1, 0)] }))!.tables[0].rows[0].team).toBe('Royal Challengers of…');
+  });
+});
+
+describe('fitTables', () => {
+  const table = (title: string, count: number) => ({ title, note: null, hidden: 0, rows: Array.from({ length: count }, (_, i) => ({ rank: i + 1, team: `T${i + 1}`, played: 0, won: 0, drawn: 0, lost: 0, points: 0, qualifies: false })) });
+  it('keeps every row when they fit', () => {
+    expect(fitTables([table('A', 4), table('B', 4)], 8).map((t) => [t.rows.length, t.hidden])).toEqual([[4, 0], [4, 0]]);
+  });
+  it('cuts a long league table to the top teams', () => {
+    const [cut] = fitTables([table('League', 16)], 8);
+    expect([cut.rows.length, cut.hidden, cut.rows[0].team]).toEqual([7, 9, 'T1']);
+  });
+  it('gives each group an equal share, at least two lines', () => {
+    expect(fitTables([table('A', 5), table('B', 5), table('C', 5), table('D', 5)], 8).map((t) => [t.rows.length, t.hidden])).toEqual([[1, 4], [1, 4], [1, 4], [1, 4]]);
+  });
+});
+
+describe('posterFileName for tournament posters', () => {
+  it('names the file after the tournament', () => {
+    expect(posterFileName(tablePoster(tournament({ standings: [st('a', 'A', 1, 0)] }))!)).toBe('raidzon-kashmir-kabaddi-cup-2026-points-table.png');
+    expect(posterFileName(livePoster(['A Team', 'B Team']))).toBe('raidzon-a-team-vs-b-team-live.png');
   });
 });
