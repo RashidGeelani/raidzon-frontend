@@ -13,6 +13,9 @@ import { OverlayLinkSheet } from '../overlay/OverlayLinkSheet';
 import { HighlightToast } from '../scoring/components/HighlightToast';
 import { CourtDrawers } from '../scoring/components/CourtDrawers';
 import { matchJsonLd, setPageMeta } from '../../app/page-meta';
+import { useTournamentName } from '../overlay/OverlayPage';
+import { PosterShareButton } from '../posters/PosterShareButton';
+import { watchLink } from './ShareMatchPopup';
 
 export { clockRemaining, winnerSide } from './viewer-state';
 type ViewerPlayer = ViewerState['teams'][number]['players'][number];
@@ -51,6 +54,7 @@ export function LiveMatchViewer({ matchId, onBack }: { matchId: string; onBack?:
   const raidSeconds = state ? Math.ceil(clockRemaining(state.raidClock, now) / 1000) : 0;
   const halfSeconds = state ? Math.ceil(clockRemaining(state.clock, now) / 1000) : 0;
   const completed = state?.status === 'COMPLETED';
+  const tournamentName = useTournamentName(completed ? view?.tournamentId : null);
   const lastRaid = view?.events.find((event) => event.type === 'RAID');
   const finalScores = state ? (state.phase === 'REGULATION' ? state.scores : state.tieScores) : [0, 0];
   async function shareLink() {
@@ -78,7 +82,7 @@ export function LiveMatchViewer({ matchId, onBack }: { matchId: string; onBack?:
         <span className="live-raid-label">R{state.raidNumber}</span>
       </div>
       {state.phase !== 'REGULATION' && <p>{state.phase.replaceAll('_', ' ')} · Regulation {state.scores.join(' : ')}</p>}
-      {completed ? <FullTime state={state} scores={finalScores} /> : <>
+      {completed ? <><FullTime state={state} scores={finalScores} /><PosterShareButton match={state} meta={{ tournamentName, date: view.startedAt, venue: view.venue }} link={watchLink(matchId)} /></> : <>
       <h3 className="live-section-title">Current raid</h3>
       <HighlightToast key={matchId} event={view.events[0]} teams={state.teams.map((team) => team.name)} />
       {isDoOrDie(state) && (state.status === 'LIVE' || state.status === 'PAUSED') && <div className="viewer-do-or-die" role="status"><strong>DO-OR-DIE RAID</strong><span>{state.teams[state.turn]?.name} must score or the raider is out</span></div>}
