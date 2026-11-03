@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { api } from '../identity/data/api';
+import { sponsorLogoSrc, titleSponsor, useTournamentBrand } from '../tournaments/sponsors';
 import { HIGHLIGHT_TITLES, popFor, type Highlight } from '../scoring/domain/highlights';
 import { isDoOrDie } from '../scoring/domain/match-types';
 import { withJersey } from '../scoring/domain/jersey';
@@ -15,7 +15,9 @@ import { clockText, matCount, MAT_SIZE, overlayPhase, teamCodes, type OverlayPha
  */
 export function OverlayPage({ matchId, delayMs }: { matchId: string; delayMs: number }) {
   const { view, now, unavailable } = useLiveView(matchId, delayMs);
-  const tournament = useTournamentName(view?.tournamentId);
+  const brand = useTournamentBrand(view?.tournamentId);
+  const tournament = brand.name;
+  const title = titleSponsor(brand.sponsors);
   if (!view) return <div className="overlay-root">{unavailable && <p className="overlay-notice">This match is not available. Check the overlay link.</p>}</div>;
   const state = view.state;
   const phase = overlayPhase(state, view.events.length);
@@ -26,6 +28,7 @@ export function OverlayPage({ matchId, delayMs }: { matchId: string; delayMs: nu
   const halfSeconds = Math.ceil(clockRemaining(state.clock, now) / 1000);
   return (
     <div className="overlay-root" data-phase={phase}>
+      {title && <div className="overlay-sponsor"><small>Presented by</small><img src={sponsorLogoSrc(title)} alt={title.name} /></div>}
       <div className="overlay-dock">
         {phase === 'final' && <ResultCard state={state} scores={scores} />}
         <Popups event={view.events[0]} teams={state.teams.map((team) => team.name)} />
@@ -48,19 +51,6 @@ export function OverlayPage({ matchId, delayMs }: { matchId: string; delayMs: nu
       </div>
     </div>
   );
-}
-
-export function useTournamentName(tournamentId: string | null | undefined) {
-  const [name, setName] = useState<string | null>(null);
-  useEffect(() => {
-    if (!tournamentId) return;
-    let active = true;
-    api<{ tournament: { name: string } }>(`/public/tournaments/${encodeURIComponent(tournamentId)}`)
-      .then((result) => { if (active) setName(result.tournament.name); })
-      .catch(() => { /* the bar works without the tournament name */ });
-    return () => { active = false; };
-  }, [tournamentId]);
-  return name;
 }
 
 function OverlayTeam({ team, code, side, raiding }: { team: ViewerState['teams'][number]; code: string; side: 0 | 1; raiding: boolean }) {

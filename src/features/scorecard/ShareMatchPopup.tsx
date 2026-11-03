@@ -4,7 +4,7 @@ import { api, type AccountSession } from '../identity/data/auth-client';
 import { restoreSession } from '../identity/data/session-store';
 import { liveSyncState, subscribeLiveSync, type LiveSyncState } from '../sync/data/live-sync';
 import { OverlayLinkSheet } from '../overlay/OverlayLinkSheet';
-import { useTournamentName } from '../overlay/OverlayPage';
+import { useTournamentBrand } from '../tournaments/sponsors';
 import { LivePosterButton } from '../posters/PosterShareButton';
 
 export function watchLink(matchId: string) {
@@ -40,7 +40,7 @@ export function ShareMatchPopup({
   const close = useRef(onClose);
   close.current = onClose;
   const link = watchLink(matchId);
-  const tournamentName = useTournamentName(live?.tournamentId);
+  const brand = useTournamentBrand(live?.tournamentId);
   const [today] = useState(() => Date.now());
 
   useEffect(() => {
@@ -176,7 +176,7 @@ export function ShareMatchPopup({
           {ready ? 'Done' : 'Start scoring'}
         </button>
       </div>
-      {ready && live && <LivePosterButton teams={live.teams} meta={{ tournamentName, date: today }} link={link} />}
+      {ready && live && <LivePosterButton teams={live.teams} meta={{ tournamentName: brand.name, date: today, sponsors: brand.sponsors }} link={link} />}
     </Sheet>
   );
 }

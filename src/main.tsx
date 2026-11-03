@@ -16,8 +16,9 @@ const watchId = window.location.pathname.match(/^\/watch\/([0-9a-f-]{36})\/?$/i)
 const tournamentId = window.location.pathname.match(/^\/tournaments\/([0-9a-f-]{36})\/?$/i)?.[1];
 const playerId = window.location.pathname.match(/^\/players\/([0-9a-f-]{36})\/?$/i)?.[1];
 const overlayId = window.location.pathname.match(/^\/overlay\/([0-9a-f-]{36})\/?$/i)?.[1];
+const shortCode = window.location.pathname.match(/^\/m\/([A-Za-z0-9]{4,6})\/?$/)?.[1];
 
-watchForNewVersion(page === '/privacy' || page === '/help' || !!watchId || !!shareId || !!tournamentId || !!playerId || !!overlayId);
+watchForNewVersion(page === '/privacy' || page === '/help' || !!watchId || !!shareId || !!tournamentId || !!playerId || !!overlayId || !!shortCode);
 if (page === '/help') setPageMeta('Help & FAQ · RaidzOn kabaddi scoring app', 'How to score kabaddi matches, share live scores and run tournaments with RaidzOn. Answers to common questions and how to contact support.');
 if (page === '/privacy') setPageMeta('Privacy policy · RaidzOn', 'What data RaidzOn collects to score kabaddi matches, run tournaments and keep player stats, and how it is used.');
 
@@ -32,10 +33,20 @@ if (overlayId) {
   document.head.append(robots);
 }
 
+// Poster short links only redirect; keep them out of search results.
+if (shortCode) {
+  const robots = document.createElement('meta');
+  robots.name = 'robots';
+  robots.content = 'noindex';
+  document.head.append(robots);
+}
+
 // Each page downloads only its own code: a shared /watch link doesn't load the scoring app. The page is
 // rendered once its code has arrived, so the server-filled summary in #root stays visible until then.
 const content: Promise<ReactNode> = overlayId
   ? import('./features/overlay/OverlayPage').then(({ OverlayPage }) => <OverlayPage matchId={overlayId} delayMs={overlayDelayMs(window.location.search)} />)
+  : shortCode
+  ? import('./features/public/ShortLinkPage').then(({ ShortLinkPage }) => <ShortLinkPage code={shortCode} />)
   : page === '/privacy' || page === '/help'
     ? import('./features/legal/InfoPages').then(({ HelpPage, PrivacyPage }) => (page === '/help' ? <HelpPage /> : <PrivacyPage />))
     : watchId

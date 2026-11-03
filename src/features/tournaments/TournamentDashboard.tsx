@@ -13,6 +13,7 @@ import type { Focus } from '../notifications/notification-client';
 import { FormatSetup } from './FormatSetup';
 import { BracketView, GroupTables, StagedFixtures } from './FormatViews';
 import { TournamentPosterButton, tournamentLink } from '../posters/PosterShareButton';
+import { SponsorSettings } from './SponsorViews';
 import { FORMAT_LABELS, isKnockout, sideName, type FormatFixture, type FormatStanding, type TournamentFormat, type TournamentGroup } from './data/format-types';
 
 /** Today's date on this phone (YYYY-MM-DD), so a tournament starting today is active after midnight local time. */
@@ -50,8 +51,8 @@ interface Detail {
 }
 type TournamentFilter = 'ACTIVE' | 'UPCOMING' | 'COMPLETED';
 type TournamentSummary = { teams: number; matches: number; status: TournamentFilter };
-type DetailTab = 'overview' | 'teams' | 'format' | 'matches' | 'standings' | 'bracket' | 'leaders' | 'players';
-const TAB_LABELS: Record<DetailTab, string> = { overview: 'Overview', teams: 'Teams', format: 'Format', matches: 'Matches', standings: 'Table', bracket: 'Bracket', leaders: 'Leaders', players: 'Players' };
+type DetailTab = 'overview' | 'teams' | 'format' | 'matches' | 'standings' | 'bracket' | 'leaders' | 'players' | 'sponsors';
+const TAB_LABELS: Record<DetailTab, string> = { overview: 'Overview', teams: 'Teams', format: 'Format', matches: 'Matches', standings: 'Table', bracket: 'Bracket', leaders: 'Leaders', players: 'Players', sponsors: 'Sponsors' };
 export function TournamentDashboard({
   account,
   online,
@@ -291,7 +292,7 @@ export function TournamentDashboard({
             className="tournament-detail-tabs"
             value={detailTab}
             onChange={(tab) => { setDetailTab(tab); setEditingTeam(null); }}
-            items={(['overview', 'teams', 'format', 'matches', 'standings', 'bracket', 'leaders', 'players'] as const)
+            items={(['overview', 'teams', 'format', 'matches', 'standings', 'bracket', 'leaders', 'players', 'sponsors'] as const)
               .filter((tab) => (tab === 'bracket' ? detail.format?.type !== undefined && detail.format.type !== 'LEAGUE' : tab === 'standings' ? detail.format?.type !== 'KNOCKOUT' : true))
               .map((tab) => ({ value: tab, label: TAB_LABELS[tab] }))}
           />
@@ -553,6 +554,9 @@ export function TournamentDashboard({
             <GroupTables standings={detail.standings ?? []} groups={detail.groups ?? []} format={detail.format} />
             <p className="field-note">Completed, synced matches only.</p>
             <TournamentPosterButton detail={detail} kind="table" link={tournamentLink(detail.tournament.id)} />
+          </div>}
+          {detailTab === 'sponsors' && <div className="tournament-tab-content">
+            <SponsorSettings tournamentId={detail.tournament.id} account={account} online={online} />
           </div>}
           {detailTab === 'bracket' && <div className="tournament-tab-content">
             <BracketView fixtures={detail.fixtures} teamName={teamName} championId={detail.championId} />

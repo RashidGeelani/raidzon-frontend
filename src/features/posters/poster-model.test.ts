@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fitRows, fitTables, fixturesPoster, livePoster, playerPoster, posterCaption, posterFileName, resultPoster, shorten, tablePoster, type PosterMatch, type PosterTournament } from './poster-model';
+import { fitRows, fitTables, fixturesPoster, livePoster, playerPoster, posterCaption, posterFileName, printedLink, resultPoster, shortLinkTarget, shorten, tablePoster, type PosterMatch, type PosterTournament } from './poster-model';
 import type { FormatFixture, FormatStanding } from '../tournaments/data/format-types';
 
 const p = (name: string, raidPoints: number, tacklePoints: number) => ({ name, raidPoints, tacklePoints });
@@ -275,5 +275,45 @@ describe('posterFileName for tournament posters', () => {
   it('names the file after the tournament', () => {
     expect(posterFileName(tablePoster(tournament({ standings: [st('a', 'A', 1, 0)] }))!)).toBe('raidzon-kashmir-kabaddi-cup-2026-points-table.png');
     expect(posterFileName(livePoster(['A Team', 'B Team']))).toBe('raidzon-a-team-vs-b-team-live.png');
+  });
+});
+
+describe('sponsors on posters', () => {
+  const sponsors = [
+    { name: 'Valley Sports', level: 'PARTNER' as const, logoUrl: '/p1' },
+    { name: 'ABC Motors', level: 'TITLE' as const, logoUrl: '/t' },
+    { name: 'Sopore Sweets', level: 'PARTNER' as const, logoUrl: '/p2' },
+  ];
+  it('puts the Title sponsor first and says "presented by" it', () => {
+    const poster = resultPoster(match(), { ...meta, sponsors });
+    expect(poster.presentedBy).toBe('ABC Motors');
+    expect(poster.sponsors?.map((s) => s.name)).toEqual(['ABC Motors', 'Valley Sports', 'Sopore Sweets']);
+  });
+  it('has no presented-by line without a Title sponsor, and no row without sponsors', () => {
+    expect(resultPoster(match(), { sponsors: [sponsors[0]] }).presentedBy).toBeUndefined();
+    expect(resultPoster(match(), meta).sponsors).toBeUndefined();
+  });
+  it('shows at most four logos', () => {
+    const many = Array.from({ length: 6 }, (_, i) => ({ name: `S${i}`, level: 'PARTNER' as const, logoUrl: `/${i}` }));
+    expect(livePoster(['A', 'B'], { sponsors: many }).sponsors).toHaveLength(4);
+  });
+  it('carries tournament sponsors onto tournament posters', () => {
+    expect(tablePoster(tournament({ standings: [st('a', 'A', 1, 0)], sponsors }))!.presentedBy).toBe('ABC Motors');
+  });
+});
+
+describe('short links', () => {
+  it('prints only short links, without the protocol', () => {
+    expect(printedLink('https://raidzon.com/m/AB2CD')).toBe('raidzon.com/m/AB2CD');
+    expect(printedLink('https://www.raidzon.com/m/AB2CD')).toBe('raidzon.com/m/AB2CD');
+    expect(printedLink('https://raidzon.com/watch/6f1c2a9e-3b7d-4c55-9a10-2e8f4d7b1c3a')).toBeNull();
+  });
+  it('finds the match or tournament a link points at', () => {
+    expect(shortLinkTarget('https://raidzon.com/watch/6f1c2a9e-3b7d-4c55-9a10-2e8f4d7b1c3a')).toEqual({ type: 'MATCH', id: '6f1c2a9e-3b7d-4c55-9a10-2e8f4d7b1c3a' });
+    expect(shortLinkTarget('https://raidzon.com/tournaments/b1d2c3e4-0000-4000-8000-000000000001')).toEqual({ type: 'TOURNAMENT', id: 'b1d2c3e4-0000-4000-8000-000000000001' });
+    expect(shortLinkTarget('https://raidzon.com/m/AB2CD')).toBeNull();
+  });
+  it('captions with the short link when there is one', () => {
+    expect(posterCaption(livePoster(['A', 'B']), 'https://raidzon.com/m/AB2CD')).toBe('LIVE now: A vs B | Watch raid by raid: https://raidzon.com/m/AB2CD');
   });
 });
