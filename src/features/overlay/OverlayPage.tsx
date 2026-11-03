@@ -50,7 +50,7 @@ export function OverlayPage({ matchId, delayMs }: { matchId: string; delayMs: nu
   );
 }
 
-function useTournamentName(tournamentId: string | null | undefined) {
+export function useTournamentName(tournamentId: string | null | undefined) {
   const [name, setName] = useState<string | null>(null);
   useEffect(() => {
     if (!tournamentId) return;

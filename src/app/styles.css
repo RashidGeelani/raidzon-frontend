@@ -2506,3 +2506,7 @@ html[data-overlay], html[data-overlay] body { background: transparent; }
 .overlay-sheet-delay select { width: auto; }
 .overlay-sheet-steps { margin-top: 14px; color: var(--text-muted); font-size: var(--text-sm); line-height: 1.5; }
 .overlay-sheet-steps summary { cursor: pointer; font-weight: 600; color: var(--text); }
+
+/* Organiser poster kit (src/features/posters) */
+.poster-share-button { width: 100%; margin-top: var(--space-3); }
+.poster-preview { display: block; width: auto; max-width: 100%; max-height: 52vh; margin: var(--space-3) auto; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); }
