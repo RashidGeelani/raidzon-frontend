@@ -2510,3 +2510,26 @@ html[data-overlay], html[data-overlay] body { background: transparent; }
 /* Organiser poster kit (src/features/posters) */
 .poster-share-button { width: 100%; margin-top: var(--space-3); }
 .poster-preview { display: block; width: auto; max-width: 100%; max-height: 52vh; margin: var(--space-3) auto; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); }
+
+/* Tournament sponsors (src/features/tournaments/SponsorViews.tsx) */
+.sponsor-strip { display: grid; gap: var(--space-2); margin-block: var(--space-4); }
+.sponsor-strip small { font-size: var(--text-xs); letter-spacing: .12em; text-transform: uppercase; color: var(--text-muted); }
+.sponsor-strip ul { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.sponsor-strip li { display: flex; align-items: center; justify-content: center; height: 40px; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: var(--logo-tile); }
+.sponsor-strip li.title { height: 52px; }
+.sponsor-strip img { display: block; max-height: 100%; max-width: 96px; object-fit: contain; }
+.sponsor-strip li.title img { max-width: 140px; }
+.presented-by { margin: 0; color: var(--text-muted); font-size: var(--text-sm); }
+.presented-by strong { color: var(--text); }
+.sponsor-settings { display: grid; gap: var(--space-3); }
+.sponsor-list { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.sponsor-list li { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto auto; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--card); }
+.sponsor-list img { width: 64px; height: 40px; object-fit: contain; border-radius: var(--radius-sm); background: var(--logo-tile); }
+.sponsor-list span { display: grid; min-width: 0; }
+.sponsor-list small { color: var(--text-muted); overflow-wrap: anywhere; }
+.sponsor-form { display: grid; gap: var(--space-3); padding: var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--card); }
+.sponsor-form label { display: grid; gap: var(--space-1); font-size: var(--text-sm); color: var(--text-muted); }
+.sponsor-logo-preview { max-width: 200px; max-height: 80px; object-fit: contain; padding: var(--space-2); border-radius: var(--radius-sm); background: var(--logo-tile); }
+.overlay-sponsor { position: absolute; top: 2vw; right: 2vw; display: flex; flex-direction: column; align-items: center; gap: .3vw; padding: .5vw .8vw; border-radius: .5vw; background: var(--overlay-panel); }
+.overlay-sponsor small { font-size: .8vw; letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); }
+.overlay-sponsor img { display: block; max-width: 10vw; max-height: 4vw; padding: .3vw .5vw; border-radius: .3vw; background: var(--logo-tile); object-fit: contain; }

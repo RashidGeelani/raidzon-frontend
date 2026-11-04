@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Sheet } from '../../ui/Sheet';
 import { Tabs } from '../../ui/Tabs';
+import { api } from '../identity/data/api';
+import { useTournamentBrand } from '../tournaments/sponsors';
 import {
-  fixturesPoster, livePoster, playerPoster, posterCaption, posterFileName, resultPoster, tablePoster,
+  fixturesPoster, livePoster, playerPoster, posterCaption, posterFileName, resultPoster, shortLinkTarget, tablePoster,
   type Poster, type PosterMatch, type PosterMeta, type PosterTournament,
 } from './poster-model';
 import { renderPoster, type PosterSize } from './render-poster';
@@ -16,28 +18,34 @@ interface PosterChoice { label: string; poster: Poster }
  */
 export function PosterShareButton({ match, meta, link }: { match: PosterMatch; meta: PosterMeta; link: string }) {
   // The live viewer re-renders several times a second; only rebuild when the poster's data changes.
-  const { tournamentName, date, venue } = meta;
+  const { tournamentName, date, venue, sponsors } = meta;
   const choices = useMemo(() => {
-    const player = playerPoster(match, { tournamentName, date, venue });
+    const player = playerPoster(match, { tournamentName, date, venue, sponsors });
     return [
-      { label: 'Result', poster: resultPoster(match, { tournamentName, date, venue }) },
+      { label: 'Result', poster: resultPoster(match, { tournamentName, date, venue, sponsors }) },
       ...(player ? [{ label: 'Player of the match', poster: player }] : []),
     ];
-  }, [match, tournamentName, date, venue]);
+  }, [match, tournamentName, date, venue, sponsors]);
   return <PosterButton eyebrow="FULL TIME" choices={choices} link={link} />;
 }
 
 /** "Live now" poster for a match that has started: teams, LIVE badge and a large QR code to watch. */
 export function LivePosterButton({ teams, meta, link }: { teams: readonly string[]; meta: PosterMeta; link: string }) {
   const [teamA, teamB] = teams;
-  const { tournamentName, date, venue } = meta;
-  const choices = useMemo(() => [{ label: 'Live now', poster: livePoster([teamA, teamB], { tournamentName, date, venue }) }], [teamA, teamB, tournamentName, date, venue]);
+  const { tournamentName, date, venue, sponsors } = meta;
+  const choices = useMemo(() => [{ label: 'Live now', poster: livePoster([teamA, teamB], { tournamentName, date, venue, sponsors }) }], [teamA, teamB, tournamentName, date, venue, sponsors]);
   return <PosterButton eyebrow="MATCH STARTED" label="Share a Live now poster" choices={choices} link={link} />;
 }
 
 /** Next matches or the points table of a tournament; hidden when there is nothing to show. link is the tournament page. */
 export function TournamentPosterButton({ detail, kind, link }: { detail: PosterTournament; kind: 'fixtures' | 'table'; link: string }) {
-  const poster = useMemo(() => (kind === 'fixtures' ? fixturesPoster(detail) : tablePoster(detail)), [detail, kind]);
+  // The organiser's dashboard view has no sponsors; fetch them from the public view then.
+  const fetched = useTournamentBrand(detail.sponsors ? null : shortLinkTarget(link)?.id);
+  const sponsors = detail.sponsors ?? fetched.sponsors;
+  const poster = useMemo(() => {
+    const withSponsors = { ...detail, sponsors };
+    return kind === 'fixtures' ? fixturesPoster(withSponsors) : tablePoster(withSponsors);
+  }, [detail, kind, sponsors]);
   const choices = useMemo(() => (poster ? [{ label: kind === 'fixtures' ? 'Next matches' : 'Points table', poster }] : []), [poster, kind]);
   if (!poster) return null;
   return <PosterButton eyebrow={kind === 'fixtures' ? 'FIXTURES' : 'POINTS TABLE'} label={kind === 'fixtures' ? 'Share fixtures poster' : 'Share points table poster'} choices={choices} link={link} />;
@@ -62,15 +70,29 @@ function PosterSheet({ eyebrow, choices, link, onClose }: { eyebrow: string; cho
   const [size, setSize] = useState<PosterSize>('square');
   const [image, setImage] = useState<{ blob: Blob; url: string } | null>(null);
   const [note, setNote] = useState('');
+  const [shortLink, setShortLink] = useState<string | null>(null);
   const picked = choices[Number(choice)] ?? choices[0];
   const poster = picked.poster;
+  // The short link (raidzon.com/m/AB2CD) goes in the QR code, under it and in the caption; offline or on
+  // any error the full link is used.
+  const shareLink = shortLink ?? link;
+
+  useEffect(() => {
+    const target = shortLinkTarget(link);
+    if (!target || !navigator.onLine) return;
+    let active = true;
+    api<{ code: string }>('/public/short-links', target, undefined, 8000)
+      .then((result) => { if (active) setShortLink(`${window.location.origin}/m/${result.code}`); })
+      .catch(() => { /* keep the full link */ });
+    return () => { active = false; };
+  }, [link]);
 
   useEffect(() => {
     let active = true;
     let url = '';
     setImage(null);
     setNote('');
-    renderPoster(poster, size, link)
+    renderPoster(poster, size, shareLink)
       .then((blob) => {
         if (!active) return;
         url = URL.createObjectURL(blob);
@@ -78,12 +100,12 @@ function PosterSheet({ eyebrow, choices, link, onClose }: { eyebrow: string; cho
       })
       .catch(() => { if (active) setNote('Could not create the poster on this device.'); });
     return () => { active = false; if (url) URL.revokeObjectURL(url); };
-  }, [poster, size, link]);
+  }, [poster, size, shareLink]);
 
   async function share() {
     if (!image) return;
     const file = new File([image.blob], posterFileName(poster), { type: 'image/png' });
-    const caption = posterCaption(poster, link);
+    const caption = posterCaption(poster, shareLink);
     try {
       // The link goes inside text: some apps drop a separate url when a file is attached.
       if (navigator.canShare?.({ files: [file] })) {
@@ -102,8 +124,8 @@ function PosterSheet({ eyebrow, choices, link, onClose }: { eyebrow: string; cho
   }
 
   async function copyLink() {
-    const copied = await navigator.clipboard?.writeText(link).then(() => true, () => false);
-    setNote(copied ? 'Link copied.' : `Copy this link: ${link}`);
+    const copied = await navigator.clipboard?.writeText(shareLink).then(() => true, () => false);
+    setNote(copied ? 'Link copied.' : `Copy this link: ${shareLink}`);
   }
 
   return (

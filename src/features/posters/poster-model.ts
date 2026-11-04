@@ -16,16 +16,27 @@ export interface PosterMatch {
   /** 0 / 1 / 'DRAW' on the scorer's phone, 'TEAM_A' / 'TEAM_B' / 'DRAW' from the server. */
   winner: unknown;
 }
+/** A tournament sponsor as the public tournament view lists it. */
+export interface PosterSponsor {
+  name: string;
+  level: 'TITLE' | 'PARTNER';
+  logoUrl: string;
+}
 export interface PosterMeta {
   tournamentName?: string | null;
   /** When the match started (ms). */
   date?: number | null;
   venue?: string | null;
+  sponsors?: readonly PosterSponsor[];
 }
 interface PosterHeader {
   tournament: string | null;
   date: string | null;
   venue: string | null;
+  /** The Title sponsor's name ("presented by …"), when there is one. */
+  presentedBy?: string;
+  /** Logos for the sponsor row, Title sponsor first; left out when there are none. */
+  sponsors?: PosterSponsor[];
 }
 export interface PosterStar {
   name: string;
@@ -116,11 +127,17 @@ export function shorten(text: string | null | undefined, max: number, fallback =
 export const posterDate = (ms: number | null | undefined) =>
   ms ? new Date(ms).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : null;
 
+export const MAX_POSTER_SPONSORS = 4;
+
 function header(meta: PosterMeta): PosterHeader {
+  const sponsors = [...(meta.sponsors ?? [])].sort((a, b) => Number(b.level === 'TITLE') - Number(a.level === 'TITLE')).slice(0, MAX_POSTER_SPONSORS);
+  const title = sponsors.find((sponsor) => sponsor.level === 'TITLE');
   return {
     tournament: shorten(meta.tournamentName, MAX_TOURNAMENT) || null,
     date: posterDate(meta.date),
     venue: shorten(meta.venue, MAX_VENUE) || null,
+    ...(title ? { presentedBy: shorten(title.name, MAX_TOURNAMENT) } : {}),
+    ...(sponsors.length ? { sponsors } : {}),
   };
 }
 
@@ -192,9 +209,10 @@ export interface PosterTournament {
   standings: readonly FormatStanding[];
   format?: TournamentFormat | null;
   groups?: readonly TournamentGroup[];
+  sponsors?: readonly PosterSponsor[];
 }
 
-const tournamentHeader = (detail: PosterTournament) => header({ tournamentName: detail.tournament.name, venue: detail.tournament.venue });
+const tournamentHeader = (detail: PosterTournament) => header({ tournamentName: detail.tournament.name, venue: detail.tournament.venue, sponsors: detail.sponsors });
 const dayKey = (ms: number) => new Date(ms).toDateString();
 /** "4:30 pm". */
 export const posterTime = (ms: number) =>
@@ -310,6 +328,18 @@ export function posterCaption(poster: Poster, link: string) {
     summary = `${poster.teams[poster.winner]} beat ${poster.teams[loser]} ${poster.score[poster.winner]}-${poster.score[loser]}${tieBreak}`;
   }
   return `${tournament}${summary} | Full scorecard: ${link}`;
+}
+
+/** "raidzon.com/m/AB2CD" for a short link, to print under the QR code; null for any other link. */
+export function printedLink(link: string) {
+  const match = /^https?:\/\/(?:www\.)?([^/]+)\/m\/([A-Za-z0-9]{4,6})$/.exec(link);
+  return match ? `${match[1]}/m/${match[2]}` : null;
+}
+
+/** The match or tournament a link points at, for asking the API for its short code. */
+export function shortLinkTarget(link: string): { type: 'MATCH' | 'TOURNAMENT'; id: string } | null {
+  const match = /\/(watch|tournaments)\/([0-9a-f-]{36})$/i.exec(link);
+  return match ? { type: match[1] === 'watch' ? 'MATCH' : 'TOURNAMENT', id: match[2] } : null;
 }
 
 const slug = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'match';

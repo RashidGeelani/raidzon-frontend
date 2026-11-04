@@ -9,6 +9,7 @@ import type { LocalMatch } from '../scoring/domain/match-types';
 import type { PreparedFixture } from './types';
 import type { TournamentListItem } from './data/upcoming-fixtures';
 import { RequestToJoin } from './RequestToJoin';
+import type { Sponsor } from './sponsors';
 import type { Focus } from '../notifications/notification-client';
 import { BracketView, GroupTables, StagedFixtures } from './FormatViews';
 import { TournamentPosterButton, tournamentLink } from '../posters/PosterShareButton';
@@ -23,6 +24,7 @@ export interface PublicTournamentDetail {
   format?: TournamentFormat;
   groups?: TournamentGroup[];
   championId?: string | null;
+  sponsors?: Sponsor[];
 }
 
 /** GET /public/explore: unfinished public matches (tournament fixtures and shared friendlies) and matching players. */

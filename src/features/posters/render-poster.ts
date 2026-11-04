@@ -1,6 +1,7 @@
 import QRCode from 'qrcode';
 import { POSTER } from './poster-palette';
-import { fitRows, fitTables, type FixturesPoster, type LivePoster, type PlayerPoster, type Poster, type PosterStar, type ResultPoster, type TablePoster } from './poster-model';
+import { apiBaseUrl } from '../identity/data/api';
+import { fitRows, fitTables, printedLink, type FixturesPoster, type LivePoster, type PlayerPoster, type Poster, type PosterSponsor, type PosterStar, type ResultPoster, type TablePoster } from './poster-model';
 
 export type PosterSize = 'square' | 'story';
 export const POSTER_SIZES: Record<PosterSize, { width: number; height: number }> = {
@@ -16,7 +17,10 @@ const font = (weight: number, size: number, family = BODY) => `${weight} ${size}
 
 type G = CanvasRenderingContext2D;
 
-/** Draws the poster on a new canvas: 1080×1080 (feed) or 1080×1920 (WhatsApp status / Instagram story). */
+/**
+ * Draws the poster on a new canvas: 1080×1080 (feed) or 1080×1920 (WhatsApp status / Instagram story).
+ * link goes in the QR code; a short link (raidzon.com/m/…) is also printed beside it.
+ */
 export async function drawPoster(poster: Poster, size: PosterSize, link: string): Promise<HTMLCanvasElement> {
   const { height: H } = POSTER_SIZES[size];
   const canvas = document.createElement('canvas');
@@ -27,31 +31,67 @@ export async function drawPoster(poster: Poster, size: PosterSize, link: string)
   // Web fonts load on first use; ask for the poster's weights so text isn't drawn in a fallback font.
   await Promise.all(['700 40px Rajdhani', '600 40px Rajdhani', '700 40px Inter', '600 40px Inter'].map((f) => document.fonts?.load(f).catch(() => undefined)));
   await document.fonts?.ready;
+  const logos = await Promise.all((poster.sponsors ?? []).map(async (sponsor) => ({ sponsor, image: await loadLogo(sponsor.logoUrl) })));
 
   const story = size === 'story';
+  const short = printedLink(link);
   // The Live now poster carries its own large QR code; the others a small one in the footer.
   const qrText: [string, string] | null = poster.kind === 'live' ? null
     : poster.kind === 'fixtures' || poster.kind === 'table' ? ['Fixtures, table and live scores', 'Scan to follow the tournament']
       : ['Full scorecard', 'Scan to see every raid'];
-  const footerTop = footer(g, link, H, story, false, qrText);
-  // Draw once to measure, then again with the body centred between the header and the QR footer.
+  const footerTop = footer(g, link, H, story, false, qrText, short);
+  // Sponsor logos sit in a row just above the footer.
+  const sponsorH = story ? 120 : 84;
+  const bottom = logos.length ? footerTop - sponsorH - (story ? 48 : 30) : footerTop;
+  // Draw once to measure, then again with the body centred between the header and the sponsors or footer.
   const draw = (shift: number) => {
     background(g, H);
-    const top = header(g, poster, story ? 150 : 100);
+    const top = header(g, poster, story ? 150 : 100, story);
     g.save();
     g.translate(0, shift);
-    const end = poster.kind === 'result' ? resultBody(g, poster, top, story, H)
-      : poster.kind === 'player' ? playerBody(g, poster, top, story, H)
-        : poster.kind === 'fixtures' ? fixturesBody(g, poster, top, story, footerTop)
-          : poster.kind === 'table' ? tableBody(g, poster, top, story, footerTop)
-            : liveBody(g, poster, top, story, link);
+    const end = poster.kind === 'result' ? resultBody(g, poster, top, story, bottom)
+      : poster.kind === 'player' ? playerBody(g, poster, top, story, bottom)
+        : poster.kind === 'fixtures' ? fixturesBody(g, poster, top, story, bottom)
+          : poster.kind === 'table' ? tableBody(g, poster, top, story, bottom)
+            : liveBody(g, poster, top, story, link, short, bottom);
     g.restore();
-    footer(g, link, H, story, true, qrText);
+    if (logos.length) sponsorRow(g, logos, bottom + (story ? 20 : 12), sponsorH);
+    footer(g, link, H, story, true, qrText, short);
     return end;
   };
   const end = draw(0);
-  if (footerTop - end > 120) draw(Math.round((footerTop - 60 - end) / 2));
+  if (bottom - end > 120) draw(Math.round((bottom - 60 - end) / 2));
   return canvas;
+}
+
+/** A sponsor's logo, or null when it can't be loaded (the poster then prints the name). */
+function loadLogo(url: string) {
+  return new Promise<HTMLImageElement | null>((resolve) => {
+    const image = new Image();
+    image.crossOrigin = 'anonymous'; // the API sends CORS headers, so the canvas can still be exported
+    const timer = setTimeout(() => resolve(null), 6000);
+    image.onload = () => { clearTimeout(timer); resolve(image); };
+    image.onerror = () => { clearTimeout(timer); resolve(null); };
+    image.src = url.startsWith('/') ? `${apiBaseUrl()}${url}` : url;
+  });
+}
+
+/** Logos on white tiles (most logos are made for a light background), Title sponsor first. */
+function sponsorRow(g: G, logos: { sponsor: PosterSponsor; image: HTMLImageElement | null }[], y: number, h: number) {
+  const gap = 20;
+  const tileW = Math.min(230, (W - 2 * PAD - gap * (logos.length - 1)) / logos.length);
+  let x = W / 2 - (tileW * logos.length + gap * (logos.length - 1)) / 2;
+  for (const { sponsor, image } of logos) {
+    round(g, x, y, tileW, h, 16, POSTER.textStrong);
+    if (image && image.width && image.height) {
+      const scale = Math.min((tileW - 28) / image.width, (h - 20) / image.height);
+      const w = image.width * scale, ih = image.height * scale;
+      g.drawImage(image, x + (tileW - w) / 2, y + (h - ih) / 2, w, ih);
+    } else {
+      text(g, sponsor.name, x + tileW / 2, y + h / 2 + 9, fit(g, sponsor.name, tileW - 24, 700, 26), POSTER.bg, 0, tileW - 24);
+    }
+    x += tileW + gap;
+  }
 }
 
 export async function renderPoster(poster: Poster, size: PosterSize, link: string): Promise<Blob> {
@@ -76,14 +116,20 @@ function background(g: G, H: number) {
 }
 
 /** Tournament name (or the brand) and "date · venue"; returns where the body starts. */
-function header(g: G, poster: Poster, y: number) {
+function header(g: G, poster: Poster, y: number, story: boolean) {
   text(g, (poster.tournament ?? 'RAIDZON KABADDI').toUpperCase(), W / 2, y, fit(g, (poster.tournament ?? 'RAIDZON KABADDI').toUpperCase(), W - 2 * PAD, 700, 52, DISPLAY), POSTER.accentSoft);
-  const details = [poster.date, poster.venue].filter(Boolean).join('  ·  ');
+  const presented = poster.presentedBy ? `presented by ${poster.presentedBy}` : null;
+  // The story size has room for "presented by" on its own line; the square post keeps it beside the date.
+  if (presented && story) {
+    y += 44;
+    text(g, presented, W / 2, y, fit(g, presented, W - 2 * PAD, 600, 26), POSTER.text);
+  }
+  const details = [story ? null : presented, poster.date, poster.venue].filter(Boolean).join('  ·  ');
   if (details) text(g, details, W / 2, y + 50, fit(g, details, W - 2 * PAD, 600, 28), POSTER.textMuted);
   return y + (details ? 50 : 0);
 }
 
-function resultBody(g: G, poster: ResultPoster, top: number, story: boolean, H: number) {
+function resultBody(g: G, poster: ResultPoster, top: number, story: boolean, bottom: number) {
   let y = top + (story ? 110 : 70);
   text(g, 'FULL TIME', W / 2, y, font(700, 30), POSTER.textFaint, 6);
   y += story ? 110 : 80;
@@ -111,7 +157,7 @@ function resultBody(g: G, poster: ResultPoster, top: number, story: boolean, H: 
   } else if (shown.length) {
     // Side by side, sized to the space above the footer.
     const width = shown.length === 1 ? W - 2 * PAD : (W - 2 * PAD - 30) / 2;
-    const height = Math.min(190, H - 250 - y);
+    const height = Math.max(150, Math.min(190, bottom - 10 - y));
     shown.forEach(([label, star, unit], index) => starCard(g, PAD + index * (width + 30), y, width, height, label, star!, unit));
     y += height;
   }
@@ -132,7 +178,7 @@ function starCard(g: G, x: number, y: number, w: number, h: number, label: strin
   g.fillText(points, x + w - 32, y + h - 30);
 }
 
-function playerBody(g: G, poster: PlayerPoster, top: number, story: boolean, H: number) {
+function playerBody(g: G, poster: PlayerPoster, top: number, story: boolean, bottom: number) {
   let y = top + (story ? 130 : 70);
   text(g, 'PLAYER OF THE MATCH', W / 2, y, font(700, story ? 40 : 32, DISPLAY), POSTER.textFaint, 6);
   // Initials badge.
@@ -162,7 +208,7 @@ function playerBody(g: G, poster: PlayerPoster, top: number, story: boolean, H: 
   y += story ? 70 : 36;
   const boxes: [string, number][] = [['RAID PTS', poster.raidPoints], ['TACKLE PTS', poster.tacklePoints], ['TOTAL', poster.total]];
   const bw = (W - 2 * PAD - 2 * 24) / 3;
-  const bh = story ? 210 : Math.min(160, H - 240 - y);
+  const bh = story ? 210 : Math.max(120, Math.min(160, bottom - 10 - y));
   boxes.forEach(([label, value], index) => {
     const x = PAD + index * (bw + 24);
     round(g, x, y, bw, bh, 28, index === 2 ? alpha(POSTER.accent, 0.18) : alpha(POSTER.textStrong, 0.06), index === 2 ? POSTER.accent : POSTER.line);
@@ -272,7 +318,7 @@ function tableBody(g: G, poster: TablePoster, top: number, story: boolean, foote
   return y - gap;
 }
 
-function liveBody(g: G, poster: LivePoster, top: number, story: boolean, link: string) {
+function liveBody(g: G, poster: LivePoster, top: number, story: boolean, link: string, short: string | null, bottom: number) {
   let y = top + (story ? 130 : 60);
   // LIVE badge with a dot.
   const badgeW = story ? 260 : 210, badgeH = story ? 72 : 58;
@@ -287,15 +333,20 @@ function liveBody(g: G, poster: LivePoster, top: number, story: boolean, link: s
   y += story ? 110 : 78;
   text(g, poster.teams[1].toUpperCase(), W / 2, y, teamFont(poster.teams[1]), POSTER.textStrong);
   y += story ? 110 : 50;
-  const size = story ? 380 : 230;
+  // As large as fits above the sponsors or footer, leaving room for the lines under it.
+  const size = story ? 380 : Math.max(150, Math.min(230, bottom - y - (short ? 110 : 66)));
   qr(g, link, W / 2 - size / 2, y, size);
   y += size + (story ? 64 : 46);
   text(g, 'Scan to watch raid by raid', W / 2, y, font(700, story ? 36 : 28), POSTER.text);
+  if (short) {
+    y += story ? 56 : 42;
+    text(g, `or open ${short}`, W / 2, y, font(700, story ? 32 : 26), POSTER.accentSoft);
+  }
   return y;
 }
 
 /** Small QR code to the match or tournament page (when qrText is given), and the raidzon.com mark. */
-function footer(g: G, link: string, H: number, story: boolean, paint: boolean, qrText: [string, string] | null) {
+function footer(g: G, link: string, H: number, story: boolean, paint: boolean, qrText: [string, string] | null, short: string | null) {
   // Kept small: the tappable link travels in the share caption; the QR helps printed posters and screens at the ground.
   const size = story ? 160 : 110;
   const x = PAD, y = qrText ? H - PAD - size + (story ? 0 : 20) : H - PAD - 40;
@@ -305,8 +356,9 @@ function footer(g: G, link: string, H: number, story: boolean, paint: boolean, q
     g.textAlign = 'left';
     g.font = font(600, story ? 28 : 24); g.fillStyle = POSTER.textMuted;
     g.fillText(qrText[0], x + size + 24, y + size / 2 - 6);
-    g.font = font(600, story ? 22 : 19); g.fillStyle = POSTER.textFaint;
-    g.fillText(qrText[1], x + size + 24, y + size / 2 + 26);
+    // A short link replaces the "scan" hint: people can type it from a printed poster or a screen.
+    g.font = short ? font(700, story ? 26 : 22) : font(600, story ? 22 : 19); g.fillStyle = short ? POSTER.accentSoft : POSTER.textFaint;
+    g.fillText(short ?? qrText[1], x + size + 24, y + size / 2 + 26);
   }
   const markY = qrText ? y + size - 4 : y + 30;
   g.textAlign = qrText ? 'right' : 'center';

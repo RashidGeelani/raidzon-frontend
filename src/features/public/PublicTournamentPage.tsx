@@ -6,6 +6,7 @@ import { BracketView, GroupTables, StagedFixtures } from '../tournaments/FormatV
 import { FORMAT_LABELS, sideName } from '../tournaments/data/format-types';
 import type { PublicTournamentDetail } from '../tournaments/TournamentExplorer';
 import { TournamentPosterButton, tournamentLink } from '../posters/PosterShareButton';
+import { PresentedBy, SponsorStrip } from '../tournaments/SponsorViews';
 
 /** Signed-out tournament page at /tournaments/:id: overview, points table, fixtures and results, bracket, leaders, teams. */
 export function PublicTournamentPage({ tournamentId }: { tournamentId: string }) {
@@ -43,8 +44,10 @@ export function PublicTournamentPage({ tournamentId }: { tournamentId: string })
         <section className="info-hero">
           <p className="eyebrow">KABADDI TOURNAMENT{detail.format ? ` · ${FORMAT_LABELS[detail.format.type].toUpperCase()}` : ''}</p>
           <h1>{detail.tournament.name}</h1>
+          <PresentedBy sponsors={detail.sponsors ?? []} />
           <p>{detail.tournament.venue} · {detail.tournament.startsOn} · {detail.teams.length} teams</p>
         </section>
+        <SponsorStrip sponsors={detail.sponsors ?? []} />
         {detail.championId && <div className="champion-banner"><span aria-hidden="true">🏆</span><div><small>CHAMPIONS</small><strong>{teamName(detail.championId)}</strong></div></div>}
         {detail.format?.type !== 'KNOCKOUT' && <section className="info-section" aria-label="Points table"><GroupTables standings={detail.standings} groups={detail.groups ?? []} format={detail.format} /><TournamentPosterButton detail={detail} kind="table" link={tournamentLink(tournamentId)} /></section>}
         <section className="info-section">
