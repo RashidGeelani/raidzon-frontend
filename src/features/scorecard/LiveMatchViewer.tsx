@@ -183,7 +183,7 @@ export function teamTotals(events: Pick<ViewerEvent, 'type' | 'components'>[], s
 }
 
 /** One team's players at a time (tabs), top scorers first, with High 5 / Super 10 tags after the name. */
-function PlayerScorecards({ state, events }: { state: ViewerState; events: ViewerEvent[] }) {
+export function PlayerScorecards({ state, events }: { state: ViewerState; events: Pick<ViewerEvent, 'type' | 'components'>[] }) {
   const [side, setSide] = useState('0');
   const team = state.teams[Number(side)];
   const totals = teamTotals(events, Number(side));

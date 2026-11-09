@@ -23,6 +23,7 @@ import { matchNow, notBefore } from '../match-clock';
 import { undoTarget } from '../../matches/data/match-repository';
 import { CourtDrawers } from './CourtDrawers';
 import { MatchResult } from './MatchResult';
+import { PlayerScorecards } from '../../scorecard/LiveMatchViewer';
 import { SidelineToggle } from '../../../app/DisplaySettingsCard';
 import { eventLabel, plural } from '../domain/event-label';
 import { raidWarning, unlockRaidAudio, useRaidWarning } from '../raid-warning';
@@ -205,16 +206,6 @@ export function LiveMatch({
   } catch {
     /* Incomplete selections are validated on confirmation. */
   }
-  const teamBreakdown = (side: Side) =>
-    events
-      .filter((e) => !reversed.has(e.id) && e.intent.type !== 'UNDO')
-      .flatMap((e) => e.components)
-      .filter((c) => c.side === side)
-      .reduce<Record<string, number>>(
-        (totals, c) => ({ ...totals, [c.kind]: (totals[c.kind] || 0) + c.points }),
-        {},
-      );
-
   return (
     <div className="scoring-screen" onPointerDown={unlockRaidAudio}>
       <header className="live-view-header"><button className="tournament-back" onClick={onBack} aria-label="Back to matches">←</button><span className="live-status">{state.status.replaceAll('_', ' ')}</span>{match.practice && <span className="practice-tag" title="Practice match: not counted in player stats or leaderboards">PRACTICE</span>}<small>{state.status === 'COMPLETED' ? 'Match result' : 'Scorer mode'}</small><SidelineToggle />{onShare && <button className="share-live-button secondary" onClick={onShare}>Share live link</button>}</header>
@@ -883,52 +874,52 @@ export function LiveMatch({
             )}
           </section>
         </div>
-        <details className="match-aside"><summary>Full rosters and revival queues</summary>
-          {state.teams.map((team, index) => (
-            <section className="panel" key={index}>
-              <div className="panel-title">
-                <h2>{team.name}</h2>
-                <span className={`team-dot side-${index}`} />
-              </div>
-              <div className="court-count">
-                <strong>{activePlayers(team).length}</strong>
-                <span>ON COURT</span>
-                <small>{team.queue.length} out</small>
-              </div>
-              <div className="roster-list">
-                {team.players.map((p) => (
-                  <div key={p.id}>
-                    <span>
-                      <PlayerName player={p} />
-                      <small>
-                        {p.raidPoints} raid · {p.tacklePoints} tackle
-                        {p.raidPoints >= 10 ? ' · Super 10' : ''}
-                        {p.tacklePoints >= 5 ? ' · High Five' : ''}
-                      </small>
-                    </span>
-                    <span className={`status status-${p.status.toLowerCase()}`}>{p.status}</span>
-                  </div>
-                ))}
-              </div>
-              <p className="eyebrow queue-label">NEXT TO RETURN</p>
-              <p className="queue">
-                {team.queue.length
-                  ? team.queue.map((id) => team.players.find((p) => p.id === id)?.name).join(' → ')
-                  : 'No players waiting'}
-              </p>
-              {state.status === 'COMPLETED' && (
-                <div className="breakdown">
-                  {Object.entries(teamBreakdown(index as Side)).map(([kind, points]) => (
-                    <p key={kind}>
-                      <span>{kind.toLowerCase().replaceAll('_', ' ')}</span>
-                      <strong>{points}</strong>
-                    </p>
+        {state.status === 'COMPLETED' ? (
+          <section aria-label="Team scorecards" style={{ gridColumn: '1 / -1' }}>
+            <h3 className="live-section-title">Team scorecards</h3>
+            <PlayerScorecards
+              state={state}
+              events={events.filter((e) => !reversed.has(e.id)).map((e) => ({ type: e.intent.type, components: e.components }))}
+            />
+          </section>
+        ) : (
+          <details className="match-aside"><summary>Full rosters and revival queues</summary>
+            {state.teams.map((team, index) => (
+              <section className="panel" key={index}>
+                <div className="panel-title">
+                  <h2>{team.name}</h2>
+                  <span className={`team-dot side-${index}`} />
+                </div>
+                <div className="court-count">
+                  <strong>{activePlayers(team).length}</strong>
+                  <span>ON COURT</span>
+                  <small>{team.queue.length} out</small>
+                </div>
+                <div className="roster-list">
+                  {team.players.map((p) => (
+                    <div key={p.id}>
+                      <span>
+                        <PlayerName player={p} />
+                        <small>
+                          {p.raidPoints} raid · {p.tacklePoints} tackle
+                          {p.raidPoints >= 10 ? ' · Super 10' : ''}
+                          {p.tacklePoints >= 5 ? ' · High Five' : ''}
+                        </small>
+                      </span>
+                      <span className={`status status-${p.status.toLowerCase()}`}>{p.status}</span>
+                    </div>
                   ))}
                 </div>
-              )}
-            </section>
-          ))}
-        </details>
+                <p className="eyebrow queue-label">NEXT TO RETURN</p>
+                <p className="queue">
+                  {team.queue.length
+                    ? team.queue.map((id) => team.players.find((p) => p.id === id)?.name).join(' → ')
+                    : 'No players waiting'}
+                </p>
+              </section>
+            ))}
+          </details>
+        )}
       </div>
     </div>
   );
