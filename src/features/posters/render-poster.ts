@@ -1,7 +1,7 @@
 import QRCode from 'qrcode';
 import { POSTER } from './poster-palette';
 import { apiBaseUrl } from '../identity/data/api';
-import { fitRows, fitTables, printedLink, type FixturesPoster, type LivePoster, type PlayerPoster, type Poster, type PosterSponsor, type PosterStar, type ResultPoster, type TablePoster } from './poster-model';
+import { fitRows, fitTables, printedLink, type CardMilestone, type CardPoster, type FixturesPoster, type LivePoster, type PlayerPoster, type Poster, type PosterSponsor, type PosterStar, type ResultPoster, type TablePoster } from './poster-model';
 
 export type PosterSize = 'square' | 'story';
 export const POSTER_SIZES: Record<PosterSize, { width: number; height: number }> = {
@@ -38,7 +38,8 @@ export async function drawPoster(poster: Poster, size: PosterSize, link: string)
   // The Live now poster carries its own large QR code; the others a small one in the footer.
   const qrText: [string, string] | null = poster.kind === 'live' ? null
     : poster.kind === 'fixtures' || poster.kind === 'table' ? ['Fixtures, table and live scores', 'Scan to follow the tournament']
-      : ['Full scorecard', 'Scan to see every raid'];
+      : poster.kind === 'card' ? ['Verified career stats', 'Scan to see every tournament']
+        : ['Full scorecard', 'Scan to see every raid'];
   const footerTop = footer(g, link, H, story, false, qrText, short);
   // Sponsor logos sit in a row just above the footer.
   const sponsorH = story ? 120 : 84;
@@ -51,6 +52,7 @@ export async function drawPoster(poster: Poster, size: PosterSize, link: string)
     g.translate(0, shift);
     const end = poster.kind === 'result' ? resultBody(g, poster, top, story, bottom)
       : poster.kind === 'player' ? playerBody(g, poster, top, story, bottom)
+        : poster.kind === 'card' ? cardBody(g, poster, top, story, bottom)
         : poster.kind === 'fixtures' ? fixturesBody(g, poster, top, story, bottom)
           : poster.kind === 'table' ? tableBody(g, poster, top, story, bottom)
             : liveBody(g, poster, top, story, link, short, bottom);
@@ -181,14 +183,9 @@ function starCard(g: G, x: number, y: number, w: number, h: number, label: strin
 function playerBody(g: G, poster: PlayerPoster, top: number, story: boolean, bottom: number) {
   let y = top + (story ? 130 : 70);
   text(g, 'PLAYER OF THE MATCH', W / 2, y, font(700, story ? 40 : 32, DISPLAY), POSTER.textFaint, 6);
-  // Initials badge.
   const r = story ? 150 : 95;
   const cy = y + (story ? 60 : 30) + r;
-  g.beginPath(); g.arc(W / 2, cy, r, 0, Math.PI * 2);
-  g.fillStyle = POSTER.accent; g.fill();
-  g.lineWidth = 8; g.strokeStyle = alpha(POSTER.textStrong, 0.85); g.stroke();
-  const initials = poster.name.split(/\s+/).filter((w) => /\p{L}|\p{N}/u.test(w[0] ?? '')).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '★';
-  text(g, initials, W / 2, cy + r * 0.3, font(700, r * 0.9, DISPLAY), POSTER.textStrong);
+  initialsBadge(g, poster.name, cy, r);
   y = cy + r + (story ? 120 : 75);
   text(g, poster.name.toUpperCase(), W / 2, y, fit(g, poster.name.toUpperCase(), W - 2 * PAD, 700, story ? 96 : 76, DISPLAY), POSTER.textStrong);
   y += story ? 60 : 46;
@@ -206,18 +203,89 @@ function playerBody(g: G, poster: PlayerPoster, top: number, story: boolean, bot
     });
   }
   y += story ? 70 : 36;
-  const boxes: [string, number][] = [['RAID PTS', poster.raidPoints], ['TACKLE PTS', poster.tacklePoints], ['TOTAL', poster.total]];
-  const bw = (W - 2 * PAD - 2 * 24) / 3;
   const bh = story ? 210 : Math.max(120, Math.min(160, bottom - 10 - y));
-  boxes.forEach(([label, value], index) => {
-    const x = PAD + index * (bw + 24);
-    round(g, x, y, bw, bh, 28, index === 2 ? alpha(POSTER.accent, 0.18) : alpha(POSTER.textStrong, 0.06), index === 2 ? POSTER.accent : POSTER.line);
-    text(g, String(value), x + bw / 2, y + bh * 0.6, font(700, story ? 110 : 80, DISPLAY), index === 2 ? POSTER.accentSoft : POSTER.textStrong);
-    text(g, label, x + bw / 2, y + bh - (story ? 30 : 20), font(700, story ? 26 : 22), POSTER.textMuted, 2);
-  });
+  statBoxes(g, [['RAID PTS', poster.raidPoints], ['TACKLE PTS', poster.tacklePoints], ['TOTAL', poster.total]], y, bh, story);
   y += bh + (story ? 80 : 0);
   if (story) text(g, poster.scoreLine, W / 2, y, fit(g, poster.scoreLine, W - 2 * PAD, 600, 34), POSTER.text);
   return y;
+}
+
+/** Verified player card: badge, initials, name, team, then career raid / tackle / matches boxes. */
+function cardBody(g: G, poster: CardPoster, top: number, story: boolean, bottom: number) {
+  let y = top + (story ? 120 : 56);
+  text(g, 'PLAYER CARD', W / 2, y, font(700, story ? 40 : 30, DISPLAY), POSTER.textFaint, 6);
+  // "✓ VERIFIED BY RAIDZON" pill: these totals come only from counted tournament matches.
+  y += story ? 40 : 26;
+  const badge = '✓  VERIFIED BY RAIDZON';
+  g.font = font(700, story ? 28 : 22);
+  g.letterSpacing = '2px';
+  const bw = g.measureText(badge).width + (story ? 56 : 44), bh = story ? 58 : 46;
+  round(g, W / 2 - bw / 2, y, bw, bh, bh / 2, POSTER.success);
+  g.fillStyle = POSTER.bg; g.textAlign = 'center';
+  g.fillText(badge, W / 2, y + bh / 2 + (story ? 10 : 8));
+  g.letterSpacing = '0px';
+  y += bh;
+  const r = story ? 140 : 80;
+  const cy = y + (story ? 60 : 26) + r;
+  initialsBadge(g, poster.name, cy, r);
+  y = cy + r + (story ? 120 : 72);
+  text(g, poster.name.toUpperCase(), W / 2, y, fit(g, poster.name.toUpperCase(), W - 2 * PAD, 700, story ? 96 : 72, DISPLAY), POSTER.textStrong);
+  if (poster.team) {
+    y += story ? 60 : 44;
+    text(g, poster.team, W / 2, y, fit(g, poster.team, W - 2 * PAD, 600, story ? 40 : 30), POSTER.textMuted);
+  }
+  y += story ? 70 : 34;
+  // Milestones (only those above 0) take a row of smaller boxes; the main boxes shrink to make room on the square post.
+  const rowH = story ? 150 : 92, rowGap = story ? 24 : 18;
+  const reserve = poster.milestones.length ? rowH + rowGap : 0;
+  const boxH = story ? 210 : Math.max(110, Math.min(150, bottom - 10 - y - reserve));
+  statBoxes(g, [['RAID PTS', poster.raidPoints], ['TACKLE PTS', poster.tacklePoints], [poster.matches === 1 ? 'MATCH' : 'MATCHES', poster.matches]], y, boxH, story);
+  y += boxH;
+  if (poster.milestones.length) {
+    y += rowGap;
+    milestoneBoxes(g, poster.milestones, y, rowH, story);
+    y += rowH;
+  }
+  y += story ? 80 : 0;
+  if (story) {
+    const line = `${poster.total} total point${poster.total === 1 ? '' : 's'} in tournament matches`;
+    text(g, line, W / 2, y, fit(g, line, W - 2 * PAD, 600, 34), POSTER.text);
+  }
+  return y;
+}
+
+/** Accent circle with up to two initials (★ when the name has none). */
+function initialsBadge(g: G, name: string, cy: number, r: number) {
+  g.beginPath(); g.arc(W / 2, cy, r, 0, Math.PI * 2);
+  g.fillStyle = POSTER.accent; g.fill();
+  g.lineWidth = 8; g.strokeStyle = alpha(POSTER.textStrong, 0.85); g.stroke();
+  const initials = name.split(/\s+/).filter((w) => /\p{L}|\p{N}/u.test(w[0] ?? '')).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '★';
+  text(g, initials, W / 2, cy + r * 0.3, font(700, r * 0.9, DISPLAY), POSTER.textStrong);
+}
+
+/** Up to four small milestone boxes ("3 / SUPER RAIDS"), a quarter of the width each, centred. */
+function milestoneBoxes(g: G, milestones: readonly CardMilestone[], y: number, h: number, story: boolean) {
+  const gap = 16, bw = (W - 2 * PAD - 3 * gap) / 4;
+  let x = W / 2 - (bw * milestones.length + gap * (milestones.length - 1)) / 2;
+  for (const { name, count } of milestones) {
+    // "HIGH 5s" / "SUPER 10s" keep a lower-case plural s after the number.
+    const label = name.toUpperCase() + (count === 1 ? '' : /\d$/.test(name) ? 's' : 'S');
+    round(g, x, y, bw, h, 22, alpha(POSTER.success, 0.12), alpha(POSTER.success, 0.55));
+    text(g, String(count), x + bw / 2, y + h * (story ? 0.55 : 0.56), fit(g, String(count), bw - 24, 700, story ? 72 : 48, DISPLAY), POSTER.textStrong, 0, bw - 24);
+    text(g, label, x + bw / 2, y + h - (story ? 26 : 16), fit(g, label, bw - 20, 700, story ? 22 : 17), POSTER.success, 1, bw - 20);
+    x += bw + gap;
+  }
+}
+
+/** Three stat boxes in a row; the last is highlighted. */
+function statBoxes(g: G, boxes: [string, number][], y: number, bh: number, story: boolean) {
+  const bw = (W - 2 * PAD - 2 * 24) / 3;
+  boxes.forEach(([label, value], index) => {
+    const x = PAD + index * (bw + 24);
+    round(g, x, y, bw, bh, 28, index === 2 ? alpha(POSTER.accent, 0.18) : alpha(POSTER.textStrong, 0.06), index === 2 ? POSTER.accent : POSTER.line);
+    text(g, String(value), x + bw / 2, y + bh * 0.6, fit(g, String(value), bw - 24, 700, story ? 110 : 80, DISPLAY), index === 2 ? POSTER.accentSoft : POSTER.textStrong, 0, bw - 24);
+    text(g, label, x + bw / 2, y + bh - (story ? 30 : 20), font(700, story ? 26 : 22), POSTER.textMuted, 2);
+  });
 }
 
 const FIXTURE_TITLE = 'NEXT MATCHES';

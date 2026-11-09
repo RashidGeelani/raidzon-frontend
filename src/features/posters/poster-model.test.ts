@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fitRows, fitTables, fixturesPoster, livePoster, playerPoster, posterCaption, posterFileName, printedLink, resultPoster, shortLinkTarget, shorten, tablePoster, type PosterMatch, type PosterTournament } from './poster-model';
+import { cardPoster, careerMilestones, fitRows, milestoneText, fitTables, fixturesPoster, livePoster, playerPoster, posterCaption, posterFileName, printedLink, resultPoster, shortLinkTarget, shorten, tablePoster, type PosterMatch, type PosterTournament } from './poster-model';
 import type { FormatFixture, FormatStanding } from '../tournaments/data/format-types';
 
 const p = (name: string, raidPoints: number, tacklePoints: number) => ({ name, raidPoints, tacklePoints });
@@ -315,5 +315,72 @@ describe('short links', () => {
   });
   it('captions with the short link when there is one', () => {
     expect(posterCaption(livePoster(['A', 'B']), 'https://raidzon.com/m/AB2CD')).toBe('LIVE now: A vs B | Watch raid by raid: https://raidzon.com/m/AB2CD');
+  });
+});
+
+describe('cardPoster (verified player card)', () => {
+  const link = 'https://raidzon.com/players/0f8fad5b-d9cb-469f-a165-70867728950e';
+  const career = (over: Partial<Parameters<typeof cardPoster>[0]> = {}) => ({
+    name: 'Aamir Dar', matches: 12, raidPoints: 120, tacklePoints: 34,
+    tournaments: [
+      { startsOn: '2026-05-01', teamName: 'Sopore Lions' },
+      { startsOn: '2026-09-09', teamName: 'Bandipora Bulls' },
+    ],
+    ...over,
+  });
+
+  it('has career totals and the team of the latest tournament', () => {
+    expect(cardPoster(career())).toEqual({
+      kind: 'card', tournament: null, date: null, venue: null,
+      name: 'Aamir Dar', team: 'Bandipora Bulls', matches: 12, raidPoints: 120, tacklePoints: 34, total: 154, milestones: [],
+    });
+  });
+  it('reads missing milestone counts (older API) as 0 and shows none', () => {
+    // career() sends no superRaids/superTackles/highFives/superTens, like the API before they were added.
+    expect(cardPoster(career())!.milestones).toEqual([]);
+  });
+  it('lists the milestones above 0 in card order and adds them to the caption', () => {
+    const poster = cardPoster(career({ superTens: 2, superRaids: 7, highFives: 0, superTackles: 1 }))!;
+    expect(poster.milestones).toEqual([{ name: 'super raid', count: 7 }, { name: 'super tackle', count: 1 }, { name: 'Super 10', count: 2 }]);
+    expect(posterCaption(poster, link)).toBe(`Aamir Dar (Bandipora Bulls): 120 raid points, 34 tackle points in 12 matches, 7 super raids, 1 super tackle, 2 Super 10s | Verified stats: ${link}`);
+  });
+  it('keeps large counts and singular High 5', () => {
+    const poster = cardPoster(career({ superRaids: 1250, superTackles: 310, highFives: 1, superTens: 99 }))!;
+    expect(poster.milestones.map(milestoneText)).toEqual(['1250 super raids', '310 super tackles', '1 High 5', '99 Super 10s']);
+  });
+  it('gives the same milestones to the player page', () => {
+    expect(careerMilestones({ highFives: 3 })).toEqual([{ name: 'High 5', count: 3 }]);
+    expect(careerMilestones({})).toEqual([]);
+  });
+  it('is not offered when no match counts yet', () => {
+    expect(cardPoster(career({ matches: 0, raidPoints: 0, tacklePoints: 0, tournaments: [] }))).toBeNull();
+  });
+  it('shortens long names and teams', () => {
+    const poster = cardPoster(career({ name: 'Mohammad Aamir Ul Islam Dar Bandipori', tournaments: [{ startsOn: '2026-09-09', teamName: 'Bandipora Bulls Kabaddi Club United' }] }))!;
+    expect([...poster.name].length).toBeLessThanOrEqual(24);
+    expect(poster.name.endsWith('…')).toBe(true);
+    expect([...poster.team!].length).toBeLessThanOrEqual(22);
+  });
+  it('leaves the team out when no tournament names one, and the caption drops the brackets', () => {
+    const poster = cardPoster(career({ tournaments: [{ startsOn: '2026-09-09', teamName: null }, { startsOn: '2026-10-01', teamName: '  ' }] }))!;
+    expect(poster.team).toBeNull();
+    expect(posterCaption(poster, link)).toBe(`Aamir Dar: 120 raid points, 34 tackle points in 12 matches | Verified stats: ${link}`);
+  });
+  it('keeps zero tackle points and one-match singulars in the caption', () => {
+    const poster = cardPoster(career({ matches: 1, raidPoints: 1, tacklePoints: 0 }))!;
+    expect(poster.total).toBe(1);
+    expect(posterCaption(poster, link)).toBe(`Aamir Dar (Bandipora Bulls): 1 raid point, 0 tackle points in 1 match | Verified stats: ${link}`);
+  });
+  it('works for a defender with only tackle points', () => {
+    const poster = cardPoster(career({ raidPoints: 0, tacklePoints: 41 }))!;
+    expect([poster.raidPoints, poster.tacklePoints, poster.total]).toEqual([0, 41, 41]);
+  });
+  it('captions with the full player link and names the file', () => {
+    const poster = cardPoster(career())!;
+    expect(posterCaption(poster, link)).toBe(`Aamir Dar (Bandipora Bulls): 120 raid points, 34 tackle points in 12 matches | Verified stats: ${link}`);
+    expect(posterFileName(poster)).toBe('raidzon-aamir-dar-player-card.png');
+    // Short links cover matches and tournaments only, so the card keeps the full player page link.
+    expect(shortLinkTarget(link)).toBeNull();
+    expect(printedLink(link)).toBeNull();
   });
 });
