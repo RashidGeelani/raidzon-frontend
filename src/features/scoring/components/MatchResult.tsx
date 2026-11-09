@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import type { LocalMatch, MatchEvent, Side } from '../domain/match-types';
 import { useTournamentBrand } from '../../tournaments/sponsors';
 import { PosterShareButton } from '../../posters/PosterShareButton';
+import { SponsorStrip } from '../../tournaments/SponsorViews';
 import { milestones, summarizeMatch, type MatchSummary, type Standout, type TeamPerformance } from '../domain/match-summary';
 
 const TEAM_COLORS = ['#ff5a1f', '#4c7dff'] as const;
@@ -55,6 +56,7 @@ export function MatchResult({ match, events, watchLink }: { match: LocalMatch; e
         {note && <p className="field-note" role="status">{note}</p>}
         {watchLink && <PosterShareButton match={state} meta={{ tournamentName: brand.name, date: Date.parse(match.createdAt), sponsors: brand.sponsors }} link={watchLink} />}
       </div>
+      <SponsorStrip sponsors={brand.sponsors} />
       {(summary.playerOfTheMatch || summary.topRaider || summary.topDefender) && <div className="result-standouts">
         <StandoutRow label="Player of the match" icon="★" standout={summary.playerOfTheMatch} value={(s) => plural(s.player.raidPoints + s.player.tacklePoints, 'pt')} featured />
         <StandoutRow label="Top raider" icon="↗" standout={summary.topRaider} value={(s) => plural(s.player.raidPoints, 'raid pt')} />

@@ -2522,6 +2522,7 @@ html[data-overlay], html[data-overlay] body { background: transparent; }
 .sponsor-strip ul { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
 .sponsor-strip li { display: flex; align-items: center; justify-content: center; height: 40px; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: var(--logo-tile); }
 .sponsor-strip li.title { height: 52px; }
+.sponsor-strip a { display: contents; } /* linked logos: keep the img a direct flex child so max-height: 100% applies */
 .sponsor-strip img { display: block; max-height: 100%; max-width: 96px; object-fit: contain; }
 .sponsor-strip li.title img { max-width: 140px; }
 .presented-by { margin: 0; color: var(--text-muted); font-size: var(--text-sm); }
