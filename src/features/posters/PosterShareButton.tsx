@@ -4,8 +4,8 @@ import { Tabs } from '../../ui/Tabs';
 import { api } from '../identity/data/api';
 import { useTournamentBrand } from '../tournaments/sponsors';
 import {
-  fixturesPoster, livePoster, playerPoster, posterCaption, posterFileName, resultPoster, shortLinkTarget, tablePoster,
-  type Poster, type PosterMatch, type PosterMeta, type PosterTournament,
+  cardPoster, fixturesPoster, livePoster, playerPoster, posterCaption, posterFileName, resultPoster, shortLinkTarget, tablePoster,
+  type Poster, type PosterCareer, type PosterMatch, type PosterMeta, type PosterTournament,
 } from './poster-model';
 import { renderPoster, type PosterSize } from './render-poster';
 
@@ -49,6 +49,14 @@ export function TournamentPosterButton({ detail, kind, link }: { detail: PosterT
   const choices = useMemo(() => (poster ? [{ label: kind === 'fixtures' ? 'Next matches' : 'Points table', poster }] : []), [poster, kind]);
   if (!poster) return null;
   return <PosterButton eyebrow={kind === 'fixtures' ? 'FIXTURES' : 'POINTS TABLE'} label={kind === 'fixtures' ? 'Share fixtures poster' : 'Share points table poster'} choices={choices} link={link} />;
+}
+
+/** Verified player card from the public player page; hidden when no match counts yet. link is the player page. */
+export function PlayerCardButton({ player, link }: { player: PosterCareer; link: string }) {
+  const poster = useMemo(() => cardPoster(player), [player]);
+  const choices = useMemo(() => (poster ? [{ label: 'Player card', poster }] : []), [poster]);
+  if (!poster) return null;
+  return <PosterButton eyebrow="PLAYER CARD" label="Share player card" choices={choices} link={link} />;
 }
 
 export const tournamentLink = (tournamentId: string) => `${window.location.origin}/tournaments/${tournamentId}`;

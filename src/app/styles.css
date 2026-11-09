@@ -2429,6 +2429,9 @@ article.home-match { cursor: default; }
 .roster-player-card:has(.jersey-field) label:nth-of-type(2) { grid-column: 3; grid-row: 1; }
 .roster-player-card:has(.jersey-field) label:nth-of-type(3) { grid-column: 2 / 4; grid-row: 2; }
 .roster-player-card:has(.jersey-field) .quiet { grid-column: 2 / 4; }
+.roster-player-card.roster-clash { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 8%, var(--bg)); }
+.roster-player-card.roster-clash input[type=tel] { border-color: var(--danger); }
+.roster-clash-note { grid-column: 2 / -1; margin: 0; font-size: .75rem; color: var(--danger-strong); }
 .jersey-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 2.1em; margin-right: 6px; padding: 1px 5px; border-radius: 7px; background: var(--accent); color: #fff; font-size: 1.05em; font-weight: 900; line-height: 1.35; font-variant-numeric: tabular-nums; }
 .player-chip .jersey-badge { display: flex; width: fit-content; margin: 0 0 4px; font-size: 1.35em; }
 .jersey-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 12px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--card-raised); }
@@ -2509,6 +2512,8 @@ html[data-overlay], html[data-overlay] body { background: transparent; }
 
 /* Organiser poster kit (src/features/posters) */
 .poster-share-button { width: 100%; margin-top: var(--space-3); }
+/* Player page: the hero already spaces it from above; keep it off the Tournaments section below. */
+.public-player .poster-share-button { margin: 0 0 var(--space-4); }
 .poster-preview { display: block; width: auto; max-width: 100%; max-height: 52vh; margin: var(--space-3) auto; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); }
 
 /* Tournament sponsors (src/features/tournaments/SponsorViews.tsx) */

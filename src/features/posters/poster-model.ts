@@ -109,7 +109,41 @@ export interface LivePoster extends PosterHeader {
   kind: 'live';
   teams: [string, string];
 }
-export type Poster = ResultPoster | PlayerPoster | FixturesPoster | TablePoster | LivePoster;
+/** Career totals from the public player page (/players/:id); only counted tournament matches are in them. */
+export interface PosterCareer {
+  name: string;
+  matches: number;
+  raidPoints: number;
+  tacklePoints: number;
+  tournaments: readonly { startsOn: string; teamName: string | null }[];
+  /** Missing from an older API: read as 0. */
+  superRaids?: number;
+  superTackles?: number;
+  highFives?: number;
+  superTens?: number;
+}
+/** Career milestones on the card, in this order; name is the singular ("super raid"). */
+export const CARD_MILESTONES = [['superRaids', 'super raid'], ['superTackles', 'super tackle'], ['highFives', 'High 5'], ['superTens', 'Super 10']] as const;
+export interface CardMilestone { name: string; count: number }
+/** The milestones above 0, in card order. */
+export const careerMilestones = (player: Partial<Record<(typeof CARD_MILESTONES)[number][0], number>>): CardMilestone[] =>
+  CARD_MILESTONES.map(([key, name]) => ({ name, count: player[key] ?? 0 })).filter((item) => item.count > 0);
+/** "3 super raids", "1 High 5". */
+export const milestoneText = ({ name, count }: CardMilestone) => `${count} ${name}${count === 1 ? '' : 's'}`;
+/** Verified player card: career totals, not one match. */
+export interface CardPoster extends PosterHeader {
+  kind: 'card';
+  name: string;
+  /** The team in the player's latest tournament, when known. */
+  team: string | null;
+  matches: number;
+  raidPoints: number;
+  tacklePoints: number;
+  total: number;
+  /** Only the milestones above 0. */
+  milestones: CardMilestone[];
+}
+export type Poster = ResultPoster | PlayerPoster | FixturesPoster | TablePoster | LivePoster | CardPoster;
 
 export const MAX_TEAM = 22;
 export const MAX_PLAYER = 24;
@@ -193,6 +227,26 @@ export function playerPoster(match: PosterMatch, meta: PosterMeta = {}): PlayerP
     total: total(player),
     tags: milestones(player),
     scoreLine: `${result.teams[0]} ${result.score[0]} – ${result.score[1]} ${result.teams[1]}`,
+  };
+}
+
+/** Player card from career totals; null when no match counts yet (nothing verified to show). */
+export function cardPoster(player: PosterCareer): CardPoster | null {
+  if (player.matches <= 0) return null;
+  // Latest tournament with a team; ISO dates sort as text.
+  const latest = [...player.tournaments].filter((item) => item.teamName?.trim()).sort((a, b) => b.startsOn.localeCompare(a.startsOn))[0];
+  return {
+    kind: 'card',
+    tournament: null,
+    date: null,
+    venue: null,
+    name: shorten(player.name, MAX_PLAYER, 'Player'),
+    team: latest ? shorten(latest.teamName, MAX_TEAM) : null,
+    matches: player.matches,
+    raidPoints: player.raidPoints,
+    tacklePoints: player.tacklePoints,
+    total: player.raidPoints + player.tacklePoints,
+    milestones: careerMilestones(player),
   };
 }
 
@@ -306,6 +360,11 @@ export function fitTables(tables: readonly PosterTable[], budget: number): Poste
  */
 export function posterCaption(poster: Poster, link: string) {
   const tournament = poster.tournament ? `${poster.tournament}: ` : '';
+  if (poster.kind === 'card') {
+    const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : word === 'match' ? 'es' : 's'}`;
+    const milestones = poster.milestones.map((item) => `, ${milestoneText(item)}`).join('');
+    return `${poster.name}${poster.team ? ` (${poster.team})` : ''}: ${plural(poster.raidPoints, 'raid point')}, ${plural(poster.tacklePoints, 'tackle point')} in ${plural(poster.matches, 'match')}${milestones} | Verified stats: ${link}`;
+  }
   if (poster.kind === 'live') return `LIVE now: ${poster.teams[0]} vs ${poster.teams[1]}${poster.tournament ? ` (${poster.tournament})` : ''} | Watch raid by raid: ${link}`;
   if (poster.kind === 'fixtures') {
     const list = poster.rows.slice(0, 3).map((row) => `${row.teamA} vs ${row.teamB}${row.time === 'Time TBC' ? '' : ` (${row.time})`}`).join(', ');
@@ -347,6 +406,7 @@ export function posterFileName(poster: Poster) {
   const name = poster.kind === 'result' ? `${slug(poster.teams[0])}-vs-${slug(poster.teams[1])}`
     : poster.kind === 'live' ? `${slug(poster.teams[0])}-vs-${slug(poster.teams[1])}-live`
       : poster.kind === 'player' ? `${slug(poster.name)}-player-of-the-match`
+        : poster.kind === 'card' ? `${slug(poster.name)}-player-card`
         : `${slug(poster.tournament ?? 'tournament')}-${poster.kind === 'fixtures' ? 'fixtures' : 'points-table'}`;
   return `raidzon-${name}.png`;
 }

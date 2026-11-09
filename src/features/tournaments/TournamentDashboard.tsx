@@ -372,6 +372,7 @@ export function TournamentDashboard({
             <RosterEditor
               key={`${team.id}:${team.rosterRevision}`}
               team={team}
+              otherTeams={detail.teams.filter((other) => other.id !== team.id)}
               busy={busy}
               online={online}
               onSave={(players) =>
@@ -617,12 +618,14 @@ function FixtureSchedule({
 
 function RosterEditor({
   team,
+  otherTeams,
   busy,
   online,
   onSave,
   onSync,
 }: {
   team: Team;
+  otherTeams: Team[];
   busy: boolean;
   online: boolean;
   onSave: (players: { name: string; phone: string; jersey: number | null }[]) => void;
@@ -635,6 +638,15 @@ function RosterEditor({
       : Array.from({ length: 7 }, () => ({ name: '', phone: '', jersey: '' })),
   );
   const [error, setError] = useState('');
+  // A player can be on only one team per tournament: find which row (by phone) is already on another team.
+  const registered = new Map(otherTeams.flatMap((other) => (other.roster ?? []).map((player) => [player.phone, { team: other.name, name: player.name }] as const)));
+  const clashOf = (phone: string) => {
+    try { return registered.get(normalizePhone(phone)); } catch { return undefined; }
+  };
+  const rowLabel = (index: number) => {
+    const player = players[index];
+    return `Row ${String(index + 1).padStart(2, '0')}${player.jersey ? ` (#${player.jersey})` : ''} ${player.name.trim() || 'unnamed'}`;
+  };
   function update(index: number, field: 'name' | 'phone' | 'jersey', value: string) {
     setPlayers((current) =>
       current.map((player, at) => (at === index ? { ...player, [field]: value } : player)),
@@ -669,6 +681,12 @@ function RosterEditor({
             const numbers = normalized.map((player) => player.jersey).filter((n) => n !== null);
             if (new Set(numbers).size !== numbers.length)
               throw new Error('Each player needs a different jersey number.');
+            const clashes = players.flatMap((player, index) => {
+              const clash = clashOf(player.phone);
+              return clash ? [`${rowLabel(index)} is already on ${clash.team} as ${clash.name}`] : [];
+            });
+            if (clashes.length)
+              throw new Error(`A player can play for only one team in a tournament. ${clashes.join('; ')}.`);
             setError('');
             onSave(normalized);
           } catch (cause) {
@@ -676,8 +694,8 @@ function RosterEditor({
           }
         }}
       >
-        {players.map((player, index) => (
-          <div className="roster-player-card" key={index}>
+        {players.map((player, index) => { const clash = clashOf(player.phone); return (
+          <div className={`roster-player-card${clash ? ' roster-clash' : ''}`} key={index}>
             <span className="number">{String(index + 1).padStart(2, '0')}</span>
             <label className="jersey-field">
               <span className="sr-only">
@@ -730,8 +748,13 @@ function RosterEditor({
                 Remove
               </button>
             )}
+            {clash && (
+              <p className="roster-clash-note">
+                This mobile number is already on <strong>{clash.team}</strong> as {clash.name}. Remove the player there or use a different player here.
+              </p>
+            )}
           </div>
-        ))}
+        ); })}
         <div className="roster-actions"><button
           type="button"
           className="secondary"

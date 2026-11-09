@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { api, ApiError } from '../identity/data/api';
 import { playerJsonLd, setPageMeta } from '../../app/page-meta';
+import { PlayerCardButton } from '../posters/PosterShareButton';
+import { careerMilestones, milestoneText } from '../posters/poster-model';
 
 interface PublicPlayer {
   playerId: string;
@@ -9,6 +11,11 @@ interface PublicPlayer {
   raidPoints: number;
   tacklePoints: number;
   tournaments: { tournamentId: string; name: string; startsOn: string; teamName: string | null; matches: number; raidPoints: number; tacklePoints: number }[];
+  /** Sent by newer servers only; missing means 0. */
+  superRaids?: number;
+  superTackles?: number;
+  highFives?: number;
+  superTens?: number;
 }
 
 /** Signed-out player page at /players/:id: career totals from completed tournament matches (the data leaderboards already show). */
@@ -41,8 +48,11 @@ export function PublicPlayerPage({ playerId }: { playerId: string }) {
         <section className="info-hero">
           <p className="eyebrow">KABADDI PLAYER</p>
           <h1>{player.name}</h1>
-          <p>{player.matches} tournament {player.matches === 1 ? 'match' : 'matches'} · {player.raidPoints} raid points · {player.tacklePoints} tackle points · {player.raidPoints + player.tacklePoints} total</p>
+          <p>{[`${player.matches} tournament ${player.matches === 1 ? 'match' : 'matches'}`, `${player.raidPoints} raid points`, `${player.tacklePoints} tackle points`,
+            `${player.raidPoints + player.tacklePoints} total`,
+            ...careerMilestones(player).map(milestoneText)].join(' · ')}</p>
         </section>
+        <PlayerCardButton player={player} link={`${window.location.origin}/players/${encodeURIComponent(player.playerId)}`} />
         <section className="info-section">
           <h2>Tournaments</h2>
           <ul className="tournament-team-list">{player.tournaments.map((item) => <li key={item.tournamentId}><span className="tournament-team-text">
