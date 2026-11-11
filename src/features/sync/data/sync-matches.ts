@@ -19,9 +19,15 @@ export interface SyncTransport {
   claim(body: unknown): Promise<Registration>;
   append(matchId: string, body: unknown): Promise<Acknowledgement>;
   linkFixture?(tournamentId: string, fixtureId: string, matchId: string): Promise<unknown>;
+  /** For a match this phone took over: asks the server for its version instead of registering it again. */
+  resume?(matchId: string): Promise<Registration>;
 }
 export const SYNC_TIMEOUT_MS = 45_000;
-function canonical(value: unknown): string {
+/** The server's answer when another phone now scores the match. */
+export const SCORING_MOVED = 'SCORING_MOVED';
+export const MOVED_MESSAGE = 'This match is now being scored on another phone.';
+const scoringMoved = (error: unknown) => error instanceof ApiError && error.code === SCORING_MOVED;
+export function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
   if (value !== null && typeof value === 'object')
     return `{${Object.entries(value)
@@ -73,7 +79,7 @@ export async function syncMatch(...args: Parameters<typeof syncOnce>) {
   try {
     return await syncOnce(matchId, account, database, transport, false);
   } catch (error) {
-    if (error instanceof ApiError && error.status >= 400 && error.status < 500 && ![401, 408, 429].includes(error.status))
+    if (error instanceof ApiError && error.status >= 400 && error.status < 500 && ![401, 408, 429].includes(error.status) && !scoringMoved(error))
       return syncOnce(matchId, account, database, transport, true);
     throw error;
   }
@@ -86,6 +92,7 @@ async function syncOnce(
   transport: SyncTransport = {
     claim: (body) => api('/matches', body, account.token, SYNC_TIMEOUT_MS),
     append: (id, body) => api(`/matches/${id}/events`, body, account.token, SYNC_TIMEOUT_MS),
+    resume: (id) => api(`/matches/${id}/takeover`, {}, account.token, SYNC_TIMEOUT_MS),
     linkFixture: (tournamentId, fixtureId, id) =>
       api(
         `/tournaments/${tournamentId}/fixtures/${fixtureId}/match`,
@@ -132,10 +139,12 @@ async function syncOnce(
       throw new Error('Local history has a gap. Upload stopped; your history is preserved.');
     // Older v2 saves have no initial snapshot. Before the first event the roster is still original.
     const initial = structuredClone(match.initialState ?? events[0]?.before ?? match.state);
-    initial.clock = {
-      remainingMs: initial.halfMinutes * 60_000,
-      startedAt: clockStartsWithFirstRaid(match.rulesetVersion) ? null : Date.parse(match.createdAt),
-    };
+    // A taken-over match keeps the server's own setup, clock included.
+    if (!match.takenOver)
+      initial.clock = {
+        remainingMs: initial.halfMinutes * 60_000,
+        startedAt: clockStartsWithFirstRaid(match.rulesetVersion) ? null : Date.parse(match.createdAt),
+      };
     const atVersion = (version: number) => (version === 0 ? initial : events[version - 1]?.after);
     const checkState = (version: number, state: MatchState) => {
       if (
@@ -156,7 +165,9 @@ async function syncOnce(
       !match.syncError &&
       events.every((event) => event.syncStatus !== 'SYNCED' || event.sequence <= match.serverVersion!);
     const register = async () => {
-    const registration = await transport.claim({
+    // The original setup time isn't kept on a taken-over copy, so registering again would look like different facts.
+    if (match.takenOver && !transport.resume) throw new Error('Unable to check this match with the server. Retry synchronization.');
+    const registration = match.takenOver ? await transport.resume!(matchId) : await transport.claim({
       rulesetVersion: match.rulesetVersion,
       matchId,
       teams: initial.teams.map((team) => ({
@@ -246,13 +257,15 @@ async function syncOnce(
       });
     }
   } catch (error) {
-    await database.matches.update(matchId, {
-      syncError: error instanceof Error ? error.message : 'Unable to sync.',
-    });
+    // Another phone took the match over: lock this copy and keep its unsent taps to show, never to upload.
+    await database.matches.update(matchId, scoringMoved(error)
+      ? { movedAway: true, syncError: MOVED_MESSAGE }
+      : { syncError: error instanceof Error ? error.message : 'Unable to sync.' });
     throw error;
   }
 }
 export function needsSync(match: LocalMatch) {
+  if (match.movedAway) return false;
   return (
     !match.serverAccountId ||
     match.serverVersion !== match.version ||

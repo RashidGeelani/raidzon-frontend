@@ -28,6 +28,7 @@ import { needsSync } from '../features/sync/data/sync-matches';
 import { LiveSyncBadge } from '../features/sync/LiveSyncBadge';
 import { ShareMatchPopup } from '../features/scorecard/ShareMatchPopup';
 import { FixtureLinkNotice } from '../features/sync/FixtureLinkNotice';
+import { MatchMovedAway } from '../features/sync/MatchHandover';
 import type { Focus } from '../features/notifications/notification-client';
 
 function readFlag(key: string) {
@@ -145,12 +146,14 @@ export function App() {
   const canScore =
     match &&
     !match.scoringDelegated &&
+    !match.movedAway &&
     match.ownerSessionId === session &&
     (!matchOwner || matchOwner === scoringAccount);
   const canScoreMatch = (item: LocalMatch) => {
     const owner = item.serverAccountId ?? item.localAccountId;
     return (
       !item.scoringDelegated &&
+      !item.movedAway &&
       item.ownerSessionId === session &&
       (!owner || owner === scoringAccount)
     );
@@ -443,6 +446,17 @@ export function App() {
                   .then((account) => {
                     if (account) setShareId(created.id);
                   });
+              }}
+            />
+          ) : match?.movedAway ? (
+            <MatchMovedAway
+              match={match}
+              events={events}
+              online={online}
+              onBack={home}
+              onOpen={(id) => {
+                setSelectedId(id);
+                setError('');
               }}
             />
           ) : match && !canScore ? (

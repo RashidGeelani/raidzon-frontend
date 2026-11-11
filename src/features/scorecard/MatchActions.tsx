@@ -16,7 +16,7 @@ export function MatchActions({ matchId, matches, onScore, completed = false }: {
   }, [matchId]);
   const local = matches.find((match) => match.id === matchId);
   const owner = local?.serverAccountId ?? local?.localAccountId;
-  const canScore = local && authority && !local.scoringDelegated && local.ownerSessionId === authority.device && (!owner || owner === authority.account);
+  const canScore = local && authority && !local.scoringDelegated && !local.movedAway && local.ownerSessionId === authority.device && (!owner || owner === authority.account);
   return <div className="match-access-actions">
     <a className="watch-match" href={`/watch/${matchId}`}>{completed ? 'View result' : '◉ Watch Live'}</a>
     {canScore && onScore && !completed && <button onClick={() => onScore(matchId)}>Score</button>}

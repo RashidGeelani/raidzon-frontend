@@ -9,6 +9,8 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    /** The server's error code, e.g. SCORING_MOVED. */
+    public code?: string,
   ) {
     super(message);
   }
@@ -36,7 +38,7 @@ export async function api<T>(path: string, body?: unknown, token?: string, timeo
     );
   }
   if (!response.ok)
-    throw new ApiError(response.status, data.message ?? 'The request could not be completed.');
+    throw new ApiError(response.status, data.message ?? 'The request could not be completed.', data.code);
   return data as T;
 }
 /** The API origin, e.g. https://raidzon-backend.onrender.com, or '' for same-origin deployments. */
