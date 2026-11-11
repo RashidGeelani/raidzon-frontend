@@ -1,7 +1,7 @@
 import { ApiError, type AccountSession } from '../../identity/data/auth-client';
 import { restoreSession } from '../../identity/data/session-store';
 import { db, type RaidzOnDatabase } from '../../matches/data/match-repository';
-import { needsSync, syncMatch } from './sync-matches';
+import { MOVED_MESSAGE, needsSync, syncMatch } from './sync-matches';
 
 /**
  * Online scoring: every recorded event is sent to the server immediately, one upload at a time
@@ -66,6 +66,10 @@ export async function pushNow(
   const account = options.session !== undefined ? options.session : await restoreSession().catch(() => null);
   const match = await database.matches.get(matchId);
   if (!match) return;
+  if (match.movedAway) {
+    set(matchId, { status: 'error', message: MOVED_MESSAGE });
+    return;
+  }
   const owner = match.serverAccountId ?? match.localAccountId;
   if (!account || !owner || owner !== account.accountId || match.ownerSessionId !== account.deviceId || match.scoringDelegated) {
     set(matchId, { status: 'local', message: 'Saved on this phone. Sign in before starting a match to share it live.' });

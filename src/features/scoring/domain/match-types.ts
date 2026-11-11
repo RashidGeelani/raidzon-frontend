@@ -131,6 +131,10 @@ export interface LocalMatch {
   serverAccountId?: string;
   localAccountId?: string;
   scoringDelegated?: boolean;
+  /** Another phone took over scoring ("Continue scoring here"): this copy is locked; unsent taps are kept, never merged. */
+  movedAway?: boolean;
+  /** This phone took the match over from another phone: it re-checks with the server instead of registering it again. */
+  takenOver?: boolean;
   serverVersion?: number;
   syncError?: string;
   rulesetVersion?: RulesetVersion;

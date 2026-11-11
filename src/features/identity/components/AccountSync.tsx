@@ -175,6 +175,7 @@ export function AccountSync({
           account={account}
           online={online}
           revision={matches.map((match) => `${match.id}:${match.serverVersion ?? -1}`).join('|')}
+          onOpenMatch={onScoreMatch}
         />
       )}
       {account && section === 'teams' && <TeamsScreen key={`teams-${account.accountId}`} account={account} online={online} focusTeamId={focus?.teamId || focus?.view === 'invitations' ? `${focus.teamId ?? ''}#${focus.nonce}` : undefined} />}

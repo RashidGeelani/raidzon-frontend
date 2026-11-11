@@ -226,6 +226,7 @@ export async function recordEvent(
           throw new Error(
             'This match uses the previous rules. Its history is preserved; start a new match for the updated rules.',
           );
+        if (match.movedAway) throw new Error('This match is now being scored on another phone.');
         if (match.scoringDelegated || match.ownerSessionId !== ownerSessionId)
           throw new Error('This scoring session is read-only.');
         const accountOwner = match.serverAccountId ?? match.localAccountId;

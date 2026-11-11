@@ -5,6 +5,7 @@ import { ShareScorecard } from '../../scorecard/ShareScorecard';
 import { EditPlayerProfile } from './EditPlayerProfile';
 import { AdminReports, AdminStats } from './AdminReports';
 import { APP_RELEASE } from '../../legal/InfoPages';
+import { ContinueScoringHere } from '../../sync/MatchHandover';
 
 interface Dashboard {
   accountId: string;
@@ -37,6 +38,8 @@ interface Dashboard {
     practice?: boolean;
     /** Taken down by a RaidzOn admin. */
     removed?: boolean;
+    /** You score this unfinished match, but on another phone: it can be moved here. */
+    scoringElsewhere?: boolean;
   }[];
   /** This account can review match reports. */
   admin?: boolean;
@@ -45,10 +48,13 @@ export function AccountDashboard({
   account,
   online,
   revision,
+  onOpenMatch,
 }: {
   account: AccountSession;
   online: boolean;
   revision: string;
+  /** Opens a match after it was moved to this phone. */
+  onOpenMatch?: (matchId: string) => void;
 }) {
   const [data, setData] = useState<Dashboard | null>(null);
   const [error, setError] = useState('');
@@ -127,6 +133,30 @@ export function AccountDashboard({
           <a className="profile-menu-row profile-menu-link" href="/help"><span className="profile-menu-icon" aria-hidden="true">?</span><div><strong>Help & Support</strong><small>How scoring works, FAQs and contact · {APP_RELEASE}</small></div><span className="profile-menu-chevron" aria-hidden="true">›</span></a>
           <a className="profile-menu-row profile-menu-link" href="/privacy"><span className="profile-menu-icon" aria-hidden="true">⛉</span><div><strong>Privacy policy</strong><small>What we collect and how it is used</small></div><span className="profile-menu-chevron" aria-hidden="true">›</span></a>
         </div>
+        {data.recentMatches.some((match) => match.scoringElsewhere) && (
+          <section className="handover-list" aria-label="Live on another phone">
+            <h3>Live on another phone</h3>
+            <p className="field-note">You are scoring these matches on a different phone. If that phone is lost or not working, carry on here.</p>
+            <ul>
+              {data.recentMatches.filter((match) => match.scoringElsewhere).map((match) => (
+                <li key={match.id}>
+                  <strong>{match.teamA} {match.scoreA}–{match.scoreB} {match.teamB}</strong>
+                  <small><span className="handover-badge">Live on another phone</span> · updated {new Date(match.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small>
+                  <ContinueScoringHere
+                    matchId={match.id}
+                    title={`${match.teamA} vs ${match.teamB}`}
+                    online={online}
+                    phone={data.phone}
+                    onDone={(id) => {
+                      setRefresh((value) => value + 1);
+                      onOpenMatch?.(id);
+                    }}
+                  />
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
         <details className="profile-matches">
           <summary>My synced matches · {data.ownedMatchCount}</summary>
           {data.recentMatches.length ? <ul>{data.recentMatches.map((match) => <li key={match.id}>

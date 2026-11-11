@@ -33,7 +33,8 @@ export function HomeFeed({
   onBrowseTournaments: () => void;
 }) {
   const resumable = matches.filter(
-    (match) => match.state.status !== 'COMPLETED' && canResume(match),
+    // A match moved to another phone stays listed so its lock screen (and unsent taps) can be opened.
+    (match) => match.state.status !== 'COMPLETED' && (canResume(match) || !!match.movedAway),
   );
   const { details } = useJoinedTournaments(online);
   const live = details.flatMap((detail) =>
@@ -101,7 +102,7 @@ export function HomeFeed({
                   </b>
                   <strong>{match.state.teams[1].name}</strong>
                 </span>
-                <span className="home-match-cta">Resume match →</span>
+                <span className="home-match-cta">{match.movedAway ? 'Moved to another phone' : 'Resume match →'}</span>
               </button>
             ))}
           </section>
